@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775755650925,
+      "tag": "0000_ambitious_longshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775831543000,
+      "tag": "0001_shiny_joystick",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775833760591,
+      "tag": "0002_flashy_lockheed",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775837906052,
+      "tag": "0003_money_to_integer_cents",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775839645750,
+      "tag": "0004_add_route_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775839791399,
+      "tag": "0005_add_route_inventory_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775840879863,
+      "tag": "0006_update_routes_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775841665830,
+      "tag": "0007_update_clients_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775845678495,
+      "tag": "0008_update_users_for_employees",
+      "breakpoints": true
+    }
+  ]
+}

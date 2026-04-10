@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "route_product_idx" ON "route_inventory" USING btree ("route_id","product_id");
