@@ -1,0 +1,6 @@
+- [x] Pull latest changes from `main`
+- [x] Run database maintenance scripts
+    - [x] Sync master database schema (`sync_master_db.ts`)
+    - [x] Apply migrations to all tenants (`migrate-existing-tenants.ts`)
+    - [x] Apply stock constraint script (`apply_stock_constraint.ts`)
+- [x] Verify database state

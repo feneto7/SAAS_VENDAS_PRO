@@ -32,20 +32,30 @@ async function migrateDb(dbName: string, dbUrl: string, files: { name: string; s
   try {
     await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
     for (const file of files) {
-      try {
-        await client.query(file.sql);
-        console.log(`  ✅ ${file.name}`);
-      } catch (err: any) {
-        // Ignore "already exists" errors (idempotent re-run)
-        // 42P07: table already exists
-        // 42701: column already exists
-        // 42710: type already exists (enums)
-        if (err.code === "42P07" || err.code === "42701" || err.code === "42710") {
-          console.log(`  ⏭️  ${file.name} (already applied or partially applied)`);
-        } else {
-          throw err;
+      // Split by Drizzle's statement breakpoint
+      const statements = file.sql.split('--> statement-breakpoint');
+      
+      for (let statement of statements) {
+        statement = statement.trim();
+        if (!statement) continue;
+
+        try {
+          await client.query(statement);
+        } catch (err: any) {
+          // Ignore "already exists" errors (idempotent re-run)
+          // 42P07: table already exists
+          // 42701: column already exists
+          // 42710: type already exists (enums)
+          // 42P16: constraint already exists
+          if (err.code === "42P07" || err.code === "42701" || err.code === "42710" || err.code === "42P16" || err.code === "42P06") {
+            // Silently continue for these idempotent cases
+          } else {
+            console.error(`  ❌ Error in ${file.name} statement:`, statement.slice(0, 100));
+            throw err;
+          }
         }
       }
+      console.log(`  ✅ ${file.name}`);
     }
   } finally {
     client.release();

@@ -24,6 +24,8 @@ import {
 } from './db/schema/index.js';
 import { eq, and, ilike, sql, desc, inArray, gte, lte, or } from "drizzle-orm";
 import { getTenantDb } from './db/tenant.js';
+import { generateProductSKU } from './lib/sku.js';
+
 
 const fastify = Fastify({ logger: false });
 
@@ -260,6 +262,66 @@ async function bootstrap() {
 
       return { items, pagination: { total: Number(count), page, limit, pages: Math.ceil(Number(count) / limit) } };
     });
+
+    instance.post('/products', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const body = request.body as any;
+      try {
+        const sku = body.sku || generateProductSKU();
+        const [newProduct] = await db.insert(products).values({
+          name:         body.name,
+          sku:          sku,
+          category:     body.category || null,
+          brand:        body.brand || null,
+          stockDeposit: Number(body.stockDeposit) || 0,
+          costPrice:    Number(body.costPrice) || 0,
+          priceCC:      Number(body.priceCC) || 0,
+          priceSC:      Number(body.priceSC) || 0,
+          active:       true,
+        }).returning();
+        return newProduct;
+      } catch (error) {
+        console.error("Create product error:", error);
+        return reply.status(400).send({ error: "Erro ao criar produto" });
+      }
+    });
+
+    instance.put('/products/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const body = request.body as any;
+      try {
+        const [updatedProduct] = await db
+          .update(products)
+          .set({
+            name:         body.name,
+            category:     body.category,
+            brand:        body.brand,
+            costPrice:    Number(body.costPrice),
+            priceCC:      Number(body.priceCC),
+            priceSC:      Number(body.priceSC),
+            updatedAt:    new Date(),
+          })
+          .where(eq(products.id, id))
+          .returning();
+        return updatedProduct;
+      } catch (error) {
+        return reply.status(400).send({ error: "Erro ao atualizar produto" });
+      }
+    });
+
+    instance.delete('/products/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      try {
+        // Soft delete as requested
+        const [updated] = await db.update(products).set({ active: false }).where(eq(products.id, id)).returning();
+        return updated;
+      } catch (error) {
+        return reply.status(400).send({ error: "Erro ao desativar produto" });
+      }
+    });
+
 
     // ── Fichas Overview & Creation ───────────────────────────────────────────
     instance.get('/fichas', async (request) => {
