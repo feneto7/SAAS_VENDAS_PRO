@@ -3,6 +3,7 @@
 Backend multi-tenant construído com **Fastify** e **Drizzle ORM**.
 
 ## Características principais
+
 - Isolamento de banco de dados por cliente (Database-per-tenant).
 - Autenticação e provisionamento dinâmico.
 - Gestão de estoque com rastreabilidade total (Inventory Movements).
@@ -28,11 +29,13 @@ PORT=3001
 ## Scripts Disponíveis
 
 - `npm run dev`: Inicia o servidor em modo de desenvolvimento.
-- `npm run build`: Compila o projeto TypeScript.
-- `npm run migrate`: Executa as migrações no banco master e propaga para todos os bancos de tenant existentes.
 - `npm run generate`: Gera as migrações via Drizzle (quando houver mudanças no schema).
+- `npm run migrate`: Executa as migrações no banco master.
+- `npm run migrate:tenants`: Propaga as migrações para todos os bancos de tenant existentes.
+- `npm run db:studio`: Abre a interface visual do Drizzle para explorar o banco.
 
 ## Organização Interna
+
 - `/src/db/schema`: Definições das tabelas master e tenant.
 - `/src/middleware`: Logics como identificação de tenant.
 - `/src/scripts`: Scripts de utilidade para migração e provisionamento.

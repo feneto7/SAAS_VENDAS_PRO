@@ -1,15 +1,14 @@
 import { MapPin, User, Calendar, DollarSign, Truck } from "lucide-react";
 import { FichaStatusBadge } from "./FichaStatusBadge";
 import type { FichaListItem } from "@/types/ficha.types";
+import { formatCentsToBRL } from "@/utils/money";
 
 interface FichaCardProps {
   ficha: FichaListItem;
   onClick?: (ficha: FichaListItem) => void;
 }
 
-function formatCurrency(value: string | number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
-}
+// Removed local formatCurrency as we use utility function
 
 function formatDate(dateStr: string) {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(dateStr));
@@ -34,7 +33,7 @@ export function FichaCard({ ficha, onClick }: FichaCardProps) {
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-xs text-gray-500 font-mono mb-0.5">{shortId(ficha.id)}</p>
+          <p className="text-xs text-gray-500 font-mono mb-0.5">{ficha.code || shortId(ficha.id)}</p>
           <h3 className="font-semibold text-white text-sm leading-tight">{ficha.clientName}</h3>
         </div>
         <FichaStatusBadge status={ficha.status} />
@@ -72,7 +71,7 @@ export function FichaCard({ ficha, onClick }: FichaCardProps) {
       {/* Footer: total */}
       <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
         <span className="text-xs text-gray-500">Total</span>
-        <span className="text-lg font-bold text-white">{formatCurrency(ficha.total)}</span>
+        <span className="text-lg font-bold text-white">{formatCentsToBRL(ficha.total)}</span>
       </div>
     </article>
   );

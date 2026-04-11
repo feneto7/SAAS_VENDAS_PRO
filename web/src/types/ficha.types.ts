@@ -1,11 +1,12 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export type FichaStatus = 'nova' | 'pendente' | 'paga';
+export type FichaStatus = 'nova' | 'pendente' | 'paga' | 'link_gerado' | 'pedido';
 
 // ─── API Response Types ───────────────────────────────────────────────────────
 
 export interface FichaListItem {
   id: string;
+  code: string | null;
   status: FichaStatus;
   total: string;
   saleDate: string;
@@ -25,6 +26,7 @@ export interface FichaListItem {
   // Route
   routeId: string;
   routeName: string;
+  linkToken: string | null;
 }
 
 export interface FichaItem {

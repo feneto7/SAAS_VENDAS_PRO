@@ -1,15 +1,15 @@
-import { ClipboardList, MoreHorizontal, Eye } from "lucide-react";
+import { ClipboardList, Eye, Link as LinkIcon, Trash2, CheckCircle2 } from "lucide-react";
 import { FichaStatusBadge } from "./FichaStatusBadge";
 import type { FichaListItem } from "@/types/ficha.types";
+import { formatCentsToBRL } from "@/utils/money";
+import { useState } from "react";
 
 interface SalesListProps {
   fichas: FichaListItem[];
   loading: boolean;
   onFichaClick?: (ficha: FichaListItem) => void;
-}
-
-function formatCurrency(value: string | number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
+  onDelete?: (id: string) => void;
+  tenantSlug: string;
 }
 
 function formatDate(dateStr: string) {
@@ -48,7 +48,16 @@ function SkeletonRow() {
   );
 }
 
-export function SalesList({ fichas, loading, onFichaClick }: SalesListProps) {
+export function SalesList({ fichas, loading, onFichaClick, onDelete, tenantSlug }: SalesListProps) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyLink = (token: string, id: string) => {
+    const url = `${window.location.origin}/public/ficha/${token}?tenant=${tenantSlug}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   if (loading) {
     return (
       <div className="bg-white/[0.02] border border-white/8 rounded-2xl overflow-hidden">
@@ -96,21 +105,20 @@ export function SalesList({ fichas, loading, onFichaClick }: SalesListProps) {
               onClick={() => onFichaClick?.(ficha)}
             >
               <td className="py-4 px-4">
-                <span className="text-xs font-mono text-gray-500 bg-white/5 px-2 py-1 rounded">
-                  #{shortId(ficha.id)}
+                <span className="text-xs font-mono text-gray-500 bg-white/5 px-2 py-1 rounded whitespace-nowrap">
+                  {ficha.code ? ficha.code : `#${shortId(ficha.id)}`}
                 </span>
               </td>
               <td className="py-4 px-4">
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-white">{ficha.clientName}</span>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-tight">{formatDate(ficha.saleDate)}</span>
                 </div>
               </td>
               <td className="py-4 px-4 text-sm text-gray-300">
                 {ficha.routeName}
               </td>
               <td className="py-4 px-4 text-sm font-bold text-white whitespace-nowrap">
-                {formatCurrency(ficha.total)}
+                {formatCentsToBRL(ficha.total)}
               </td>
               <td className="py-4 px-4 text-sm text-gray-400">
                 {ficha.sellerName || ficha.sellerEmail}
@@ -119,9 +127,36 @@ export function SalesList({ fichas, loading, onFichaClick }: SalesListProps) {
                 <FichaStatusBadge status={ficha.status} />
               </td>
               <td className="py-4 px-4 text-right">
-                <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all">
-                  <Eye size={18} />
-                </button>
+                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  {ficha.status === 'link_gerado' && ficha.linkToken && (
+                    <>
+                      <button 
+                        onClick={() => handleCopyLink(ficha.linkToken!, ficha.id)}
+                        title="Copiar Link"
+                        className="p-2 hover:bg-white/10 rounded-lg text-purple-400 hover:text-purple-300 transition-all"
+                      >
+                        {copiedId === ficha.id ? <CheckCircle2 size={18} /> : <LinkIcon size={18} />}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (confirm("Deseja realmente cancelar este link?")) {
+                            onDelete?.(ficha.id);
+                          }
+                        }}
+                        title="Cancelar Link"
+                        className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/60 hover:text-red-500 transition-all"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </>
+                  )}
+                  <button 
+                    onClick={() => onFichaClick?.(ficha)}
+                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all"
+                  >
+                    <Eye size={18} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

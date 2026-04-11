@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { Plus, Link as LinkIcon } from "lucide-react";
 import { SalesFilters } from "./SalesFilters";
 import { SalesList }   from "./SalesList";
+import { NewFichaModal } from "./NewFichaModal";
+import { FichaLinkModal } from "./FichaLinkModal";
 import type { FichaListItem, FichaFilters, Route } from "@/types/ficha.types";
 import { EMPTY_FILTERS } from "@/types/ficha.types";
 import { Pagination } from "@/components/dashboard/shared/Pagination";
+import { formatCentsToBRL } from "@/utils/money";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
 
@@ -27,6 +31,8 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
   const [routes,  setRoutes]  = useState<Route[]>([]);
   const [filters, setFilters] = useState<FichaFilters>(EMPTY_FILTERS);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -46,9 +52,15 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const qs  = buildQueryString(activeFilters);
+        const params = new URLSearchParams();
+        Object.entries(activeFilters).forEach(([key, val]) => {
+          if (val) params.set(key, val as string);
+        });
+        params.set("limit", "10");
+        params.set("page", currentPage.toString());
+        
         const res = await fetch(
-          `${SERVER_URL}/api/fichas${qs ? `?${qs}` : ""}`,
+          `${SERVER_URL}/api/fichas?${params.toString()}`,
           { headers: { "x-tenant-slug": tenantSlug } }
         );
         if (res.ok) {
@@ -74,30 +86,51 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
     setCurrentPage(1);
   };
 
-  // Stats summary
-  const total = fichas.length;
-  const totalValue = fichas
-    .filter((f) => f.status === "paga")
-    .reduce((acc, f) => acc + Number(f.total), 0);
+  const handleDeleteFicha = async (id: string) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/fichas/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-tenant-slug': tenantSlug }
+      });
+      if (res.ok) {
+        fetchFichas(filters);
+      } else {
+        alert("Erro ao excluir ficha");
+      }
+    } catch (err) {
+      alert("Erro de conexão");
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Page title + summary */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Fichas de Venda</h1>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            Fichas de Venda
+          </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {loading ? "Carregando..." : `${totalCount} ficha${totalCount !== 1 ? "s" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
           </p>
         </div>
-        {!loading && total > 0 && (
-          <div className="bg-white/[0.03] border border-white/8 rounded-xl px-4 py-2.5 text-right shrink-0">
-            <p className="text-xs text-gray-500">Total recebido (pagas)</p>
-            <p className="text-lg font-bold text-emerald-400">
-              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalValue)}
-            </p>
-          </div>
-        )}
+        
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsLinkModalOpen(true)}
+            className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-purple-500 hover:text-white transition-all active:scale-95"
+          >
+            <LinkIcon size={16} />
+            Ficha Link
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-white text-black px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-white/5"
+          >
+            <Plus size={16} />
+            Nova Ficha
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -112,6 +145,8 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
       <SalesList
         fichas={fichas}
         loading={loading}
+        tenantSlug={tenantSlug}
+        onDelete={handleDeleteFicha}
         onFichaClick={(ficha) => console.log("Ficha selecionada:", ficha.id)}
       />
 
@@ -120,6 +155,22 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         loading={loading}
+      />
+
+      <NewFichaModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => fetchFichas(filters)}
+        tenantSlug={tenantSlug}
+      />
+      <FichaLinkModal 
+        isOpen={isLinkModalOpen} 
+        onClose={() => setIsLinkModalOpen(false)} 
+        onSuccess={() => {
+          setIsLinkModalOpen(false);
+          fetchFichas(filters);
+        }}
+        tenantSlug={tenantSlug}
       />
     </div>
   );

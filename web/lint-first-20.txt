@@ -1,0 +1,20 @@
+﻿
+C:\WORKSPACE\VENDAS_PRO\SAAS_VENDAS_PRO\web\src\app\dashboard\page.tsx
+  221:19  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  221:89  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  281:60  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  297:88  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+
+C:\WORKSPACE\VENDAS_PRO\SAAS_VENDAS_PRO\web\src\app\public\ficha\[token\]\page.tsx
+  69:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\WORKSPACE\VENDAS_PRO\SAAS_VENDAS_PRO\web\src\app\setup\page.tsx
+  69:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\WORKSPACE\VENDAS_PRO\SAAS_VENDAS_PRO\web\src\components\dashboard\shared\Pagination.tsx
+  20:7  error  'endPage' is never reassigned. Use 'const' instead  prefer-const
+
+C:\WORKSPACE\VENDAS_PRO\SAAS_VENDAS_PRO\web\src\components\dashboard\tabs\ClientsTab\index.tsx
+  36:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\WORKSPACE\VENDAS_PRO\SAAS_VENDAS_PRO\web\src\components\dashboard\tabs\EmployeesTab\EmployeeModal.tsx

@@ -1,9 +1,11 @@
 import type { FichaStatus } from "@/types/ficha.types";
 
 const STATUS_CONFIG: Record<FichaStatus, { label: string; className: string; dot: string }> = {
-  nova:     { label: "Nova",     className: "bg-blue-500/15   text-blue-400   border-blue-500/30",   dot: "bg-blue-400"   },
-  pendente: { label: "Pendente", className: "bg-amber-500/15  text-amber-400  border-amber-500/30",  dot: "bg-amber-400"  },
-  paga:     { label: "Paga",     className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400" },
+  nova:         { label: "Nova",         className: "bg-blue-500/15   text-blue-400   border-blue-500/30",   dot: "bg-blue-400"   },
+  pendente:     { label: "Pendente",     className: "bg-amber-500/15  text-amber-400  border-amber-500/30",  dot: "bg-amber-400"  },
+  paga:         { label: "Paga",         className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400" },
+  link_gerado:  { label: "Link Gerado", className: "bg-purple-500/15 text-purple-400 border-purple-500/30", dot: "bg-purple-400"  },
+  pedido:       { label: "Pedido",      className: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30", dot: "bg-indigo-400"  },
 };
 
 interface FichaStatusBadgeProps {
