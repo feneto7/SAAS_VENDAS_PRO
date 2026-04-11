@@ -5,6 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "migrate": "npm run db:migrate",
+    "generate": "npm run db:generate",
+    "migrate:tenants": "tsx src/scripts/migrate-existing-tenants.ts",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:generate:tenant": "drizzle-kit generate --config drizzle.config.tenant.ts",
+    "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "db:migrate:tenant": "drizzle-kit migrate --config drizzle.config.tenant.ts",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

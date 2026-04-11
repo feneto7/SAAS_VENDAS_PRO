@@ -1,16 +1,17 @@
-import { pgTable, text, timestamp, uuid, pgEnum, integer, uniqueIndex, boolean } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { pgTable, text, timestamp, uuid, pgEnum, integer, uniqueIndex, boolean, check } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "manager", "seller"]);
-export const fichaStatusEnum = pgEnum("ficha_status", ["nova", "pendente", "paga"]);
+export const fichaStatusEnum = pgEnum("ficha_status", ["nova", "pendente", "paga", "link_gerado", "pedido"]);
 export const movementTypeEnum = pgEnum("movement_type", ["entrada_estoque", "ajuste_manual"]);
 
 // ─── Users (Vendedores/Gerentes) ──────────────────────────────────────────────
 
 export const users = pgTable("users", {
   id:        uuid("id").defaultRandom().primaryKey(),
+  code:      integer("code").generatedAlwaysAsIdentity(),
   clerkId:   text("clerk_id").unique(), // Optional for mobile-only sellers
   name:      text("name"),
   email:     text("email"),             // Optional for mobile-only sellers
@@ -38,8 +39,11 @@ export const products = pgTable("products", {
   priceCC:      integer("price_cc").default(0).notNull(),
   priceSC:      integer("price_sc").default(0).notNull(),
   price:       integer("price").default(0), // Deprecated
+  active:      boolean("active").default(true).notNull(),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  stockDepositCheck: check("stock_deposit_check", sql`${table.stockDeposit} >= 0`),
+}));
 
 // ─── Routes (Rotas de Venda) ──────────────────────────────────────────────────
 
@@ -76,6 +80,7 @@ export const clients = pgTable("clients", {
 
 export const fichas = pgTable("fichas", {
   id:        uuid("id").defaultRandom().primaryKey(),
+  code:      text("code").unique(),
   status:    fichaStatusEnum("status").default("nova").notNull(),
   total:     integer("total").default(0).notNull(),
   notes:     text("notes"),
@@ -83,6 +88,7 @@ export const fichas = pgTable("fichas", {
   clientId:  uuid("client_id").references(() => clients.id).notNull(),
   sellerId:  uuid("seller_id").references(() => users.id).notNull(),
   routeId:   uuid("route_id").references(() => routes.id).notNull(),
+  linkToken: text("link_token").unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -109,6 +115,7 @@ export const sellerInventory = pgTable("seller_inventory", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   sellerProductIdx: uniqueIndex("seller_product_idx").on(table.sellerId, table.productId),
+  stockCheck: check("stock_check", sql`${table.stock} >= 0`),
 }));
 
 // ─── User Routes (Vínculo Vendedor x Rotas) ───────────────────────────────────

@@ -11,7 +11,7 @@ import { eq } from 'drizzle-orm';
  * and attaches the correct Drizzle instance to the request.
  */
 export const tenantMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
-  const slug = request.headers['x-tenant-slug'] as string; 
+  const slug = (request.headers['x-tenant-slug'] as string) || (request.query as any)?.tenant; 
 
   if (!slug) {
     return reply.status(403).send({ 

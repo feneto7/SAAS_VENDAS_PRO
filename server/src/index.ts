@@ -22,7 +22,8 @@ import {
   inventoryMovements,
   inventoryMovementItems
 } from './db/schema/index.js';
-import { and, eq, gte, ilike, lte, sql, or } from 'drizzle-orm';
+import { eq, and, ilike, sql, desc, inArray, gte, lte, or } from "drizzle-orm";
+import { getTenantDb } from './db/tenant.js';
 
 const fastify = Fastify({ logger: false });
 
@@ -58,7 +59,7 @@ async function bootstrap() {
     return (request as any).tenant;
   });
 
-  // ─── Protected Routes (require x-tenant-slug header) ──────────────────────
+  // ─── Protected Routes (require x-tenant-slug header OR ?tenant slug query) ──
   fastify.register(async (instance) => {
     instance.addHook('preHandler', tenantMiddleware);
 
@@ -80,7 +81,6 @@ async function bootstrap() {
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      // Count total
       const [{ count }] = await db
         .select({ count: sql`count(*)` })
         .from(clients)
@@ -125,7 +125,6 @@ async function bootstrap() {
     instance.post('/clients', async (request, reply) => {
       const db = (request as any).tenantDb;
       const body = request.body as any;
-
       try {
         const [newClient] = await db.insert(clients).values({
           name:         body.name,
@@ -139,7 +138,6 @@ async function bootstrap() {
           zipCode:      body.zipCode || null,
           routeId:      body.routeId || null,
         }).returning();
-
         return newClient;
       } catch (error) {
         console.error("Create client error:", error);
@@ -151,7 +149,6 @@ async function bootstrap() {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       const body = request.body as any;
-
       try {
         const [updatedClient] = await db
           .update(clients)
@@ -167,12 +164,10 @@ async function bootstrap() {
             zipCode:      body.zipCode,
             routeId:      body.routeId,
           })
-          .where(and(eq(clients.id, id)))
+          .where(eq(clients.id, id))
           .returning();
-
         return updatedClient;
       } catch (error) {
-        console.error("Update client error:", error);
         return reply.status(400).send({ error: "Erro ao atualizar cliente" });
       }
     });
@@ -180,87 +175,41 @@ async function bootstrap() {
     instance.post('/clients/:id/toggle-status', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-
       try {
         const [client] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
         if (!client) return reply.status(404).send({ error: "Cliente não encontrado" });
-
-        const [updated] = await db
-          .update(clients)
-          .set({ active: !client.active })
-          .where(eq(clients.id, id))
-          .returning();
-
+        const [updated] = await db.update(clients).set({ active: !client.active }).where(eq(clients.id, id)).returning();
         return updated;
       } catch (error) {
-        return reply.status(400).send({ error: "Erro ao alterar status do cliente" });
+        return reply.status(400).send({ error: "Erro ao alterar status" });
       }
     });
 
-    // ── Employees (Vendedores) Management ────────────────────────────────────
+    // ── Employees (Vendedores) ──────────────────────────────────────────────
     instance.get('/employees', async (request) => {
       const db = (request as any).tenantDb;
       const q  = request.query as Record<string, string>;
-
       const page  = Number(q.page) || 1;
       const limit = Number(q.limit) || 10;
       const offset = (page - 1) * limit;
 
-      const conditions: any[] = [eq(users.role, 'seller')];
+      const conditions = [eq(users.role, 'seller')];
       if (q.name) conditions.push(ilike(users.name, `%${q.name}%`));
 
-      const whereClause = and(...conditions);
+      const [{ count }] = await db.select({ count: sql`count(*)` }).from(users).where(and(...conditions));
+      const sellers = await db.select().from(users).where(and(...conditions)).orderBy(users.name).limit(limit).offset(offset);
 
-      // Count total sellers
-      const [{ count }] = await db
-        .select({ count: sql`count(*)` })
-        .from(users)
-        .where(whereClause);
-
-      const sellers = await db
-        .select({
-          id:        users.id,
-          name:      users.name,
-          email:     users.email,
-          role:      users.role,
-          appCode:   users.appCode,
-          phone:     users.phone,
-          active:    users.active,
-          createdAt: users.createdAt,
-        })
-        .from(users)
-        .where(whereClause)
-        .orderBy(users.name)
-        .limit(limit)
-        .offset(offset);
-
-      // Fetch routes for each seller
       const items = await Promise.all(sellers.map(async (s: any) => {
-        const ur = await db
-          .select({ routeId: userRoutes.routeId })
-          .from(userRoutes)
-          .where(eq(userRoutes.userId, s.id));
-        return {
-          ...s,
-          routeIds: ur.map((r: any) => r.routeId)
-        };
+        const ur = await db.select({ routeId: userRoutes.routeId }).from(userRoutes).where(eq(userRoutes.userId, s.id));
+        return { ...s, routeIds: ur.map((r: any) => r.routeId) };
       }));
 
-      return {
-        items,
-        pagination: {
-          total: Number(count),
-          page,
-          limit,
-          pages: Math.ceil(Number(count) / limit)
-        }
-      };
+      return { items, pagination: { total: Number(count), page, limit, pages: Math.ceil(Number(count) / limit) } };
     });
 
     instance.post('/employees', async (request, reply) => {
       const db = (request as any).tenantDb;
       const body = request.body as any;
-
       try {
         const result = await db.transaction(async (tx: any) => {
           const [newUser] = await tx.insert(users).values({
@@ -271,75 +220,16 @@ async function bootstrap() {
             role:     'seller',
             email:    body.email || `app-${body.appCode}@custom.com`,
           }).returning();
-
           if (body.routeIds && Array.isArray(body.routeIds)) {
             for (const rId of body.routeIds) {
-              await tx.insert(userRoutes).values({
-                userId:  newUser.id,
-                routeId: rId
-              });
+              await tx.insert(userRoutes).values({ userId: newUser.id, routeId: rId });
             }
           }
           return newUser;
         });
-
         return result;
       } catch (error) {
-        console.error("Create employee error:", error);
-        return reply.status(400).send({ error: "Erro ao criar funcionário. O código app pode já estar em uso." });
-      }
-    });
-
-    instance.post('/employees/:id', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const { id } = request.params as { id: string };
-      const body = request.body as any;
-
-      try {
-        await db.transaction(async (tx: any) => {
-          await tx.update(users).set({
-            name:     body.name,
-            appCode:  body.appCode,
-            password: body.password,
-            phone:    body.phone,
-          }).where(eq(users.id, id));
-
-          if (body.routeIds && Array.isArray(body.routeIds)) {
-            // Sincronizar rotas
-            await tx.delete(userRoutes).where(eq(userRoutes.userId, id));
-            for (const rId of body.routeIds) {
-              await tx.insert(userRoutes).values({
-                userId:  id,
-                routeId: rId
-              });
-            }
-          }
-        });
-
-        return { success: true };
-      } catch (error) {
-        console.error("Update employee error:", error);
-        return reply.status(400).send({ error: "Erro ao atualizar funcionário" });
-      }
-    });
-
-    instance.post('/employees/:id/toggle-status', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const { id } = request.params as { id: string };
-
-      try {
-        const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-        if (!user) return reply.status(404).send({ error: "Usuário não encontrado" });
-
-        const [updated] = await db
-          .update(users)
-          .set({ active: !user.active })
-          .where(eq(users.id, id))
-          .returning();
-
-        return updated;
-      } catch (error) {
-        return reply.status(400).send({ error: "Erro ao alterar status do funcionário" });
+        return reply.status(400).send({ error: "Erro ao criar funcionário" });
       }
     });
 
@@ -347,9 +237,8 @@ async function bootstrap() {
     instance.get('/products', async (request) => {
       const db = (request as any).tenantDb;
       const q  = request.query as Record<string, string>;
-
       const page  = Number(q.page) || 1;
-      const limit = Number(q.limit) || 1000; // Default to old behavior if not specified
+      const limit = Number(q.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const conditions: any[] = [];
@@ -359,47 +248,305 @@ async function bootstrap() {
       if (q.marca)     conditions.push(ilike(products.brand, `%${q.marca}%`));
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const [{ count }] = await db.select({ count: sql`count(*)` }).from(products).where(whereClause);
+      const allProducts = await db.select().from(products).where(whereClause).limit(limit).offset(offset);
 
-      // Count total for pagination
-      const [{ count }] = await db
-        .select({ count: sql`count(*)` })
-        .from(products)
-        .where(whereClause);
+      const items = allProducts.map((p: any) => ({
+        ...p,
+        subtotalCusto: Number(p.costPrice) * (Number(p.stockDeposit) || 0),
+        subtotalCC:    Number(p.priceCC) * (Number(p.stockDeposit) || 0),
+        subtotalSC:    Number(p.priceSC) * (Number(p.stockDeposit) || 0),
+      }));
 
-      const allProducts = await db
-        .select()
-        .from(products)
+      return { items, pagination: { total: Number(count), page, limit, pages: Math.ceil(Number(count) / limit) } };
+    });
+
+    // ── Fichas Overview & Creation ───────────────────────────────────────────
+    instance.get('/fichas', async (request) => {
+      const db = (request as any).tenantDb;
+      const q  = request.query as Record<string, string>;
+      const page = Number(q.page) || 1;
+      const limit = Number(q.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const conditions: any[] = [];
+      if (q.status) conditions.push(eq(fichas.status, q.status as any));
+      if (q.routeId) conditions.push(eq(fichas.routeId, q.routeId));
+      if (q.cliente) conditions.push(ilike(clients.name, `%${q.cliente}%`));
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const items = await db
+        .select({
+          id: fichas.id,
+          code: fichas.code,
+          status: fichas.status,
+          total: fichas.total,
+          saleDate: fichas.saleDate,
+          clientName: clients.name,
+          sellerName: users.name,
+          routeName: routes.name,
+          linkToken: fichas.linkToken
+        })
+        .from(fichas)
+        .leftJoin(clients, eq(fichas.clientId, clients.id))
+        .leftJoin(users, eq(fichas.sellerId, users.id))
+        .leftJoin(routes, eq(fichas.routeId, routes.id))
         .where(whereClause)
+        .orderBy(desc(fichas.createdAt))
         .limit(limit)
         .offset(offset);
 
-      // Simple calculation for subtotals (using ALL for stats, but PAGINATED for list)
-      // Actually, stats should be based on filtered set, not just paginated page
-      const statsQuery = await db
-        .select()
-        .from(products)
-        .where(whereClause);
+      return { items };
+    });
 
-      const processed = allProducts.map((p: any) => {
-        const stock = Number(p.stockDeposit) || 0;
-        return {
-          ...p,
-          subtotalCusto: Number(p.costPrice) * stock,
-          subtotalCC:    Number(p.priceCC) * stock,
-          subtotalSC:    Number(p.priceSC) * stock,
-        };
+    instance.delete('/fichas/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as any;
+      
+      const [ficha] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+      if (!ficha) return reply.status(404).send({ error: "Não encontrado" });
+      
+      // Only allow cancelling if it's still a generated link or a new order (optional policy)
+      // For now, let's just allow deleting any ficha if the admin wants.
+      await db.delete(fichas).where(eq(fichas.id, id));
+      return { success: true };
+    });
+
+    instance.get('/fichas/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as any;
+      const [ficha] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+      if (!ficha) return reply.status(404).send({ error: "Não encontrado" });
+      const items = await db.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+      return { ...ficha, items };
+    });
+
+    instance.post('/fichas', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const body = request.body as any;
+      const { clientId, sellerId, routeId, items, total, notes } = body;
+
+      try {
+        const result = await db.transaction(async (tx: any) => {
+          // Generate Code
+          const [seller] = await tx.select({ code: users.code }).from(users).where(eq(users.id, sellerId)).limit(1);
+          const [route]  = await tx.select({ code: routes.code }).from(routes).where(eq(routes.id, routeId)).limit(1);
+          const now = new Date();
+          const datestr = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+          const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
+
+          const [newFicha] = await tx.insert(fichas).values({
+            code: finalCode, clientId, sellerId, routeId, total, notes, status: 'nova'
+          }).returning();
+
+          for (const item of items) {
+            // Validate Stock
+            const [current] = await tx.select({ stock: sellerInventory.stock }).from(sellerInventory)
+              .where(and(eq(sellerInventory.sellerId, sellerId), eq(sellerInventory.productId, item.productId)))
+              .limit(1);
+            
+            const currentStock = current ? current.stock : 0;
+            if (currentStock < item.quantity) {
+              throw new Error(`Estoque insuficiente para o produto ${item.productId}`);
+            }
+
+            await tx.insert(fichaItems).values({ fichaId: newFicha.id, productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice, subtotal: item.quantity * item.unitPrice });
+            await tx.execute(sql`UPDATE seller_inventory SET stock = stock - ${item.quantity} WHERE seller_id = ${sellerId} AND product_id = ${item.productId}`);
+          }
+          return newFicha;
+        });
+        return result;
+      } catch (error: any) {
+        console.error("Create ficha error:", error);
+        return reply.status(400).send({ error: error.message || "Erro ao criar ficha" });
+      }
+    });
+
+    // ── Ficha Link Generation ───────────────────────────────────────────────
+    instance.post('/fichas/generate-link', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const slug = (request as any).tenant.slug;
+      const { clientId, sellerId, routeId, notes } = request.body as any;
+
+      try {
+        const linkToken = Math.random().toString(36).substring(2, 10);
+        const [newFicha] = await db.insert(fichas).values({
+          clientId, sellerId, routeId, notes: notes || "Link gerado para o cliente", status: 'link_gerado', linkToken, total: 0
+        }).returning();
+
+        return { linkToken, url: `/public/ficha/${linkToken}?tenant=${slug}` };
+      } catch (error) {
+        return reply.status(500).send({ error: "Erro ao gerar link" });
+      }
+    });
+
+    instance.post('/fichas/:id/confirm-order', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+
+      const errors: string[] = [];
+      const missingProducts: { id: string, name: string, available: number, required: number }[] = [];
+
+      try {
+        const [ficha] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+        if (!ficha || (ficha.status !== 'pedido' && ficha.status !== 'link_gerado')) {
+          return reply.status(400).send({ error: "Ficha não está em estado de pedido" });
+        }
+
+        const items = await db.select({
+          productId: fichaItems.productId,
+          quantity: fichaItems.quantity,
+          productName: products.name
+        })
+        .from(fichaItems)
+        .leftJoin(products, eq(fichaItems.productId, products.id))
+        .where(eq(fichaItems.fichaId, id));
+
+        await db.transaction(async (tx: any) => {
+          for (const item of items) {
+            const [inventory] = await tx.select({ stock: sellerInventory.stock }).from(sellerInventory)
+              .where(and(eq(sellerInventory.sellerId, ficha.sellerId), eq(sellerInventory.productId, item.productId)))
+              .limit(1);
+
+            const stock = inventory ? inventory.stock : 0;
+            if (stock < item.quantity) {
+              missingProducts.push({ 
+                id: item.productId, 
+                name: item.productName || "Desconhecido", 
+                available: stock, 
+                required: item.quantity 
+              });
+            }
+          }
+
+          if (missingProducts.length > 0) {
+            throw new Error("M"); // Marker for missing stock
+          }
+
+          // If ok, decrease stock
+          for (const item of items) {
+            await tx.execute(sql`UPDATE seller_inventory SET stock = stock - ${item.quantity} WHERE seller_id = ${ficha.sellerId} AND product_id = ${item.productId}`);
+          }
+
+          // Generate Code if missing
+          let finalCode = ficha.code;
+          if (!finalCode) {
+            const [seller] = await tx.select({ code: users.code }).from(users).where(eq(users.id, ficha.sellerId)).limit(1);
+            const [route]  = await tx.select({ code: routes.code }).from(routes).where(eq(routes.id, ficha.routeId)).limit(1);
+            const now = new Date();
+            const datestr = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+            finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
+          }
+
+          await tx.update(fichas).set({ status: 'nova', code: finalCode, updatedAt: new Date() }).where(eq(fichas.id, id));
+        });
+
+        return { success: true };
+      } catch (error: any) {
+        if (error.message === "M") {
+          return reply.status(400).send({ 
+            error: "Estoque insuficiente", 
+            missingProducts 
+          });
+        }
+        console.error("Confirm order error:", error);
+        return reply.status(400).send({ error: "Erro ao confirmar pedido" });
+      }
+    });
+
+    // ── Public Ficha API (Used by the public ordering page) ──────────────────
+    instance.get('/public-ficha/:token', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { token } = request.params as any;
+      console.log(`[PUBLIC_API] Searching token: ${token}`);
+      
+      try {
+        // Simple query first to isolate
+        const rawFichas = await db.select().from(fichas).where(eq(fichas.linkToken, token)).limit(1);
+        const rawFicha = rawFichas[0];
+
+        if (!rawFicha) {
+          console.log(`❌ Ficha not found for token: ${token}`);
+          return reply.status(404).send({ error: "Link inválido" });
+        }
+
+        if (rawFicha.status !== 'link_gerado') {
+          console.log(`❌ Ficha status is ${rawFicha.status}, not 'link_gerado'`);
+          return reply.status(404).send({ error: "Link já finalizado ou inválido" });
+        }
+
+        // Now get the details with joins if possible, or just raw
+        const [ficha] = await db.select({ 
+          id: fichas.id, 
+          status: fichas.status, 
+          clientName: clients.name, 
+          routeName: routes.name 
+        })
+          .from(fichas)
+          .leftJoin(clients, eq(fichas.clientId, clients.id))
+          .leftJoin(routes, eq(fichas.routeId, routes.id))
+          .where(eq(fichas.linkToken, token)).limit(1);
+
+        const productsList = await db.select().from(products).where(eq(products.active, true));
+        return { ficha: ficha || rawFicha, products: productsList };
+      } catch (err: any) {
+        console.error("❌ Error fetching public ficha:", err);
+        return reply.status(500).send({ error: "Erro interno no servidor", details: err.message, stack: err.stack });
+      }
+    });
+
+    instance.post('/public-ficha/:token/finalize', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { token } = request.params as any;
+      const { items } = request.body as any;
+      
+      const [ficha] = await db.select().from(fichas).where(eq(fichas.linkToken, token)).limit(1);
+      if (!ficha || ficha.status !== 'link_gerado') return reply.status(400).send({ error: "Inválido" });
+
+      let grandTotal = 0;
+      await db.transaction(async (tx: any) => {
+        for (const item of items) {
+          const [p] = await tx.select().from(products).where(eq(products.id, item.productId)).limit(1);
+          if (!p) continue;
+          const price = item.type === 'CC' ? Number(p.priceCC) : Number(p.priceSC);
+          const subtotal = item.quantity * price;
+          grandTotal += subtotal;
+          await tx.insert(fichaItems).values({ fichaId: ficha.id, productId: item.productId, quantity: item.quantity, unitPrice: price, subtotal });
+        }
+        await tx.update(fichas).set({ status: 'pedido', total: grandTotal }).where(eq(fichas.id, ficha.id));
       });
+      return { success: true };
+    });
 
-      // Global stats based on ALL matches (filtered)
-      const stats = {
-        totalCost: statsQuery.reduce((acc: number, p: any) => acc + (Number(p.costPrice) * (Number(p.stockDeposit) || 0)), 0),
-        totalCC:   statsQuery.reduce((acc: number, p: any) => acc + (Number(p.priceCC) * (Number(p.stockDeposit) || 0)), 0),
-        totalSC:   statsQuery.reduce((acc: number, p: any) => acc + (Number(p.priceSC) * (Number(p.stockDeposit) || 0)), 0),
-      };
+    // ── Routes Management ────────────────────────────────────────────────────
+    instance.get('/routes', async (request) => {
+      const db = (request as any).tenantDb;
+      const q  = request.query as Record<string, string>;
+      const page  = Number(q.page) || 1;
+      const limit = Number(q.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const [{ count }] = await db.select({ count: sql`count(*)` }).from(routes);
+
+      const items = await db.select({ 
+        id: routes.id, 
+        code: routes.code, 
+        name: routes.name, 
+        description: routes.description, 
+        periodicity: routes.periodicity,
+        active: routes.active, 
+        clientCount: sql`count(${clients.id})::int` 
+      })
+        .from(routes)
+        .leftJoin(clients, eq(routes.id, clients.routeId))
+        .groupBy(routes.id)
+        .orderBy(routes.code)
+        .limit(limit)
+        .offset(offset);
 
       return { 
-        items: processed, 
-        stats,
+        items,
         pagination: {
           total: Number(count),
           page,
@@ -409,121 +556,72 @@ async function bootstrap() {
       };
     });
 
-    instance.post('/products', async (request, reply) => {
+    instance.post('/routes', async (request, reply) => {
       const db = (request as any).tenantDb;
       const body = request.body as any;
-
-      // Auto-generate SKU if empty
-      const sku = body.sku || `SKU-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-      try {
-        const [newProduct] = await db.insert(products).values({
-          name:         body.name,
-          sku:          sku,
-          category:     body.category,
-          brand:        body.brand,
-          stockDeposit: Number(body.stockDeposit) || 0,
-          costPrice:    Number(body.costPrice) || 0,
-          priceCC:      Number(body.priceCC)   || 0,
-          priceSC:      Number(body.priceSC)   || 0,
-        }).returning();
-
-        return newProduct;
-      } catch (error) {
-        console.error("Create product error:", error);
-        return reply.status(400).send({ error: "Erro ao criar produto" });
-      }
+      if (body.periodicity) body.periodicity = Number(body.periodicity);
+      const [newRoute] = await db.insert(routes).values(body).returning();
+      return newRoute;
     });
 
-    instance.post('/stock-entries', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const body = request.body as any;
-      const { type, supplier, destination, sellerId, items } = body;
-
-      try {
-        await db.transaction(async (tx: any) => {
-          // 1. Create Movement Header
-          const [movement] = await tx.insert(inventoryMovements).values({
-            type: 'entrada_estoque',
-            description: `Entrada: ${type === 'compra' ? 'Compra' : 'Devolução'} via ${supplier} para ${destination === 'deposito' ? 'Depósito' : 'Vendedor'}`,
-            sellerId: destination === 'vendedor' ? sellerId : null,
-          }).returning();
-
-          for (const item of items) {
-            const productId = item.productId;
-            const quantity = Number(item.quantity);
-            if (quantity <= 0) continue;
-
-            let quantityBefore = 0;
-
-            if (destination === 'deposito') {
-              // Get current stock
-              const [prod] = await tx.select({ stock: products.stockDeposit })
-                .from(products)
-                .where(eq(products.id, productId));
-              quantityBefore = prod?.stock || 0;
-
-              // Update central deposit stock
-              await tx.execute(sql`
-                UPDATE products 
-                SET stock_deposit = stock_deposit + ${quantity}
-                WHERE id = ${productId}
-              `);
-            } else if (destination === 'vendedor' && sellerId) {
-              // Get current seller inventory
-              const [inv] = await tx.select({ stock: sellerInventory.stock })
-                .from(sellerInventory)
-                .where(and(eq(sellerInventory.sellerId, sellerId), eq(sellerInventory.productId, productId)));
-              quantityBefore = inv?.stock || 0;
-
-              // Update seller-specific stock
-              await tx.execute(sql`
-                INSERT INTO seller_inventory (seller_id, product_id, stock, updated_at)
-                VALUES (${sellerId}, ${productId}, ${quantity}, NOW())
-                ON CONFLICT (seller_id, product_id) DO UPDATE 
-                SET stock = seller_inventory.stock + ${quantity}, updated_at = NOW()
-              `);
-            }
-
-            // 2. Create Movement Item
-            await tx.insert(inventoryMovementItems).values({
-              movementId: movement.id,
-              productId: productId,
-              quantityBefore: quantityBefore,
-              quantityAfter: quantityBefore + quantity,
-              quantityChange: quantity,
-            });
-          }
-        });
-
-        return { success: true };
-      } catch (error) {
-        console.error("Stock entry error:", error);
-        return reply.status(500).send({ error: "Erro ao processar entrada de estoque" });
-      }
-    });
-
-    // ── Inventory per Seller ─────────────────────────────────────────────────
-    instance.get('/inventory/seller/:id', async (request) => {
+    instance.put('/routes/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      const q  = request.query as Record<string, string>;
+      const body = request.body as any;
+      if (body.periodicity) body.periodicity = Number(body.periodicity);
+      
+      try {
+        const [updatedRoute] = await db
+          .update(routes)
+          .set(body)
+          .where(eq(routes.id, id))
+          .returning();
+        return updatedRoute;
+      } catch (error) {
+        return reply.status(400).send({ error: "Erro ao atualizar rota" });
+      }
+    });
 
-      const page  = Number(q.page) || 1;
+    instance.delete('/routes/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      try {
+        await db.delete(routes).where(eq(routes.id, id));
+        return { success: true };
+      } catch (error) {
+        return reply.status(400).send({ error: "Erro ao excluir rota" });
+      }
+    });
+
+    instance.post('/routes/:id/toggle-status', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      try {
+        const [route] = await db.select().from(routes).where(eq(routes.id, id)).limit(1);
+        if (!route) return reply.status(404).send({ error: "Rota não encontrada" });
+        const [updated] = await db.update(routes).set({ active: !route.active }).where(eq(routes.id, id)).returning();
+        return updated;
+      } catch (error) {
+        return reply.status(400).send({ error: "Erro ao alterar status" });
+      }
+    });
+
+    // ── Inventory Management ────────────────────────────────────────────────
+    instance.get('/inventory/seller/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id: sellerId } = request.params as { id: string };
+      const q = request.query as Record<string, string>;
+      const page = Number(q.page) || 1;
       const limit = Number(q.limit) || 10;
       const offset = (page - 1) * limit;
 
-      const conditions: any[] = [eq(sellerInventory.sellerId, id)];
+      const conditions = [eq(sellerInventory.sellerId, sellerId)];
       if (q.search) {
-        conditions.push(or(
-          ilike(products.name, `%${q.search}%`),
-          ilike(products.sku,  `%${q.search}%`)
-        ));
+        conditions.push(or(ilike(products.name, `%${q.search}%`), ilike(products.sku, `%${q.search}%`)) as any);
       }
 
       const whereClause = and(...conditions);
 
-      // Count total results
       const [{ count }] = await db
         .select({ count: sql`count(*)` })
         .from(sellerInventory)
@@ -532,12 +630,11 @@ async function bootstrap() {
 
       const items = await db
         .select({
-          productId:   sellerInventory.productId,
-          stock:       sellerInventory.stock,
+          productId: sellerInventory.productId,
           productName: products.name,
-          sku:         products.sku,
-          brand:       products.brand,
-          category:    products.category
+          stock: sellerInventory.stock,
+          sku: products.sku,
+          category: products.category
         })
         .from(sellerInventory)
         .leftJoin(products, eq(sellerInventory.productId, products.id))
@@ -557,68 +654,124 @@ async function bootstrap() {
       };
     });
 
-    instance.post('/inventory/adjustment', async (request, reply) => {
+    instance.post('/stock-entries', async (request, reply) => {
       const db = (request as any).tenantDb;
-      const body = request.body as any;
-      const { sellerId, items, description } = body;
-
-      if (!sellerId || !items || !Array.isArray(items)) {
-        return reply.status(400).send({ error: "Dados inválidos" });
-      }
+      const { type, supplier, destination, sellerId, items } = request.body as {
+        type: "propria" | "fornecedor",
+        supplier: string | null,
+        destination: "deposito" | "vendedor",
+        sellerId?: string,
+        items: { productId: string, quantity: number | string, costPrice: number }[]
+      };
 
       try {
         await db.transaction(async (tx: any) => {
-          // 1. Create Movement Header
           const [movement] = await tx.insert(inventoryMovements).values({
-            type: 'ajuste_manual',
-            description: description || 'Ajuste Manual de Estoque',
-            sellerId: sellerId,
+            type: 'entrada_estoque',
+            description: type === 'propria' ? 'Entrada Própria' : `Fornecedor: ${supplier}`,
+            sellerId: destination === 'vendedor' ? sellerId : null
           }).returning();
 
           for (const item of items) {
-            const productId = item.productId;
-            const quantityAfter = Number(item.quantity); // New quantity specified by admin
+            const qty = Number(item.quantity);
+            if (qty <= 0) continue;
 
-            // Get current quantity
-            const [inv] = await tx.select({ stock: sellerInventory.stock })
-              .from(sellerInventory)
-              .where(and(eq(sellerInventory.sellerId, sellerId), eq(sellerInventory.productId, productId)));
-            
-            const quantityBefore = inv?.stock || 0;
-            const quantityChange = quantityAfter - quantityBefore;
+            let qBefore = 0;
+            if (destination === 'deposito') {
+              const [p] = await tx.select({ stock: products.stockDeposit }).from(products).where(eq(products.id, item.productId)).limit(1);
+              qBefore = p ? p.stock : 0;
+              await tx.update(products).set({ stockDeposit: qBefore + qty }).where(eq(products.id, item.productId));
+            } else if (destination === 'vendedor' && sellerId) {
+              const [inv] = await tx.select({ stock: sellerInventory.stock }).from(sellerInventory)
+                .where(and(eq(sellerInventory.sellerId, sellerId), eq(sellerInventory.productId, item.productId)))
+                .limit(1);
+              qBefore = inv ? inv.stock : 0;
+              
+              if (inv) {
+                await tx.update(sellerInventory).set({ stock: qBefore + qty, updatedAt: sql`now()` }).where(eq(sellerInventory.id, inv.id));
+              } else {
+                await tx.insert(sellerInventory).values({ sellerId, productId: item.productId, stock: qty });
+              }
+            }
 
-            if (quantityChange === 0) continue;
-
-            // Update seller-specific stock
-            await tx.execute(sql`
-              INSERT INTO seller_inventory (seller_id, product_id, stock, updated_at)
-              VALUES (${sellerId}, ${productId}, ${quantityAfter}, NOW())
-              ON CONFLICT (seller_id, product_id) DO UPDATE 
-              SET stock = ${quantityAfter}, updated_at = NOW()
-            `);
-
-            // Log item movement
             await tx.insert(inventoryMovementItems).values({
               movementId: movement.id,
-              productId: productId,
-              quantityBefore: quantityBefore,
-              quantityAfter: quantityAfter,
-              quantityChange: quantityChange,
+              productId: item.productId,
+              quantityBefore: qBefore,
+              quantityAfter: qBefore + qty,
+              quantityChange: qty
+            });
+          }
+        });
+
+        return { success: true };
+      } catch (error: any) {
+        console.error("Stock entry error:", error);
+        return reply.status(400).send({ error: "Erro ao processar entrada de estoque" });
+      }
+    });
+
+    instance.post('/inventory/adjustment', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { sellerId, description, items } = request.body as { 
+        sellerId: string, 
+        description: string, 
+        items: { productId: string, quantity: number }[] 
+      };
+
+      try {
+        await db.transaction(async (tx: any) => {
+          const [movement] = await tx.insert(inventoryMovements).values({
+            type: 'ajuste_manual',
+            description,
+            sellerId
+          }).returning();
+
+          for (const item of items) {
+            if (item.quantity < 0) {
+              throw new Error("Estoque não pode ser negativo");
+            }
+            // Get current stock
+            const [current] = await tx.select().from(sellerInventory)
+              .where(and(eq(sellerInventory.sellerId, sellerId), eq(sellerInventory.productId, item.productId)))
+              .limit(1);
+
+            const qBefore = current ? current.stock : 0;
+            const qAfter = item.quantity;
+            const qChange = qAfter - qBefore;
+
+            if (current) {
+              await tx.update(sellerInventory)
+                .set({ stock: qAfter, updatedAt: new Date() })
+                .where(eq(sellerInventory.id, current.id));
+            } else {
+              await tx.insert(sellerInventory).values({
+                sellerId,
+                productId: item.productId,
+                stock: qAfter
+              });
+            }
+
+            await tx.insert(inventoryMovementItems).values({
+              movementId: movement.id,
+              productId: item.productId,
+              quantityBefore: qBefore,
+              quantityAfter: qAfter,
+              quantityChange: qChange
             });
           }
         });
 
         return { success: true };
       } catch (error) {
-        console.error("Manual adjustment error:", error);
-        return reply.status(500).send({ error: "Erro ao processar ajuste de estoque" });
+        console.error("Adjustment error:", error);
+        return reply.status(400).send({ error: "Erro ao salvar ajuste" });
       }
     });
 
-    // ── Inventory Movements ──────────────────────────────────────────────────
     instance.get('/movements', async (request) => {
       const db = (request as any).tenantDb;
-      const q  = request.query as Record<string, string>;
+      const q = request.query as Record<string, string>;
       const page = Number(q.page) || 1;
       const limit = Number(q.limit) || 10;
       const offset = (page - 1) * limit;
@@ -630,12 +783,13 @@ async function bootstrap() {
           id: inventoryMovements.id,
           type: inventoryMovements.type,
           description: inventoryMovements.description,
-          createdAt: inventoryMovements.createdAt,
+          sellerId: inventoryMovements.sellerId,
           sellerName: users.name,
+          createdAt: inventoryMovements.createdAt
         })
         .from(inventoryMovements)
         .leftJoin(users, eq(inventoryMovements.sellerId, users.id))
-        .orderBy(sql`${inventoryMovements.createdAt} DESC`)
+        .orderBy(desc(inventoryMovements.createdAt))
         .limit(limit)
         .offset(offset);
 
@@ -653,8 +807,7 @@ async function bootstrap() {
     instance.get('/movements/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      const q  = request.query as Record<string, string>;
-      
+      const q = request.query as Record<string, string>;
       const page = Number(q.page) || 1;
       const limit = Number(q.limit) || 10;
       const offset = (page - 1) * limit;
@@ -664,18 +817,16 @@ async function bootstrap() {
           id: inventoryMovements.id,
           type: inventoryMovements.type,
           description: inventoryMovements.description,
-          createdAt: inventoryMovements.createdAt,
           sellerName: users.name,
+          createdAt: inventoryMovements.createdAt
         })
         .from(inventoryMovements)
         .leftJoin(users, eq(inventoryMovements.sellerId, users.id))
-        .where(eq(inventoryMovements.id, id));
+        .where(eq(inventoryMovements.id, id))
+        .limit(1);
 
-      if (!movement) {
-        return reply.status(404).send({ error: "Movimentação não encontrada" });
-      }
+      if (!movement) return reply.status(404).send({ error: "Movimentação não encontrada" });
 
-      // Count items
       const [{ count }] = await db
         .select({ count: sql`count(*)` })
         .from(inventoryMovementItems)
@@ -683,11 +834,13 @@ async function bootstrap() {
 
       const items = await db
         .select({
+          id: inventoryMovementItems.id,
+          productId: inventoryMovementItems.productId,
           productName: products.name,
           sku: products.sku,
           quantityBefore: inventoryMovementItems.quantityBefore,
           quantityAfter: inventoryMovementItems.quantityAfter,
-          quantityChange: inventoryMovementItems.quantityChange,
+          quantityChange: inventoryMovementItems.quantityChange
         })
         .from(inventoryMovementItems)
         .leftJoin(products, eq(inventoryMovementItems.productId, products.id))
@@ -695,8 +848,8 @@ async function bootstrap() {
         .limit(limit)
         .offset(offset);
 
-      return {
-        ...movement,
+      return { 
+        ...movement, 
         items,
         pagination: {
           total: Number(count),
@@ -705,302 +858,6 @@ async function bootstrap() {
           pages: Math.ceil(Number(count) / limit)
         }
       };
-    });
-
-    // ── Fichas de Venda (with filters) ───────────────────────────────────────
-    instance.get('/fichas', async (request) => {
-      const db = (request as any).tenantDb;
-      const q  = request.query as Record<string, string>;
-
-      const page  = Number(q.page) || 1;
-      const limit = Number(q.limit) || 10;
-      const offset = (page - 1) * limit;
-
-      const conditions: any[] = [];
-
-      // Filter by status
-      if (q.status && ['nova', 'pendente', 'paga'].includes(q.status)) {
-        conditions.push(eq(fichas.status, q.status as any));
-      }
-
-      // Filter by date range
-      if (q.dataInicio) {
-        conditions.push(gte(fichas.saleDate, new Date(q.dataInicio)));
-      }
-      if (q.dataFim) {
-        const endDate = new Date(q.dataFim);
-        endDate.setHours(23, 59, 59, 999);
-        conditions.push(lte(fichas.saleDate, endDate));
-      }
-
-      // Filter by route ID
-      if (q.rotaId) {
-        conditions.push(eq(fichas.routeId, q.rotaId));
-      }
-
-      // Text searches (SQL level)
-      if (q.cliente)  conditions.push(ilike(clients.name,  `%${q.cliente}%`));
-      if (q.vendedor) conditions.push(or(ilike(users.name, `%${q.vendedor}%`), ilike(users.email, `%${q.vendedor}%`)));
-      if (q.estado)   conditions.push(ilike(clients.state, `%${q.estado}%`));
-      if (q.cidade)   conditions.push(ilike(clients.city,  `%${q.cidade}%`));
-      if (q.rua)      conditions.push(ilike(clients.street,`%${q.rua}%`));
-
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-      // Count total matches (using joins to ensure filters apply to count)
-      const [{ count }] = await db
-        .select({ count: sql`count(*)` })
-        .from(fichas)
-        .leftJoin(clients, eq(fichas.clientId, clients.id))
-        .leftJoin(users,   eq(fichas.sellerId,  users.id))
-        .where(whereClause);
-
-      // Fetch items
-      const items = await db
-        .select({
-          id:         fichas.id,
-          status:     fichas.status,
-          total:      fichas.total,
-          saleDate:   fichas.saleDate,
-          notes:      fichas.notes,
-          createdAt:  fichas.createdAt,
-          clientId:   clients.id,
-          clientName: clients.name,
-          clientPhone:clients.phone,
-          street:     clients.street,
-          city:       clients.city,
-          state:      clients.state,
-          sellerId:   users.id,
-          sellerName: users.name,
-          sellerEmail:users.email,
-          routeId:    routes.id,
-          routeName:  routes.name,
-        })
-        .from(fichas)
-        .leftJoin(clients, eq(fichas.clientId, clients.id))
-        .leftJoin(users,   eq(fichas.sellerId,  users.id))
-        .leftJoin(routes,  eq(fichas.routeId,   routes.id))
-        .where(whereClause)
-        .orderBy(sql`${fichas.createdAt} DESC`)
-        .limit(limit)
-        .offset(offset);
-
-      return {
-        items,
-        pagination: {
-          total: Number(count),
-          page,
-          limit,
-          pages: Math.ceil(Number(count) / limit)
-        }
-      };
-    });
-
-    // ── Single Ficha (with items) ─────────────────────────────────────────────
-    instance.get('/fichas/:id', async (request, reply) => {
-      const db  = (request as any).tenantDb;
-      const { id } = request.params as { id: string };
-
-      const [ficha] = await db
-        .select()
-        .from(fichas)
-        .where(eq(fichas.id, id))
-        .limit(1);
-
-      if (!ficha) return reply.status(404).send({ error: 'Ficha não encontrada' });
-
-      const items = await db
-        .select({
-          id:        fichaItems.id,
-          quantity:  fichaItems.quantity,
-          unitPrice: fichaItems.unitPrice,
-          subtotal:  fichaItems.subtotal,
-          productId: products.id,
-          productName: products.name,
-        })
-        .from(fichaItems)
-        .leftJoin(products, eq(fichaItems.productId, products.id))
-        .where(eq(fichaItems.fichaId, id));
-
-      return { ...ficha, items };
-    });
-
-    instance.post('/fichas', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const body = request.body as any;
-      const { clientId, sellerId, routeId, items, total, notes } = body;
-
-      try {
-        const result = await db.transaction(async (tx: any) => {
-          // 1. Create Ficha
-          const [newFicha] = await tx.insert(fichas).values({
-            clientId,
-            sellerId,
-            routeId,
-            total,
-            notes,
-            status: 'nova'
-          }).returning();
-
-          // 2. Add Items and Update Stock
-          for (const item of items) {
-            await tx.insert(fichaItems).values({
-              fichaId: newFicha.id,
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              subtotal: item.subtotal
-            });
-
-            // 3. Decrement Seller Stock
-            await tx.execute(sql`
-              UPDATE seller_inventory 
-              SET stock = stock - ${item.quantity}, updated_at = NOW()
-              WHERE seller_id = ${sellerId} AND product_id = ${item.productId}
-            `);
-          }
-          return newFicha;
-        });
-
-        return result;
-      } catch (error) {
-        console.error("Create ficha error:", error);
-        return reply.status(400).send({ error: "Erro ao criar ficha e abater estoque" });
-      }
-    });
-
-    // ── Dashboard Stats ───────────────────────────────────────────────────────
-    instance.get('/stats/insights', async (request) => {
-      const db       = (request as any).tenantDb;
-      const allFichas = await db.select().from(fichas);
-
-      const totalRevenue = allFichas
-        .filter((f: any) => f.status === 'paga')
-        .reduce((acc: number, f: any) => acc + Number(f.total), 0);
-
-      const counts = {
-        nova:     allFichas.filter((f: any) => f.status === 'nova').length,
-        pendente: allFichas.filter((f: any) => f.status === 'pendente').length,
-        paga:     allFichas.filter((f: any) => f.status === 'paga').length,
-      };
-
-      return {
-        totalRevenue,
-        salesCount: allFichas.length,
-        counts,
-        aiInsight: 'Acompanhe suas fichas de venda em tempo real.',
-      };
-    });
-
-    // ── Routes Management ────────────────────────────────────────────────────
-    instance.get('/routes', async (request) => {
-      const db = (request as any).tenantDb;
-      const q  = request.query as Record<string, string>;
-
-      const page  = Number(q.page) || 1;
-      const limit = Number(q.limit) || 10;
-      const offset = (page - 1) * limit;
-
-      const conditions: any[] = [];
-      if (q.name) conditions.push(ilike(routes.name, `%${q.name}%`));
-
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-      // Count total
-      const [{ count }] = await db
-        .select({ count: sql`count(*)` })
-        .from(routes)
-        .where(whereClause);
-
-      const items = await db
-        .select({
-          id:          routes.id,
-          code:        routes.code,
-          name:        routes.name,
-          description: routes.description,
-          periodicity: routes.periodicity,
-          active:      routes.active,
-          createdAt:   routes.createdAt,
-          clientCount: sql`count(${clients.id})::int`
-        })
-        .from(routes)
-        .leftJoin(clients, eq(routes.id, clients.routeId))
-        .where(whereClause)
-        .groupBy(routes.id)
-        .orderBy(routes.code)
-        .limit(limit)
-        .offset(offset);
-
-      return {
-        items,
-        pagination: {
-          total: Number(count),
-          page,
-          limit,
-          pages: Math.ceil(Number(count) / limit)
-        }
-      };
-    });
-
-    instance.post('/routes', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const body = request.body as any;
-
-      try {
-        const [newRoute] = await db.insert(routes).values({
-          name:        body.name,
-          description: body.description,
-          periodicity: Number(body.periodicity) || 30,
-        }).returning();
-
-        return newRoute;
-      } catch (error) {
-        console.error("Create route error:", error);
-        return reply.status(400).send({ error: "Erro ao criar rota" });
-      }
-    });
-
-    instance.put('/routes/:id', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const { id } = request.params as { id: string };
-      const body = request.body as any;
-
-      try {
-        const [updatedRoute] = await db
-          .update(routes)
-          .set({
-            name:        body.name,
-            description: body.description,
-            periodicity: Number(body.periodicity),
-          })
-          .where(eq(routes.id, id))
-          .returning();
-
-        return updatedRoute;
-      } catch (error) {
-        return reply.status(400).send({ error: "Erro ao atualizar rota" });
-      }
-    });
-
-    instance.post('/routes/:id/toggle-status', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const { id } = request.params as { id: string };
-
-      try {
-        // Get current status first
-        const [route] = await db.select().from(routes).where(eq(routes.id, id)).limit(1);
-        if (!route) return reply.status(404).send({ error: "Rota não encontrada" });
-
-        const [updated] = await db
-          .update(routes)
-          .set({ active: !route.active })
-          .where(eq(routes.id, id))
-          .returning();
-
-        return updated;
-      } catch (error) {
-        return reply.status(400).send({ error: "Erro ao alterar status da rota" });
-      }
     });
 
   }, { prefix: '/api' });
