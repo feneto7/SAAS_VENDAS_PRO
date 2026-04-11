@@ -79,18 +79,18 @@ export function ProductsTab({ serverUrl, tenantSlug }: ProductsTabProps) {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <header className="mb-8 flex items-start justify-between">
+      <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Estoque de Produtos</h1>
-          <p className="text-gray-500 text-sm">
-            {products.length} produtos encontrados • Gerenciamento de SKU, custos e precificação.
+          <h1 className="text-xl lg:text-2xl font-bold text-white">Estoque de Produtos</h1>
+          <p className="text-gray-500 text-xs lg:text-sm">
+            {products.length} produtos encontrados
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             onClick={() => setIsStockInOpen(true)}
-            className="bg-white/5 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-white/10 transition-all border border-white/10 active:scale-95"
+            className="flex-1 sm:flex-none justify-center bg-white/5 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-white/10 transition-all border border-white/10 active:scale-95"
           >
             <Download size={18} className="text-emerald-400" />
             Entrada
@@ -98,10 +98,10 @@ export function ProductsTab({ serverUrl, tenantSlug }: ProductsTabProps) {
           
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-white text-black px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-gray-200 transition-all shadow-lg active:scale-95"
+            className="flex-1 sm:flex-none justify-center bg-white text-black px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-gray-200 transition-all shadow-lg active:scale-95"
           >
             <Plus size={18} />
-            Novo Produto
+            Novo
           </button>
         </div>
       </header>

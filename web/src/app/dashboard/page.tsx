@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("insights");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     async function initDashboard() {
@@ -57,7 +58,6 @@ export default function DashboardPage() {
       try {
         const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
         
-        // 1. Fetch Tenant Info
         const infoRes = await fetch(`${serverUrl}/tenant/info`, {
           headers: { "x-tenant-slug": slug }
         });
@@ -66,7 +66,6 @@ export default function DashboardPage() {
           setTenantInfo(info);
         }
 
-        // 2. Fetch Stats
         const statsRes = await fetch(`${serverUrl}/api/stats/insights`, {
           headers: { "x-tenant-slug": slug }
         });
@@ -80,11 +79,12 @@ export default function DashboardPage() {
         setLoading(false);
       }
     }
-
-    if (isLoaded) {
-      initDashboard();
-    }
   }, [isLoaded, router]);
+
+  // Close sidebar on tab change (mobile)
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [activeTab]);
 
   if (!isLoaded || loading) {
     return (
@@ -95,95 +95,137 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex overflow-hidden">
+    <div className="min-h-screen bg-[#050505] text-white flex overflow-hidden relative">
+      {/* Sidebar Overlay (Mobile - only when fully expanded if needed, but here we use a partial width) */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 border-r border-white/5 bg-white/[0.02] backdrop-blur-xl flex flex-col">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 bg-[#080808] border-r border-white/5 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+        lg:relative lg:w-64 lg:translate-x-0 flex flex-col
+        ${isSidebarOpen ? "w-72 translate-x-0" : "w-16 md:w-20 translate-x-0 lg:w-64"}
+      `}>
+        <div className={`p-4 lg:p-6 flex items-center ${isSidebarOpen || "justify-center lg:justify-between"} justify-between`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-600/20 shrink-0">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            {(isSidebarOpen || window.innerWidth >= 1024) && (
+              <span className="font-black text-lg tracking-tighter uppercase animate-in fade-in duration-500 lg:block hidden">Vendas PRO</span>
+            )}
+            {isSidebarOpen && (
+               <span className="font-black text-lg tracking-tighter uppercase animate-in fade-in slide-in-from-left-2 duration-500 lg:hidden">Vendas PRO</span>
+            )}
           </div>
-          <span className="font-bold text-lg tracking-tight">Vendas SaaS</span>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4">
+        <nav className="flex-1 px-2 lg:px-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
           <NavItem 
-            icon={<LayoutDashboard size={20} />} 
+            icon={<LayoutDashboard size={22} />} 
             label="Insights" 
             active={activeTab === "insights"} 
             onClick={() => setActiveTab("insights")} 
+            collapsed={!isSidebarOpen}
           />
           <NavItem 
-            icon={<Package size={20} />} 
+            icon={<Package size={22} />} 
             label="Produtos" 
             active={activeTab === "products"} 
             onClick={() => setActiveTab("products")} 
+            collapsed={!isSidebarOpen}
           />
           <NavItem 
-            icon={<ShoppingCart size={20} />} 
+            icon={<ShoppingCart size={22} />} 
             label="Vendas" 
             active={activeTab === "sales"} 
             onClick={() => setActiveTab("sales")} 
+            collapsed={!isSidebarOpen}
           />
           <NavItem 
-            icon={<Map size={20} />} 
+            icon={<Map size={22} />} 
             label="Rotas" 
             active={activeTab === "rotas"} 
             onClick={() => setActiveTab("rotas")} 
+            collapsed={!isSidebarOpen}
           />
           <NavItem 
-            icon={<Users size={20} />} 
+            icon={<Users size={22} />} 
             label="Clientes" 
             active={activeTab === "clients"} 
             onClick={() => setActiveTab("clients")} 
+            collapsed={!isSidebarOpen}
           />
           <NavItem 
-            icon={<Briefcase size={20} />} 
+            icon={<Briefcase size={22} />} 
             label="Funcionários" 
             active={activeTab === "employees"} 
             onClick={() => setActiveTab("employees")} 
+            collapsed={!isSidebarOpen}
           />
           <NavItem 
-            icon={<History size={20} />} 
+            icon={<History size={22} />} 
             label="Movimentações" 
             active={activeTab === "movements"} 
             onClick={() => setActiveTab("movements")} 
+            collapsed={!isSidebarOpen}
           />
         </nav>
 
-        <div className="p-4 border-t border-white/5 space-y-2">
-          <NavItem icon={<Settings size={20} />} label="Configurações" active={false} onClick={() => {}} />
+        <div className="p-2 lg:p-4 border-t border-white/5 space-y-2">
+          <NavItem icon={<Settings size={22} />} label="Ajustes" active={false} onClick={() => {}} collapsed={!isSidebarOpen} />
           <SignOutButton>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-              <LogOut size={20} />
-              <span>Sair</span>
+            <button className={`w-full flex items-center transition-all p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-2xl group ${!isSidebarOpen ? "justify-center lg:justify-start lg:px-4" : "gap-3 px-4"}`}>
+              <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
+              {(isSidebarOpen || window.innerWidth >= 1024) && (
+                 <span className={`font-bold text-[11px] uppercase tracking-widest lg:block ${isSidebarOpen ? "block" : "hidden"}`}>Sair</span>
+              )}
             </button>
           </SignOutButton>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Background glow */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
 
-        <header className="h-20 border-b border-white/5 px-8 flex items-center justify-between sticky top-0 bg-[#050505]/80 backdrop-blur-md z-10">
-          <div>
-            <h2 className="text-xl font-semibold">{tenantInfo?.name || "Minha Empresa"}</h2>
-            <p className="text-xs text-gray-500 uppercase tracking-widest">{tenantInfo?.slug}</p>
+        <header className="h-16 lg:h-20 border-b border-white/5 px-4 lg:px-8 flex items-center justify-between sticky top-0 bg-[#050505]/80 backdrop-blur-md z-10 shrink-0">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 bg-white/5 rounded-lg text-gray-400 hover:text-white"
+            >
+              <LayoutDashboard size={24} />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-lg lg:text-xl font-semibold truncate">
+                {tenantInfo?.name || "Minha Empresa"}
+              </h2>
+              <p className="text-[10px] lg:text-xs text-gray-500 uppercase tracking-widest truncate">
+                {tenantInfo?.slug}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 lg:gap-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
-              <p className="text-xs text-gray-500">{user?.primaryEmailAddress?.emailAddress}</p>
+              <p className="text-sm font-medium">{user?.firstName}</p>
+              <p className="text-[10px] text-gray-500 truncate max-w-[150px]">
+                {user?.primaryEmailAddress?.emailAddress}
+              </p>
             </div>
-            <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden bg-white/5">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full border border-white/10 overflow-hidden bg-white/5 shrink-0">
               {user?.imageUrl && <img src={user.imageUrl} alt="Avatar" className="w-full h-full object-cover" />}
             </div>
           </div>
         </header>
 
-        <div className="p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6 lg:space-y-8">
           {/* Insights Tab */}
           {activeTab === "insights" && (
             <>
@@ -210,19 +252,19 @@ export default function DashboardPage() {
               </div>
 
               {/* AI Insights Card */}
-              <section className="bg-white/5 border border-white/10 rounded-3xl p-8 relative overflow-hidden">
+              <section className="bg-white/5 border border-white/10 rounded-3xl p-4 lg:p-8 relative overflow-hidden">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-purple-500/10 rounded-lg">
                     <Sparkles className="text-purple-400 w-5 h-5" />
                   </div>
                   <h3 className="text-lg font-semibold">Insights</h3>
                 </div>
-                <p className="text-gray-300 leading-relaxed italic">
+                <p className="text-gray-300 leading-relaxed italic text-sm lg:text-base">
                   "{stats?.aiInsight || "Acompanhe suas fichas de venda em tempo real."}"
                 </p>
-                <div className="mt-8 flex gap-4">
-                  <div className="flex-1 h-32 bg-white/5 rounded-2xl animate-pulse" />
-                  <div className="flex-1 h-32 bg-white/5 rounded-2xl animate-pulse" />
+                <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 h-24 lg:h-32 bg-white/5 rounded-2xl animate-pulse" />
+                  <div className="flex-1 h-24 lg:h-32 bg-white/5 rounded-2xl animate-pulse" />
                 </div>
               </section>
             </>
@@ -278,18 +320,24 @@ export default function DashboardPage() {
   );
 }
 
-function NavItem({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
+function NavItem({ icon, label, active, onClick, collapsed }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean }) {
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+      className={`w-full flex items-center transition-all duration-300 rounded-2xl group ${
         active 
           ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" 
           : "text-gray-400 hover:text-white hover:bg-white/5"
-      }`}
+      } ${collapsed ? "justify-center p-3 lg:justify-start lg:px-4 lg:gap-3" : "gap-3 px-4 py-3"}`}
     >
-      {icon}
-      <span className="font-medium">{label}</span>
+      <div className={`transition-transform duration-300 ${active ? "scale-110" : "group-hover:scale-110"}`}>
+        {icon}
+      </div>
+      {(!collapsed || typeof window !== 'undefined' && window.innerWidth >= 1024) && (
+        <span className={`font-bold text-[11px] uppercase tracking-widest leading-none lg:block ${collapsed ? "hidden" : "block"} animate-in fade-in slide-in-from-left-2 duration-500`}>
+          {label}
+        </span>
+      )}
     </button>
   );
 }

@@ -70,27 +70,25 @@ export function RouteModal({ isOpen, onClose, onSuccess, route, serverUrl, tenan
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 overflow-hidden">
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" 
+        className="absolute inset-0 bg-[#050505]/90 backdrop-blur-md animate-in fade-in duration-300" 
         onClick={onClose} 
       />
 
-      {/* Modal Card */}
-      <div className="relative w-full max-w-lg bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-        
-        {/* Header */}
-        <header className="p-8 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-purple-500/5 to-transparent">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20">
-              <Map className="text-purple-400" size={24} />
+      <div className="relative w-full max-w-lg h-[80vh] sm:h-auto bg-[#0c0c0c] border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500 ease-out">
+        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden shrink-0" />
+
+        <header className="px-6 py-4 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-purple-500/5 to-transparent">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center border border-purple-500/20">
+              <Map className="text-purple-400" size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
                 {route ? "Editar Rota" : "Nova Rota"}
               </h2>
-              <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
                 {route ? `Código: ${String(route.code).padStart(3, '0')}` : "Configuração de Setor"}
               </p>
             </div>
@@ -103,8 +101,8 @@ export function RouteModal({ isOpen, onClose, onSuccess, route, serverUrl, tenan
           </button>
         </header>
 
-        <form onSubmit={handleSubmit}>
-          <div className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
+          <div className="p-6 sm:p-8 space-y-6 flex-1 pb-32 sm:pb-8">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
                 Nome da Rota / Descrição Curta
@@ -135,24 +133,24 @@ export function RouteModal({ isOpen, onClose, onSuccess, route, serverUrl, tenan
                 />
                 <span className="absolute right-5 top-4 text-xs font-bold text-gray-500 uppercase">dias</span>
               </div>
-              <p className="text-[10px] text-gray-600 font-medium ml-1">
+              <p className="text-[10px] text-gray-600 font-medium ml-1 leading-relaxed">
                 Define quantos dias a ficha terá de prazo a partir da abertura.
               </p>
             </div>
           </div>
 
-          <footer className="p-8 border-t border-white/5 bg-black/20 flex gap-4">
+          <footer className="fixed sm:relative bottom-0 left-0 right-0 p-6 sm:p-8 border-t border-white/5 bg-[#0c0c0c] sm:bg-black/20 flex gap-4 shrink-0">
             <button 
               type="button"
               onClick={onClose}
-              className="flex-1 py-4 text-sm font-bold text-gray-400 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl"
+              className="hidden sm:block flex-1 py-4 text-sm font-bold text-gray-400 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl"
             >
               Cancelar
             </button>
             <button 
               type="submit"
               disabled={loading}
-              className="flex-1 py-4 bg-white text-black rounded-2xl text-sm font-black flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50"
+              className="flex-[2] sm:flex-1 py-4 bg-white text-black rounded-2xl text-sm font-black flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
               {route ? "Salvar Alterações" : "Criar Rota"}

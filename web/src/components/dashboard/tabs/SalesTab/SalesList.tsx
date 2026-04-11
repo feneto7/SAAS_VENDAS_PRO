@@ -60,23 +60,20 @@ export function SalesList({ fichas, loading, onFichaClick, onDelete, tenantSlug 
 
   if (loading) {
     return (
-      <div className="bg-white/[0.02] border border-white/8 rounded-2xl overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-white/5 border-b border-white/10">
-            <tr>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Código</th>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Cliente</th>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Rota</th>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Valor</th>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Vendedor</th>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-              <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...Array(6)].map((_, i) => <SkeletonRow key={i} />)}
-          </tbody>
-        </table>
+      <div className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white/[0.02] border border-white/8 rounded-2xl p-5 animate-pulse">
+            <div className="flex justify-between mb-4">
+              <div className="h-4 bg-white/10 rounded w-20" />
+              <div className="h-6 bg-white/10 rounded-full w-24" />
+            </div>
+            <div className="h-6 bg-white/10 rounded w-3/4 mb-4" />
+            <div className="flex gap-2">
+              <div className="h-10 bg-white/5 rounded-xl flex-1" />
+              <div className="h-10 bg-white/5 rounded-xl flex-1" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -84,84 +81,130 @@ export function SalesList({ fichas, loading, onFichaClick, onDelete, tenantSlug 
   if (fichas.length === 0) return <EmptyState />;
 
   return (
-    <div className="bg-white/[0.02] border border-white/8 rounded-2xl overflow-hidden overflow-x-auto">
-      <table className="w-full text-left border-collapse min-w-[800px]">
-        <thead className="bg-white/[0.03] border-b border-white/10">
-          <tr>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Código</th>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cliente</th>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Rota</th>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Valor Total</th>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Vendedor</th>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-            <th className="py-4 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Ações</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/5">
-          {fichas.map((ficha) => (
-            <tr 
-              key={ficha.id} 
-              className="group hover:bg-white/[0.04] transition-colors cursor-pointer"
-              onClick={() => onFichaClick?.(ficha)}
-            >
-              <td className="py-4 px-4">
-                <span className="text-xs font-mono text-gray-500 bg-white/5 px-2 py-1 rounded whitespace-nowrap">
-                  {ficha.code ? ficha.code : `#${shortId(ficha.id)}`}
-                </span>
-              </td>
-              <td className="py-4 px-4">
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-white">{ficha.clientName}</span>
-                </div>
-              </td>
-              <td className="py-4 px-4 text-sm text-gray-300">
-                {ficha.routeName}
-              </td>
-              <td className="py-4 px-4 text-sm font-bold text-white whitespace-nowrap">
-                {formatCentsToBRL(ficha.total)}
-              </td>
-              <td className="py-4 px-4 text-sm text-gray-400">
-                {ficha.sellerName || ficha.sellerEmail}
-              </td>
-              <td className="py-4 px-4">
-                <FichaStatusBadge status={ficha.status} />
-              </td>
-              <td className="py-4 px-4 text-right">
-                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                  {ficha.status === 'link_gerado' && ficha.linkToken && (
-                    <>
+    <div className="space-y-4">
+      {/* Mobile/Tablet view (Cards) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:hidden gap-4">
+        {fichas.map((ficha) => (
+          <div 
+            key={ficha.id} 
+            className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 hover:bg-white/[0.04] transition-all flex flex-col group active:bg-white/[0.06]"
+            onClick={() => onFichaClick?.(ficha)}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[10px] font-mono text-gray-500 bg-white/5 px-2 py-1 rounded border border-white/10">
+                {ficha.code ? ficha.code : `#${shortId(ficha.id)}`}
+              </span>
+              <FichaStatusBadge status={ficha.status} />
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-white mb-1">{ficha.clientName}</h3>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-xs text-gray-500 font-medium uppercase tracking-tight">{ficha.routeName}</span>
+                <span className="text-gray-800 hidden sm:inline">•</span>
+                <span className="text-xs text-gray-500 font-medium">{ficha.sellerName || "Vendedor Externo"}</span>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-0.5">Total</p>
+                <p className="text-lg font-black text-white">{formatCentsToBRL(ficha.total)}</p>
+              </div>
+
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                {ficha.status === 'link_gerado' && ficha.linkToken && (
+                  <button 
+                    onClick={() => handleCopyLink(ficha.linkToken!, ficha.id)}
+                    className="p-3 bg-purple-500/10 hover:bg-purple-500/20 rounded-xl text-purple-400 transition-all border border-purple-500/20"
+                  >
+                    {copiedId === ficha.id ? <CheckCircle2 size={18} /> : <LinkIcon size={18} />}
+                  </button>
+                )}
+                <button 
+                  onClick={() => onFichaClick?.(ficha)}
+                  className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-300 transition-all border border-white/10"
+                >
+                  <Eye size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop view (Table) */}
+      <div className="hidden lg:block bg-white/[0.02] border border-white/8 rounded-2xl overflow-hidden shadow-2xl">
+        <table className="w-full text-left border-collapse">
+          <thead className="bg-white/[0.03] border-b border-white/10 uppercase tracking-tighter">
+            <tr>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400">Código</th>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400">Cliente</th>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400">Rota</th>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400">Valor Total</th>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400">Vendedor</th>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400">Status</th>
+              <th className="py-5 px-4 text-[10px] font-black text-gray-400 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.04]">
+            {fichas.map((ficha) => (
+              <tr 
+                key={ficha.id} 
+                className="group hover:bg-white/[0.04] transition-colors cursor-pointer border-l-2 border-transparent hover:border-purple-500/40"
+                onClick={() => onFichaClick?.(ficha)}
+              >
+                <td className="py-4 px-4">
+                  <span className="text-xs font-mono text-gray-500 bg-white/10 px-2 py-1 rounded whitespace-nowrap border border-white/5">
+                    {ficha.code ? ficha.code : `#${shortId(ficha.id)}`}
+                  </span>
+                </td>
+                <td className="py-4 px-4">
+                  <span className="text-sm font-bold text-white">{ficha.clientName}</span>
+                </td>
+                <td className="py-4 px-4 text-sm text-gray-400">
+                  {ficha.routeName}
+                </td>
+                <td className="py-4 px-4 text-sm font-black text-white">
+                  {formatCentsToBRL(ficha.total)}
+                </td>
+                <td className="py-4 px-4 text-xs text-gray-500 italic">
+                  {ficha.sellerName || "Vnd. Externo"}
+                </td>
+                <td className="py-4 px-4">
+                  <FichaStatusBadge status={ficha.status} />
+                </td>
+                <td className="py-4 px-4 text-right">
+                  <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    {ficha.status === 'link_gerado' && ficha.linkToken && (
                       <button 
                         onClick={() => handleCopyLink(ficha.linkToken!, ficha.id)}
-                        title="Copiar Link"
-                        className="p-2 hover:bg-white/10 rounded-lg text-purple-400 hover:text-purple-300 transition-all"
+                        className="p-2 hover:bg-purple-500/10 rounded-lg text-purple-400 transition-all"
                       >
                         {copiedId === ficha.id ? <CheckCircle2 size={18} /> : <LinkIcon size={18} />}
                       </button>
-                      <button 
-                        onClick={() => {
-                          if (confirm("Deseja realmente cancelar este link?")) {
-                            onDelete?.(ficha.id);
-                          }
-                        }}
-                        title="Cancelar Link"
-                        className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/60 hover:text-red-500 transition-all"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </>
-                  )}
-                  <button 
-                    onClick={() => onFichaClick?.(ficha)}
-                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all"
-                  >
-                    <Eye size={18} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                    )}
+                    <button 
+                      onClick={() => onFichaClick?.(ficha)}
+                      className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all"
+                    >
+                      <Eye size={18} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (confirm("Cancelar link?")) onDelete?.(ficha.id);
+                      }}
+                      className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/40 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

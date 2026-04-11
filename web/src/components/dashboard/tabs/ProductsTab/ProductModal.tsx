@@ -85,23 +85,26 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
   const labelClass = "block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-hidden">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-[#050505]/80 backdrop-blur-sm animate-in fade-in duration-300"
+        className="absolute inset-0 bg-[#050505]/90 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#0f0f0f] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
-        <header className="p-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-transparent shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20">
-              <Package className="text-purple-400" size={24} />
+      <div className="relative w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] bg-[#0f0f0f] border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500 ease-out">
+        {/* Mobile drag handle */}
+        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden shrink-0" />
+
+        <header className="px-6 py-4 sm:p-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-transparent shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center border border-purple-500/20">
+              <Package className="text-purple-400" size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">Novo Produto</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Preencha as informações para cadastrar no estoque.</p>
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Novo Produto</h2>
+              <p className="text-[10px] sm:text-xs text-gray-400">Preencha as informações do estoque.</p>
             </div>
           </div>
           <button 
@@ -112,45 +115,50 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="p-8 overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="px-6 py-4 sm:p-8 overflow-y-auto custom-scrollbar flex-1 pb-24 sm:pb-8">
+          <div className="space-y-6">
             {/* Main Info */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="bg-white/[0.01] border border-white/5 p-4 rounded-2xl">
-                <div className="flex items-center gap-2 mb-4 text-purple-400">
-                  <Info size={14} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Informações Básicas</span>
+            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
+              <div className="flex items-center gap-2 text-purple-400 border-b border-white/5 pb-3">
+                <Info size={14} />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Informações Básicas</span>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className={labelClass}>Descrição / Nome <span className="text-red-500">*</span></label>
+                  <input 
+                    className={inputClass} 
+                    placeholder="Ex: Arroz Tio João 5kg"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    required
+                  />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className={labelClass}>Descrição / Nome <span className="text-red-500">*</span></label>
-                    <input 
-                      className={inputClass} 
-                      placeholder="Ex: Arroz Tio João 5kg"
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      required
-                    />
-                  </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Código SKU</label>
                     <input 
-                      className={`${inputClass} opacity-50 cursor-not-allowed`}
-                      placeholder="Gerado automaticamente"
+                      className={`${inputClass} opacity-40 bg-black/20`}
+                      placeholder="SET"
                       value={formData.sku}
                       readOnly
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Estoque deposito</label>
+                    <label className={labelClass}>Estoque</label>
                     <input 
                       type="number"
-                      className={`${inputClass} opacity-50 cursor-not-allowed`}
+                      className={`${inputClass} opacity-40 bg-black/20`}
                       placeholder="0"
                       value={formData.stockDeposit}
                       readOnly
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Categoria</label>
                     <input 
@@ -174,14 +182,15 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
             </div>
 
             {/* Pricing Info */}
-            <div className="md:col-span-2 bg-white/[0.01] border border-white/5 p-4 rounded-2xl">
-              <div className="flex items-center gap-2 mb-4 text-emerald-400">
+            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
+              <div className="flex items-center gap-2 text-emerald-400 border-b border-white/5 pb-3">
                 <DollarSign size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Precificação e Custos</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Precificação</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={labelClass}>Preço de Custo</label>
+                  <label className={labelClass}>Custo</label>
                   <div className="relative">
                     <span className="absolute left-4 top-3.5 text-xs text-gray-500 font-bold">R$</span>
                     <input 
@@ -193,9 +202,9 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                   </div>
                 </div>
                 <div>
-                  <label className={labelClass}>Preço CC (Com Com.)</label>
+                  <label className={labelClass}>Preço Com Comissão</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-xs text-purple-400/60 font-bold">R$</span>
+                    <span className="absolute left-4 top-3.5 text-xs text-purple-400 font-bold">R$</span>
                     <input 
                       className={`${inputClass} pl-10 border-purple-500/10 focus:border-purple-500`}
                       placeholder="0,00"
@@ -205,9 +214,9 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                   </div>
                 </div>
                 <div>
-                  <label className={labelClass}>Preço SC (Sem Com.)</label>
+                  <label className={labelClass}>Preço Sem Comissão</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-xs text-emerald-400/60 font-bold">R$</span>
+                    <span className="absolute left-4 top-3.5 text-xs text-emerald-400 font-bold">R$</span>
                     <input 
                       className={`${inputClass} pl-10 border-emerald-500/10 focus:border-emerald-500`}
                       placeholder="0,00"
@@ -220,12 +229,12 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
             </div>
           </div>
 
-          <footer className="mt-8 flex gap-3 border-t border-white/5 pt-8">
+          <footer className="fixed sm:relative bottom-0 left-0 right-0 px-6 py-4 sm:p-0 sm:mt-8 flex gap-3 bg-[#0f0f0f] sm:bg-transparent border-t sm:border-t-0 border-white/5 shrink-0">
             <button 
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 py-4 px-6 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+              className="hidden sm:block flex-1 py-4 px-6 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
             >
               Cancelar
             </button>
