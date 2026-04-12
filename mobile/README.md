@@ -1,39 +1,37 @@
-# VENDAS - Mobile App
+# Vendas PRO - Mobile (Expo)
 
-Aplicativo dos vendedores construído com **React Native** e **Expo**.
+Aplicativo mobile para vendedores e logística. Utiliza Expo Router e Clerk para autenticação.
 
-## Características principais
-- Registro rápido de vendas externas.
-- Consulta de estoque vinculada ao vendedor.
-- Listagem dinâmica de Clientes.
-- Notificações de rotas.
+## 🚀 Como Executar
 
-## Instalação
+### 1. Configuração do Ambiente
+
+Certifique-se de ter o arquivo `.env` na raiz da pasta `mobile` (eu já criei para você) com o seguinte conteúdo:
 
 ```bash
-cd mobile
+EXPO_PUBLIC_API_URL=http://localhost:3001
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_cG9wdWxhci1hbnQtOTQuY2xlcmsuYWNjb3VudHMuZGV2JA
+```
+
+> **Nota:** Se você for rodar em um dispositivo físico, substitua `localhost` pelo endereço IP do seu computador (ex: `192.168.1.10`).
+
+### 2. Instalação
+
+Se ainda não instalou as dependências:
+
+```bash
 npm install
 ```
 
-## Configuração
+### 3. Iniciar o Expo
 
-Crie um arquivo `.env` na raiz da pasta `mobile` se houver necessidade de apontar para a URL da API em produção.
-
-## Como Rodar
-
-### Desenvolvimento Local:
 ```bash
-npx expo start
-```
-Use o aplicativo **Expo Go** no seu celular para escanear o QR Code.
-
-### Compilação nativa:
-```bash
-# Para gerar builds de testes (EAS Build)
-eas build --profile development --platform android
+npm start
 ```
 
-## Organização Interna
-- `/app`: Estrutura de navegação (Expo Router).
-- `/components`: UI kit do aplicativo.
-- `/lib`: Clientes de API e configurações.
+Pressione `a` para abrir no Android, `i` para iOS ou escaneie o QR Code com o aplicativo **Expo Go** no seu celular.
+
+## 🗝️ Fluxo de Login
+
+1. **Código da Empresa**: No primeiro acesso, digite o slug da sua empresa (ex: `vendas-ltda`).
+2. **Login de Vendedor**: Use o seu código de vendedor e senha cadastrados no painel administrativo.

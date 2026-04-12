@@ -8,6 +8,7 @@ dotenv.config({ path: join(process.cwd(), '.env'), override: true });
 console.log('✅ DATABASE_URL:', process.env.DATABASE_URL?.includes('postgres') ? 'Loaded' : 'MISSING');
 
 import { tenantMiddleware } from './middleware/tenant.js';
+// Trigger restart to refresh DB pools and schema
 import { masterDb }         from './db/master.js';
 import { provisionTenant }  from './db/provisioning.js';
 import { 
@@ -31,9 +32,16 @@ import { getTenantDb } from './db/tenant.js';
 import { generateProductSKU } from './lib/sku.js';
 
 
+import fastifyJwt from '@fastify/jwt';
+
 const fastify = Fastify({ logger: false });
 
 async function bootstrap() {
+  // ─── JWT ──────────────────────────────────────────────────────────────────
+  await fastify.register(fastifyJwt, {
+    secret: process.env.JWT_SECRET || 'vendas-pro-secret-123-super-secure'
+  });
+
   // ─── CORS ─────────────────────────────────────────────────────────────────
   await fastify.register(cors, {
     origin: true,
@@ -191,6 +199,48 @@ async function bootstrap() {
       }
     });
 
+    // ── Auth: Seller Login ──────────────────────────────────────────────────
+    instance.post('/auth/seller/login', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { appCode, password } = request.body as any;
+
+      if (!appCode || !password) {
+        return reply.status(400).send({ error: "Código e senha são obrigatórios" });
+      }
+
+      try {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(and(eq(users.appCode, appCode), eq(users.active, true)))
+          .limit(1);
+
+        if (!user || user.password !== password) {
+          return reply.status(401).send({ error: "Credenciais inválidas" });
+        }
+
+        // Generate JWT
+        const token = fastify.jwt.sign({ 
+          id: user.id, 
+          role: user.role, 
+          tenant: (request as any).tenant.slug 
+        });
+
+        return {
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            appCode: user.appCode
+          }
+        };
+      } catch (err) {
+        console.error("Login error:", err);
+        return reply.status(500).send({ error: "Erro interno no servidor" });
+      }
+    });
+
     // ── Employees (Vendedores) ──────────────────────────────────────────────
     instance.get('/employees', async (request) => {
       const db = (request as any).tenantDb;
@@ -236,6 +286,56 @@ async function bootstrap() {
         return result;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao criar funcionário" });
+      }
+    });
+
+    instance.post('/employees/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const body = request.body as any;
+
+      try {
+        const result = await db.transaction(async (tx: any) => {
+          // Prepare update data
+          const updateData: any = {
+            name:     body.name,
+            appCode:  body.appCode,
+            phone:    body.phone,
+            email:    body.email,
+            updatedAt: new Date(),
+          };
+
+          // Only update password if provided
+          if (body.password) {
+            updateData.password = body.password;
+          }
+
+          const [updatedUser] = await tx
+            .update(users)
+            .set(updateData)
+            .where(eq(users.id, id))
+            .returning();
+
+          if (!updatedUser) {
+            throw new Error("Funcionário não encontrado");
+          }
+
+          // Update Routes
+          if (body.routeIds && Array.isArray(body.routeIds)) {
+            // Remove old
+            await tx.delete(userRoutes).where(eq(userRoutes.userId, id));
+            // Add new
+            for (const rId of body.routeIds) {
+              await tx.insert(userRoutes).values({ userId: id, routeId: rId });
+            }
+          }
+
+          return updatedUser;
+        });
+        return result;
+      } catch (error: any) {
+        console.error("Update employee error:", error);
+        return reply.status(400).send({ error: error.message || "Erro ao atualizar funcionário" });
       }
     });
 
@@ -617,13 +717,22 @@ async function bootstrap() {
 
     // ─── Cobranças (Viagens) ──────────────────────────────────────────────────
 
-    instance.get('/routes/:id/cobrancas', async (request) => {
+    instance.get('/routes/:id/cobrancas', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      return await db.select()
-        .from(cobrancas)
-        .where(eq(cobrancas.routeId, id))
-        .orderBy(desc(cobrancas.startDate));
+      try {
+        const result = await db.execute(sql`
+          SELECT id, code, route_id as "routeId", seller_id as "sellerId", status, 
+                 start_date as "startDate", end_date as "endDate", 
+                 created_at as "createdAt", updated_at as "updatedAt"
+          FROM cobrancas
+          WHERE route_id = ${id}
+          ORDER BY start_date DESC
+        `);
+        return result.rows;
+      } catch (err: any) {
+        return reply.status(500).send({ error: "Internal Server Error" });
+      }
     });
 
     instance.post('/routes/:id/cobrancas', async (request, reply) => {
@@ -632,17 +741,29 @@ async function bootstrap() {
       const { sellerId } = request.body as { sellerId: string };
 
       try {
-        const [newCobranca] = await db.insert(cobrancas)
-          .values({
-            routeId,
-            sellerId,
-            status: 'aberta',
-            startDate: new Date(),
-          })
-          .returning();
+        // Validation: Block if there's already an open trip for this route
+        const openTrips = await db.execute(sql`
+          SELECT id FROM cobrancas 
+          WHERE route_id = ${routeId} AND status = 'aberta'
+        `);
+
+        if (openTrips.rows.length > 0) {
+          return reply.status(400).send({ 
+            error: "Viagem em andamento",
+            message: "Não é permitido criar um cobrança nova enquanto existir um cobrança em andamento na rota" 
+          });
+        }
+
+        const result = await db.execute(sql`
+          INSERT INTO cobrancas (route_id, seller_id, status)
+          VALUES (${routeId}, ${sellerId}, 'aberta')
+          RETURNING id, code, route_id as "routeId", seller_id as "sellerId", status, 
+                    start_date as "startDate", end_date as "endDate", 
+                    created_at as "createdAt", updated_at as "updatedAt"
+        `);
         
-        return newCobranca;
-      } catch (err) {
+        return result.rows[0];
+      } catch (err: any) {
         return reply.status(400).send({ error: "Erro ao iniciar viagem" });
       }
     });
