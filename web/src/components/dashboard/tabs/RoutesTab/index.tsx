@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Map, Truck, Loader2 } from "lucide-react";
 import { RouteList } from "./RouteList";
 import { RouteModal } from "./RouteModal";
+import { CobrancasList } from "./CobrançasList";
 import type { Route } from "@/types/route.types";
 import { Pagination } from "@/components/dashboard/shared/Pagination";
 
@@ -20,6 +21,10 @@ export function RoutesTab({ serverUrl, tenantSlug }: RoutesTabProps) {
   const [selectedRoute, setSelectedRoute] = useState<Route | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Drill-down state
+  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
+  const [activeRouteName, setActiveRouteName] = useState<string>("");
 
   const fetchRoutes = async () => {
     try {
@@ -45,8 +50,10 @@ export function RoutesTab({ serverUrl, tenantSlug }: RoutesTabProps) {
   };
 
   useEffect(() => {
-    fetchRoutes();
-  }, [search, currentPage]);
+    if (!activeRouteId) {
+      fetchRoutes();
+    }
+  }, [search, currentPage, activeRouteId]);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
@@ -74,6 +81,23 @@ export function RoutesTab({ serverUrl, tenantSlug }: RoutesTabProps) {
       console.error(err);
     }
   };
+
+  const handleOpenRoute = (route: Route) => {
+    setActiveRouteId(route.id);
+    setActiveRouteName(route.name);
+  };
+
+  if (activeRouteId) {
+    return (
+      <CobrancasList 
+        routeId={activeRouteId}
+        routeName={activeRouteName}
+        serverUrl={serverUrl}
+        tenantSlug={tenantSlug}
+        onBack={() => setActiveRouteId(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -106,22 +130,25 @@ export function RoutesTab({ serverUrl, tenantSlug }: RoutesTabProps) {
 
       {loading ? (
         <div className="h-64 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : (
         <RouteList 
           routes={routes} 
           onEdit={handleEdit} 
-          onToggleStatus={handleToggleStatus} 
+          onToggleStatus={handleToggleStatus}
+          onOpenRoute={handleOpenRoute}
         />
       )}
 
-      <Pagination 
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        loading={loading}
-      />
+      {!loading && totalPages > 1 && (
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          loading={loading}
+        />
+      )}
 
       <RouteModal 
         isOpen={isModalOpen} 

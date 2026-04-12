@@ -20,7 +20,11 @@ import {
   userRoutes, 
   sellerInventory,
   inventoryMovements,
-  inventoryMovementItems
+  inventoryMovementItems,
+  payments,
+  paymentMethods,
+  tenants,
+  cobrancas
 } from './db/schema/index.js';
 import { eq, and, ilike, sql, desc, inArray, gte, lte, or } from "drizzle-orm";
 import { getTenantDb } from './db/tenant.js';
@@ -338,6 +342,19 @@ async function bootstrap() {
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
+      // Count total matching filters
+      const [{ count }] = await db
+        .select({ count: sql`count(*)` })
+        .from(fichas)
+        .leftJoin(clients, eq(fichas.clientId, clients.id))
+        .where(whereClause);
+
+      // Count specifically 'pedido' status
+      const [{ ordersCount }] = await db
+        .select({ ordersCount: sql`count(*)` })
+        .from(fichas)
+        .where(eq(fichas.status, 'pedido'));
+
       const items = await db
         .select({
           id: fichas.id,
@@ -359,7 +376,113 @@ async function bootstrap() {
         .limit(limit)
         .offset(offset);
 
-      return { items };
+      return { 
+        items,
+        pagination: {
+          total: Number(count),
+          page,
+          limit,
+          pages: Math.ceil(Number(count) / limit)
+        },
+        stats: {
+          ordersCount: Number(ordersCount)
+        }
+      };
+    });
+
+    instance.get('/fichas/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      console.log(`🔍 Fetching ficha details for ID: ${id}`);
+
+      try {
+        const [ficha] = await db
+          .select({
+            id: fichas.id,
+            code: fichas.code,
+            status: fichas.status,
+            total: fichas.total,
+            notes: fichas.notes,
+            saleDate: fichas.saleDate,
+            createdAt: fichas.createdAt,
+            client: {
+              name: clients.name,
+              phone: clients.phone,
+              street: clients.street,
+              number: clients.number,
+              neighborhood: clients.neighborhood,
+              city: clients.city,
+              state: clients.state
+            },
+            seller: {
+              name: users.name
+            }
+          })
+          .from(fichas)
+          .leftJoin(clients, eq(fichas.clientId, clients.id))
+          .leftJoin(users, eq(fichas.sellerId, users.id))
+          .where(eq(fichas.id, id))
+          .limit(1);
+
+        if (!ficha) {
+          console.error("❌ Ficha not found");
+          return reply.status(404).send({ error: "Ficha não encontrada" });
+        }
+
+        console.log("✅ Ficha head loaded. fetching items...");
+
+        const items = await db
+          .select({
+            id: fichaItems.id,
+            productId: fichaItems.productId,
+            productName: products.name,
+            sku: products.sku,
+            quantity: fichaItems.quantity,
+            unitPrice: fichaItems.unitPrice,
+            subtotal: fichaItems.subtotal,
+            commissionType: fichaItems.commissionType
+          })
+          .from(fichaItems)
+          .leftJoin(products, eq(fichaItems.productId, products.id))
+          .where(eq(fichaItems.fichaId, id));
+
+        console.log(`✅ Items loaded: ${items.length}. fetching payments...`);
+
+        const fichaPayments = await db
+          .select({
+            id: payments.id,
+            amount: payments.amount,
+            methodName: paymentMethods.name,
+            paymentDate: payments.paymentDate
+          })
+          .from(payments)
+          .leftJoin(paymentMethods, eq(payments.methodId, paymentMethods.id))
+          .where(eq(payments.fichaId, id));
+
+        console.log(`✅ Payments loaded: ${fichaPayments.length}. Calculating stats...`);
+
+        const totalCC = items
+          .filter((i: any) => i.commissionType === 'CC')
+          .reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
+        
+        const totalSC = items
+          .filter((i: any) => i.commissionType === 'SC')
+          .reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
+
+        return {
+          ...ficha,
+          items,
+          payments: fichaPayments,
+          stats: {
+            totalCC,
+            totalSC,
+            itemCount: items.length
+          }
+        };
+      } catch (err: any) {
+        console.error("🔥 Error in GET /fichas/:id:", err);
+        return reply.status(500).send({ error: "Internal Server Error", message: err.message });
+      }
     });
 
     instance.delete('/fichas/:id', async (request, reply) => {
@@ -373,15 +496,6 @@ async function bootstrap() {
       // For now, let's just allow deleting any ficha if the admin wants.
       await db.delete(fichas).where(eq(fichas.id, id));
       return { success: true };
-    });
-
-    instance.get('/fichas/:id', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const { id } = request.params as any;
-      const [ficha] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
-      if (!ficha) return reply.status(404).send({ error: "Não encontrado" });
-      const items = await db.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
-      return { ...ficha, items };
     });
 
     instance.post('/fichas', async (request, reply) => {
@@ -438,8 +552,201 @@ async function bootstrap() {
         }).returning();
 
         return { linkToken, url: `/public/ficha/${linkToken}?tenant=${slug}` };
-      } catch (error) {
-        return reply.status(500).send({ error: "Erro ao gerar link" });
+      } catch (err) {
+        return reply.status(400).send({ error: "Erro ao criar ficha" });
+      }
+    });
+
+    // ─── Settings: Company & Payments ─────────────────────────────────────────
+
+    instance.get('/settings/payments', async (request) => {
+      const db = (request as any).tenantDb;
+      return await db.select().from(paymentMethods).orderBy(paymentMethods.name);
+    });
+
+    instance.post('/settings/payments', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const body = request.body as any;
+      const { id, name, active } = body;
+
+      try {
+        if (id) {
+          // Update
+          const [updated] = await db.update(paymentMethods)
+            .set({ name, active, updatedAt: new Date() })
+            .where(eq(paymentMethods.id, id))
+            .returning();
+          return updated;
+        } else {
+          // Create
+          const [created] = await db.insert(paymentMethods)
+            .values({ name, active: active ?? true })
+            .returning();
+          return created;
+        }
+      } catch (err) {
+        return reply.status(400).send({ error: "Erro ao salvar forma de pagamento" });
+      }
+    });
+
+    instance.patch('/settings/company', async (request, reply) => {
+      const slug = request.headers['x-tenant-slug'] as string;
+      const body = request.body as any;
+      
+      try {
+        const [updated] = await masterDb.update(tenants)
+          .set({
+            name: body.name,
+            street: body.street,
+            number: body.number,
+            neighborhood: body.neighborhood,
+            city: body.city,
+            state: body.state,
+            zipCode: body.zipCode,
+            contact: body.contact,
+            updatedAt: new Date()
+          })
+          .where(eq(tenants.slug, slug))
+          .returning();
+        
+        return updated;
+      } catch (err) {
+        return reply.status(400).send({ error: "Erro ao atualizar dados da empresa" });
+      }
+    });
+
+    // ─── Cobranças (Viagens) ──────────────────────────────────────────────────
+
+    instance.get('/routes/:id/cobrancas', async (request) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      return await db.select()
+        .from(cobrancas)
+        .where(eq(cobrancas.routeId, id))
+        .orderBy(desc(cobrancas.startDate));
+    });
+
+    instance.post('/routes/:id/cobrancas', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id: routeId } = request.params as { id: string };
+      const { sellerId } = request.body as { sellerId: string };
+
+      try {
+        const [newCobranca] = await db.insert(cobrancas)
+          .values({
+            routeId,
+            sellerId,
+            status: 'aberta',
+            startDate: new Date(),
+          })
+          .returning();
+        
+        return newCobranca;
+      } catch (err) {
+        return reply.status(400).send({ error: "Erro ao iniciar viagem" });
+      }
+    });
+
+    instance.patch('/cobrancas/:id/close', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+
+      try {
+        // 1. Mark trip as closed
+        const [closedCobranca] = await db.update(cobrancas)
+          .set({ 
+            status: 'encerrada', 
+            endDate: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(cobrancas.id, id))
+          .returning();
+
+        // 2. Transition linked fiches from 'nova' to 'pendente'
+        await db.update(fichas)
+          .set({ status: 'pendente', updatedAt: new Date() })
+          .where(and(
+            eq(fichas.cobrancaId, id),
+            eq(fichas.status, 'nova')
+          ));
+
+        return closedCobranca;
+      } catch (err) {
+        return reply.status(400).send({ error: "Erro ao encerrar viagem" });
+      }
+    });
+
+    // ─── Clients: Detailed View ──────────────────────────────────────────────
+
+    instance.get('/clients/:id/details', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+
+      try {
+        // 1. Fetch Client Info
+        const [client] = await db.select().from(clients).where(eq(clients.id, id));
+        if (!client) return reply.status(404).send({ error: "Cliente não encontrado" });
+
+        // 2. Fetch all Fichas for this client
+        const clientFichas = await db
+          .select({
+            id: fichas.id,
+            code: fichas.code,
+            status: fichas.status,
+            total: fichas.total,
+            saleDate: fichas.saleDate,
+            sellerName: users.name
+          })
+          .from(fichas)
+          .leftJoin(users, eq(fichas.sellerId, users.id))
+          .where(eq(fichas.clientId, id))
+          .orderBy(desc(fichas.saleDate));
+
+        // 3. Calculate Financial Summary
+        // totalSold includes everything except 'pedido'
+        const totalSold = clientFichas
+          .filter((f: any) => f.status !== 'pedido')
+          .reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+
+        // totalPending includes 'nova' and 'pendente'
+        const totalPending = clientFichas
+          .filter((f: any) => f.status === 'nova' || f.status === 'pendente' || f.status === 'link_gerado')
+          .reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+
+        // Fetch all payments for this client's fichas
+        const allClientPayments = await db
+          .select({ amount: payments.amount })
+          .from(payments)
+          .innerJoin(fichas, eq(payments.fichaId, fichas.id))
+          .where(eq(fichas.clientId, id));
+
+        const totalPaid = allClientPayments.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+        const totalRemaining = totalSold - totalPaid;
+
+        // Counts per status
+        const counts = {
+          novas:     clientFichas.filter((f: any) => f.status === 'nova').length,
+          pendentes: clientFichas.filter((f: any) => f.status === 'pendente').length,
+          pagas:     clientFichas.filter((f: any) => f.status === 'paga').length,
+          pedidos:   clientFichas.filter((f: any) => f.status === 'pedido').length,
+          link_gerado: clientFichas.filter((f: any) => f.status === 'link_gerado').length,
+        };
+
+        return {
+          client,
+          stats: {
+            totalSold,
+            totalPaid,
+            totalPending,
+            totalRemaining
+          },
+          fichas: clientFichas,
+          counts
+        };
+
+      } catch (err) {
+        console.error("Error fetching client details:", err);
+        return reply.status(500).send({ error: "Erro interno ao carregar detalhes do cliente" });
       }
     });
 
@@ -919,6 +1226,26 @@ async function bootstrap() {
           limit,
           pages: Math.ceil(Number(count) / limit)
         }
+      };
+    });
+
+    instance.get('/stats/insights', async (request) => {
+      const db = (request as any).tenantDb;
+      
+      const sales = await db.select({
+        total: fichas.total,
+        status: fichas.status
+      })
+      .from(fichas)
+      .where(sql`${fichas.status} != 'link_gerado'`);
+
+      const totalRevenue = sales.reduce((acc: number, curr: any) => acc + (Number(curr.total) || 0), 0);
+      const salesCount = sales.length;
+
+      return {
+        totalRevenue,
+        salesCount,
+        aiInsight: "Suas vendas estão estáveis. Considere focar na rota com mais clientes pendentes para aumentar o faturamento."
       };
     });
 

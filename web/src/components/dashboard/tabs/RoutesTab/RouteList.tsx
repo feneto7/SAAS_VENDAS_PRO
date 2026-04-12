@@ -7,9 +7,10 @@ interface RouteListProps {
   routes: Route[];
   onEdit: (route: Route) => void;
   onToggleStatus: (id: string) => void;
+  onOpenRoute: (route: Route) => void;
 }
 
-export function RouteList({ routes, onEdit, onToggleStatus }: RouteListProps) {
+export function RouteList({ routes, onEdit, onToggleStatus, onOpenRoute }: RouteListProps) {
   if (routes.length === 0) {
     return (
       <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-20 flex flex-col items-center justify-center text-center">
@@ -63,6 +64,7 @@ export function RouteList({ routes, onEdit, onToggleStatus }: RouteListProps) {
                   <Edit2 size={18} />
                 </button>
                 <button 
+                  onClick={() => onOpenRoute(route)}
                   className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 transition-all border border-white/10"
                 >
                   <ExternalLink size={18} />
@@ -130,6 +132,7 @@ export function RouteList({ routes, onEdit, onToggleStatus }: RouteListProps) {
                 <td className="p-5 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button 
+                      onClick={() => onOpenRoute(route)}
                       title="Abrir Rota"
                       className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-all shadow-sm"
                     >

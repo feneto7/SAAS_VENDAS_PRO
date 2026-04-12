@@ -1,15 +1,16 @@
 "use client";
 
-import { Edit2, Power, MapPin, Phone, User, Map } from "lucide-react";
+import { Edit2, Power, MapPin, Phone, User, Map, ExternalLink } from "lucide-react";
 import type { Client } from "@/types/client.types";
 
 interface ClientListProps {
   clients: Client[];
   onEdit: (client: Client) => void;
   onToggleStatus: (id: string) => void;
+  onOpenClient: (client: Client) => void;
 }
 
-export function ClientList({ clients, onEdit, onToggleStatus }: ClientListProps) {
+export function ClientList({ clients, onEdit, onToggleStatus, onOpenClient }: ClientListProps) {
   if (clients.length === 0) {
     return (
       <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-20 flex flex-col items-center justify-center text-center backdrop-blur-sm">
@@ -64,10 +65,19 @@ export function ClientList({ clients, onEdit, onToggleStatus }: ClientListProps)
             <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <button 
-                  onClick={() => onEdit(client)}
+                  onClick={() => {
+                    console.log("Edit button clicked for client:", client.name);
+                    onEdit(client);
+                  }}
                   className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 transition-all border border-white/10"
                 >
                   <Edit2 size={18} />
+                </button>
+                <button 
+                  onClick={() => onOpenClient(client)}
+                  className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 transition-all border border-white/10"
+                >
+                  <ExternalLink size={18} />
                 </button>
               </div>
 
@@ -142,6 +152,13 @@ export function ClientList({ clients, onEdit, onToggleStatus }: ClientListProps)
                 </td>
                 <td className="p-5 text-right">
                   <div className="flex items-center justify-end gap-2">
+                    <button 
+                      onClick={() => onOpenClient(client)}
+                      title="Abrir Cliente"
+                      className="p-2.5 hover:bg-white/5 rounded-xl text-gray-500 hover:text-white transition-all"
+                    >
+                      <ExternalLink size={18} />
+                    </button>
                     <button 
                       onClick={() => onEdit(client)}
                       title="Editar"
