@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, LogOut, ChevronLeft } from 'lucide-react-native';
@@ -10,6 +10,7 @@ export default function MainLayout() {
   const { seller, companyName, logout, activeTrip } = useTenant();
   const router = useRouter();
   const segments = useSegments();
+  const params = useGlobalSearchParams();
 
   // Determine path info
   const isTripDetail = (segments as any[]).includes('collection-detail');
@@ -18,9 +19,9 @@ export default function MainLayout() {
   const isRoutes = (segments as any[]).includes('routes');
   const isProducts = (segments as any[]).includes('products');
   const isClients = (segments as any[]).includes('clients');
-  const isNewFicha = (segments as any[]).includes('new-ficha');
+  const isNewCard = (segments as any[]).includes('new-card');
   const isOrderDetail = (segments as any[]).includes('order-detail');
-  const isFichaDetail = (segments as any[]).includes('ficha-detail');
+  const isCardDetail = (segments as any[]).includes('card-detail');
 
   const currentPath = segments[segments.length - 1];
   // Bloqueia o botão voltar se estiver na Home (index) ou na tela de Rotas (se for o início da navegação)
@@ -34,9 +35,38 @@ export default function MainLayout() {
     // verificamos se devemos forçar a hierarquia linear.
     // Isso resolve o problema de o router.back() ou router.canGoBack() falhar em reloads.
 
-    // 1. Ficha Detail -> Clientes
-    if (path.includes('ficha-detail') || path.includes('new-ficha')) {
-      router.replace('/(main)/clients');
+    // 1. New Card -> Client Detail (Aba Novas)
+    if (path.includes('new-card')) {
+      const clientId = params.clientId || segments[segments.length - 1];
+      router.replace({
+        pathname: `/(main)/client-detail/${clientId}`,
+        params: { 
+          id: clientId,
+          tab: 'novas',
+          clientName: params.clientName,
+          routeName: params.routeName
+        }
+      } as any);
+      return;
+    }
+
+    // 2. Card Detail -> Client Detail (if possible, else Clientes)
+    if (path.includes('card-detail')) {
+      const clientIdParam = params.clientId as string;
+      
+      if (clientIdParam) {
+        router.replace({
+          pathname: `/(main)/client-detail/${clientIdParam}`,
+          params: { 
+            id: clientIdParam,
+            tab: 'pendentes',
+            clientName: params.clientName,
+            routeName: params.routeName
+          }
+        } as any);
+      } else {
+        router.replace('/(main)/clients');
+      }
       return;
     }
 
@@ -138,8 +168,8 @@ export default function MainLayout() {
         />
       </View>
 
-      {/* PERSISTENT FOOTER LOGOUT - Hide when trip is active (inside detail, clients, client-detail, new-ficha, order-detail or ficha-detail) */}
-      {!(isTripDetail || isCollections || isClientDetail || isNewFicha || isOrderDetail || isFichaDetail) && (
+      {/* PERSISTENT FOOTER LOGOUT - Hide when trip or list is active */}
+      {!(isTripDetail || isCollections || isClientDetail || isNewCard || isOrderDetail || isCardDetail || isClients) && (
         <View style={styles.footer}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <LogOut size={20} color="#ef4444" />

@@ -26,7 +26,7 @@ import 'dayjs/locale/pt-br';
 
 dayjs.locale('pt-br');
 
-interface Ficha {
+interface Card {
   id: string;
   code: number;
   status: string;
@@ -36,7 +36,12 @@ interface Ficha {
 }
 
 export default function ClientDetailScreen() {
-  const { id: clientId, clientName: initialClientName, routeName: initialRouteName } = useLocalSearchParams();
+  const { 
+    id: clientId, 
+    clientName: initialClientName, 
+    routeName: initialRouteName,
+    tab: initialTab
+  } = useLocalSearchParams();
   const { tenantSlug, activeTrip } = useTenant();
   const router = useRouter();
   
@@ -44,7 +49,7 @@ export default function ClientDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   const [data, setData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('pendentes');
+  const [activeTab, setActiveTab] = useState((initialTab as string) || 'pendentes');
 
   const fetchClientDetails = async () => {
     try {
@@ -73,11 +78,11 @@ export default function ClientDetailScreen() {
     fetchClientDetails();
   };
 
-  const fichas = data?.fichas || [];
+  const cards = data?.fichas || [];
   const stats = data?.stats || { totalSold: 0, totalPaid: 0, totalPending: 0, totalRemaining: 0 };
   const counts = data?.counts || { novas: 0, pendentes: 0, pagas: 0, pedidos: 0 };
 
-  const filteredFichas = fichas.filter((f: any) => {
+  const filteredCards = cards.filter((f: any) => {
     if (activeTab === 'pendentes') return f.status === 'pendente' || f.status === 'link_gerado';
     if (activeTab === 'novas') return f.status === 'nova';
     if (activeTab === 'pagas') return f.status === 'paga';
@@ -153,26 +158,31 @@ export default function ClientDetailScreen() {
             <ActivityIndicator size="large" color="#A78BFA" />
             <Text style={styles.loadingText}>Buscando fichas...</Text>
           </View>
-        ) : filteredFichas.length === 0 ? (
+        ) : filteredCards.length === 0 ? (
           <View style={styles.emptyContainer}>
             <FileText size={48} color="#374151" />
             <Text style={styles.emptyText}>Nenhuma ficha encontrada</Text>
           </View>
         ) : (
           <View style={styles.list}>
-            {filteredFichas.map((ficha: Ficha) => (
+            {filteredCards.map((card: Card) => (
               <TouchableOpacity 
-                key={ficha.id} 
+                key={card.id} 
                 style={styles.card}
                 onPress={() => {
-                  if (ficha.status === 'pedido') {
+                  if (card.status === 'pedido') {
                     router.push({
-                      pathname: `/(main)/order-detail/${ficha.id}`,
-                      params: { clientName: initialClientName, code: ficha.code }
+                      pathname: `/(main)/order-detail/${card.id}`,
+                      params: { clientName: initialClientName, code: card.code }
                     } as any);
                   } else {
                     router.push({
-                      pathname: `/(main)/ficha-detail/${ficha.id}`,
+                      pathname: `/(main)/card-detail/${card.id}`,
+                      params: { 
+                        clientId: clientId,
+                        clientName: initialClientName,
+                        routeName: initialRouteName,
+                      }
                     } as any);
                   }
                 }}
@@ -180,19 +190,19 @@ export default function ClientDetailScreen() {
                 <View style={styles.cardHeader}>
                   <View>
                     <Text style={styles.cardLabel}>FICHA</Text>
-                    <Text style={styles.cardCode}>#{String(ficha.code).padStart(4, '0')}</Text>
+                    <Text style={styles.cardCode}>#{String(card.code).padStart(4, '0')}</Text>
                   </View>
                   <View style={styles.cardValueContainer}>
-                    <Text style={styles.cardTotal}>{formatCurrencyBRL(ficha.total)}</Text>
+                    <Text style={styles.cardTotal}>{formatCurrencyBRL(card.total)}</Text>
                     <ChevronRight size={20} color="#4B5563" />
                   </View>
                 </View>
                 <View style={styles.cardFooter}>
                   <Text style={styles.cardDate}>
-                    {ficha.saleDate ? dayjs(ficha.saleDate).format("DD/MM/YYYY HH:mm[h]") : '---'}
+                    {card.saleDate ? dayjs(card.saleDate).format("DD/MM/YYYY HH:mm[h]") : '---'}
                   </Text>
-                  {ficha.sellerName && (
-                    <Text style={styles.cardSeller}>{ficha.sellerName}</Text>
+                  {card.sellerName && (
+                    <Text style={styles.cardSeller}>{card.sellerName}</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -208,8 +218,11 @@ export default function ClientDetailScreen() {
           style={styles.fab} 
           activeOpacity={0.8}
           onPress={() => router.push({
-            pathname: `/(main)/new-ficha/${clientId}`,
-            params: { clientName: initialClientName }
+            pathname: `/(main)/new-card/${clientId}`,
+            params: { 
+              clientName: initialClientName,
+              routeName: initialRouteName,
+            }
           } as any)}
         >
           <Plus size={32} color="#000" />
