@@ -21,13 +21,13 @@ import {
 } from 'lucide-react-native';
 
 export default function CollectionDetailScreen() {
-  const { id: tripId } = useLocalSearchParams();
+  const { id: tripId, routeName: initialRouteName, code: initialCode } = useLocalSearchParams();
   const { tenantSlug, setActiveTrip, activeTrip } = useTenant();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCode);
   const [ending, setEnding] = useState(false);
-  const [tripData, setTripData] = useState<any>(null);
-  const [routeName, setRouteName] = useState('Carregando...');
+  const [tripData, setTripData] = useState<any>(initialCode ? { code: initialCode } : null);
+  const [routeName, setRouteName] = useState((initialRouteName as string) || 'Carregando...');
 
   useEffect(() => {
     fetchTripDetails();
@@ -36,27 +36,30 @@ export default function CollectionDetailScreen() {
   const fetchTripDetails = async () => {
     try {
       const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      // We'll need a way to get trip info. For now we use the context routeId if available 
-      // or fetch from an endpoint. Let's assume we have a generic fetch or use the data passed.
-      // Since we already have routeId in activeTrip context, we can use it.
       
-      const res = await fetch(`${apiURL}/api/routes/${activeTrip?.routeId}/cobrancas`, {
-        headers: { 'x-tenant-slug': tenantSlug || '' }
-      });
-      const data = await res.json();
-      
+      // Fetch data in parallel
+      const [tripsRes, routesRes] = await Promise.all([
+        fetch(`${apiURL}/api/routes/${activeTrip?.routeId}/cobrancas`, {
+          headers: { 'x-tenant-slug': tenantSlug || '' }
+        }),
+        initialRouteName ? Promise.resolve(null) : fetch(`${apiURL}/api/routes?limit=100`, {
+          headers: { 'x-tenant-slug': tenantSlug || '' }
+        })
+      ]);
+
+      const data = await tripsRes.json();
       const tripsArray = Array.isArray(data) ? data : [];
       const current = tripsArray.find((t: any) => t.id === tripId);
       
       if (current) {
         setTripData(current);
-        // Fetch route name
-        const routeRes = await fetch(`${apiURL}/api/routes?limit=100`, {
-          headers: { 'x-tenant-slug': tenantSlug || '' }
-        });
-        const routeData = await routeRes.json();
-        const route = routeData.items?.find((r: any) => r.id === current.routeId);
-        if (route) setRouteName(route.name);
+        
+        // If we don't have route name from params, update it from routes API
+        if (!initialRouteName && routesRes) {
+          const routeData = await routesRes.json();
+          const route = routeData.items?.find((r: any) => r.id === current.routeId);
+          if (route) setRouteName(route.name);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch trip details:', err);
@@ -90,11 +93,29 @@ export default function CollectionDetailScreen() {
       });
 
       if (!res.ok) throw new Error('Falha ao encerrar viagem');
+      
+      const routeId = tripData?.routeId || activeTrip?.routeId;
 
       await setActiveTrip(null);
-      Alert.alert('Sucesso', 'Viagem encerrada com sucesso!');
-      router.back();
+      
+      Alert.alert(
+        'Sucesso', 
+        'Viagem encerrada com sucesso!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (routeId) {
+                router.replace(`/(main)/collections/${routeId}` as any);
+              } else {
+                router.replace('/(main)/routes' as any);
+              }
+            }
+          }
+        ]
+      );
     } catch (err) {
+      console.error('End trip error:', err);
       Alert.alert('Erro', 'Não foi possível encerrar a viagem.');
     } finally {
       setEnding(false);
@@ -130,7 +151,15 @@ export default function CollectionDetailScreen() {
         </Text>
 
         <View style={styles.grid}>
-          <ActionButton icon={Users} label="Clientes" color="#3b82f6" onPress={() => {}} />
+          <ActionButton 
+            icon={Users} 
+            label="Clientes" 
+            color="#3b82f6" 
+            onPress={() => router.push({
+              pathname: '/(main)/clients',
+              params: { routeName }
+            } as any)} 
+          />
           <ActionButton icon={Receipt} label="Despesas" color="#f59e0b" onPress={() => {}} />
           <ActionButton icon={Container} label="Depósitos" color="#8b5cf6" onPress={() => {}} />
           <ActionButton icon={Package} label="Produtos" color="#ec4899" onPress={() => {}} />

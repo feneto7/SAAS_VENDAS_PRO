@@ -105,6 +105,8 @@ export const fichas = pgTable("fichas", {
   routeId:   uuid("route_id").references(() => routes.id).notNull(),
   cobrancaId: uuid("cobranca_id").references(() => cobrancas.id),
   linkToken: text("link_token").unique(),
+  discount:  integer("discount").default(0).notNull(),
+  commissionPercent: integer("commission_percent").default(0).notNull(), // Percentual de comissão (ex: 30)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -115,7 +117,9 @@ export const fichaItems = pgTable("ficha_items", {
   id:        uuid("id").defaultRandom().primaryKey(),
   fichaId:   uuid("ficha_id").references(() => fichas.id).notNull(),
   productId: uuid("product_id").references(() => products.id).notNull(),
-  quantity:  integer("quantity").default(1).notNull(),
+  quantity:  integer("quantity").default(1).notNull(), // Quantidade Deixada
+  quantitySold: integer("quantity_sold").default(0).notNull(),
+  quantityReturned: integer("quantity_returned").default(0).notNull(),
   unitPrice: integer("unit_price").default(0).notNull(),
   subtotal:  integer("subtotal").default(0).notNull(),
   commissionType: text("commission_type").default("CC"), // CC ou SC
@@ -138,6 +142,8 @@ export const payments = pgTable("payments", {
   methodId:    uuid("method_id").references(() => paymentMethods.id).notNull(),
   amount:      integer("amount").notNull(),
   paymentDate: timestamp("payment_date").defaultNow().notNull(),
+  cancelled:   boolean("cancelled").default(false).notNull(),
+  cancelledAt: timestamp("cancelled_at"),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 });
 

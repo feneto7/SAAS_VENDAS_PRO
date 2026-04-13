@@ -14,27 +14,76 @@ export default function MainLayout() {
   // Determine path info
   const isTripDetail = (segments as any[]).includes('collection-detail');
   const isCollections = (segments as any[]).includes('collections');
+  const isClientDetail = (segments as any[]).includes('client-detail');
   const isRoutes = (segments as any[]).includes('routes');
   const isProducts = (segments as any[]).includes('products');
+  const isClients = (segments as any[]).includes('clients');
+  const isNewFicha = (segments as any[]).includes('new-ficha');
+  const isOrderDetail = (segments as any[]).includes('order-detail');
+  const isFichaDetail = (segments as any[]).includes('ficha-detail');
 
   const currentPath = segments[segments.length - 1];
-  const isHome = currentPath === '(main)' || currentPath === 'index' || segments.length <= 1;
+  // Bloqueia o botão voltar se estiver na Home (index) ou na tela de Rotas (se for o início da navegação)
+  const isHome = (currentPath as string) === '(main)' || (currentPath as string) === 'index' || segments.length <= 1;
 
   const handleBack = () => {
-    // 1. Hierarchy Mapping
-    if (isTripDetail && activeTrip) {
-      // Detail -> Collections
-      router.replace(`/(main)/collections/${activeTrip.routeId}` as any);
-    } else if (isCollections) {
-      // Collections -> Routes
-      router.replace('/(main)/routes' as any);
-    } else if (isRoutes || isProducts) {
-      // Routes/Products -> Home
-      router.replace('/(main)/' as any);
-    } else if (router.canGoBack()) {
+    // Pegamos o caminho atual de forma robusta
+    const path = segments.join('/');
+    
+    // Se estivermos em QUALQUER tela que não seja a Home/Dashboard, 
+    // verificamos se devemos forçar a hierarquia linear.
+    // Isso resolve o problema de o router.back() ou router.canGoBack() falhar em reloads.
+
+    // 1. Ficha Detail -> Clientes
+    if (path.includes('ficha-detail') || path.includes('new-ficha')) {
+      router.replace('/(main)/clients');
+      return;
+    }
+
+    // 2. Client Detail -> Clientes
+    if (path.includes('client-detail')) {
+      router.replace('/(main)/clients');
+      return;
+    }
+
+    // 3. Pesquisa de Clientes -> Detalhe da Viagem (ou Collections)
+    if (path.includes('clients')) {
+      if (activeTrip?.id) {
+        router.replace(`/(main)/collection-detail/${activeTrip.id}` as any);
+      } else {
+        router.replace('/(main)/routes');
+      }
+      return;
+    }
+
+    // 4. Detalhe da Viagem -> Lista de Cobranças (da Rota)
+    if (path.includes('collection-detail')) {
+      const rId = activeTrip?.routeId;
+      if (rId) {
+        router.replace(`/(main)/collections/${rId}` as any);
+      } else {
+        router.replace('/(main)/routes');
+      }
+      return;
+    }
+
+    // 5. Lista de Cobranças -> Minhas Rotas
+    if (path.includes('collections')) {
+      router.replace('/(main)/routes');
+      return;
+    }
+
+    // 6. Minhas Rotas -> Dashboard
+    if (path.includes('routes') || path.includes('products')) {
+      router.replace('/(main)');
+      return;
+    }
+
+    // Se estiver em outra tela e puder voltar nativamente, volta.
+    if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/');
+      router.replace('/(main)');
     }
   };
 
@@ -89,8 +138,8 @@ export default function MainLayout() {
         />
       </View>
 
-      {/* PERSISTENT FOOTER LOGOUT */}
-      {!isTripDetail && (
+      {/* PERSISTENT FOOTER LOGOUT - Hide when trip is active (inside detail, clients, client-detail, new-ficha, order-detail or ficha-detail) */}
+      {!(isTripDetail || isCollections || isClientDetail || isNewFicha || isOrderDetail || isFichaDetail) && (
         <View style={styles.footer}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <LogOut size={20} color="#ef4444" />

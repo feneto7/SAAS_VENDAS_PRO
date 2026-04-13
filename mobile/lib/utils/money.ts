@@ -28,3 +28,27 @@ export const formatCurrencyBRL = (value: number, inputIsCents = true): string =>
     currency: 'BRL',
   }).format(amount);
 };
+
+/**
+ * Applies a currency mask to a string of digits (e.g., "1250" -> "12,50")
+ */
+export const applyCurrencyMask = (value: string): string => {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "0,00";
+  
+  const cents = parseInt(digits);
+  const real = (cents / 100).toFixed(2);
+  
+  return real
+    .replace(".", ",")
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+/**
+ * Parses a masked value back to cents
+ */
+export const parseBRLToCents = (value: string): number => {
+  if (!value) return 0;
+  const digits = value.replace(/\D/g, "");
+  return parseInt(digits) || 0;
+};

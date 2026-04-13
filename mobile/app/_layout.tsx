@@ -53,29 +53,35 @@ function RootLayoutNavWrapper() {
   useEffect(() => {
     if (tenantLoading) return;
 
-      const inAuthGroup = segments[0] === '(main)';
-      const inSetup = segments[0] === 'setup';
-      const inLogin = segments[0] === 'login';
+    const inSetup = segments[0] as any === 'setup';
+    const inLogin = segments[0] as any === 'login';
 
-      if (!tenantSlug && !inSetup) {
-        hasResumed.current = false;
-        router.replace('/setup');
-      } else if (tenantSlug && !token && !inLogin) {
-        hasResumed.current = false;
-        router.replace('/login');
-      } else if (tenantSlug && token) {
-        // Logged in. Check for active trip persistence.
-        const isActiveTripRoute = (segments as any[]).includes('collection-detail');
-        const isAtRoot = (segments as any[]).length === 0 || ((segments as any[]).length === 1 && segments[0] === '(main)');
-        
-        if (activeTrip && !isActiveTripRoute && isAtRoot && !hasResumed.current) {
-           hasResumed.current = true;
-           router.replace(`/(main)/collection-detail/${activeTrip.id}` as any);
-        } else if ((inLogin || inSetup) && !activeTrip) {
-          router.replace('/');
-        }
+    if (!tenantSlug && !inSetup) {
+      hasResumed.current = false;
+      router.replace('/setup');
+      return;
+    } 
+    
+    if (tenantSlug && !token && !inLogin && !inSetup) {
+      hasResumed.current = false;
+      router.replace('/login');
+      return;
+    }
+
+    if (tenantSlug && token) {
+      // Logged in. Check for active trip persistence.
+      const isActiveTripRoute = (segments as any[]).includes('collection-detail');
+      // Root check: empty segments or just (main)
+      const isAtRoot = (segments as any).length === 0 || (segments.length === 1 && segments[0] as any === '(main)');
+      
+      if (activeTrip && !isActiveTripRoute && isAtRoot && !hasResumed.current) {
+         hasResumed.current = true;
+         router.replace(`/(main)/collection-detail/${activeTrip.id}` as any);
+      } else if (inLogin || inSetup) {
+        router.replace('/(main)');
       }
-    }, [tenantSlug, seller, token, activeTrip, tenantLoading, segments]);
+    }
+  }, [tenantSlug, seller, token, activeTrip, tenantLoading, segments]);
 
   if (tenantLoading) return null;
 

@@ -111,7 +111,10 @@ export default function CollectionsScreen() {
       await setActiveTrip({ id: data.id, routeId: routeId as string, code: data.code });
       await fetchCollections();
       Alert.alert('Sucesso', 'Nova viagem iniciada!');
-      router.push(`/(main)/collection-detail/${data.id}` as any);
+      router.push({
+        pathname: `/(main)/collection-detail/${data.id}`,
+        params: { routeName, code: data.code }
+      } as any);
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Não foi possível iniciar a viagem.');
     } finally {
@@ -144,7 +147,10 @@ export default function CollectionsScreen() {
                 onPress={() => {
                   if (item.status === 'aberta') {
                     setActiveTrip({ id: item.id, routeId: routeId as string, code: item.code });
-                    router.push(`/(main)/collection-detail/${item.id}` as any);
+                    router.push({
+                      pathname: `/(main)/collection-detail/${item.id}`,
+                      params: { routeName, code: item.code }
+                    } as any);
                   } else {
                     Alert.alert('Viagem Encerrada', 'Esta viagem já foi finalizada e não pode ser editada.');
                   }

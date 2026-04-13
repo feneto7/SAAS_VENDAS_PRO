@@ -6,6 +6,7 @@ import { join } from 'path';
 // Load env before anything else
 dotenv.config({ path: join(process.cwd(), '.env'), override: true });
 console.log('✅ DATABASE_URL:', process.env.DATABASE_URL?.includes('postgres') ? 'Loaded' : 'MISSING');
+console.log('🚀 API RELOADED - VERSION: 2.2');
 
 import { tenantMiddleware } from './middleware/tenant.js';
 // Trigger restart to refresh DB pools and schema
@@ -27,7 +28,7 @@ import {
   tenants,
   cobrancas
 } from './db/schema/index.js';
-import { eq, and, ilike, sql, desc, inArray, gte, lte, or } from "drizzle-orm";
+import { eq, and, ilike, sql, desc, inArray, gte, lte, or, isNull } from "drizzle-orm";
 import { getTenantDb } from './db/tenant.js';
 import { generateProductSKU } from './lib/sku.js';
 
@@ -339,6 +340,66 @@ async function bootstrap() {
       }
     });
 
+    instance.get('/fichas/:id/items', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      try {
+        const items = await db.select({
+          id: fichaItems.id,
+          productId: fichaItems.productId,
+          name: products.name,
+          quantity: fichaItems.quantity,
+          unitPrice: fichaItems.unitPrice,
+          subtotal: fichaItems.subtotal,
+          commissionType: fichaItems.commissionType
+        })
+        .from(fichaItems)
+        .leftJoin(products, eq(fichaItems.productId, products.id))
+        .where(eq(fichaItems.fichaId, id));
+        return items;
+      } catch (err) {
+        return reply.status(400).send({ error: "Erro ao buscar itens" });
+      }
+    });
+
+    instance.patch('/fichas/:id/convert-order', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const { cobrancaId } = request.body as { cobrancaId: string };
+      
+      try {
+        const result = await db.transaction(async (tx: any) => {
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
+          if (!ficha) throw new Error("Ficha não encontrada");
+          
+          const seller = await tx.select().from(users).where(eq(users.id, ficha.sellerId)).limit(1).then((r:any)=>r[0]||null);
+          const route = await tx.select().from(routes).where(eq(routes.id, ficha.routeId)).limit(1).then((r:any)=>r[0]||null);
+          const now = new Date();
+          const datestr = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+          // Generate a code following existing pattern (Seller(4) + DDMMHHmm + Route(4))
+          const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
+
+          const [updated] = await tx.update(fichas)
+            .set({ 
+              status: 'nova', 
+              code: finalCode,
+              saleDate: now,
+              cobrancaId: cobrancaId || null,
+              updatedAt: new Date()
+            })
+            .where(eq(fichas.id, id))
+            .returning();
+            
+          return updated;
+        });
+        return result;
+      } catch (err: any) {
+        console.error('Convert order failed:', err);
+        return reply.status(400).send({ error: err.message || "Erro ao gerar ficha" });
+      }
+    });
+
+    // ─── Finish setup ──────────────────────────────────────────────────────────
     // ── Products ─────────────────────────────────────────────────────────────
     instance.get('/products', async (request) => {
       const db = (request as any).tenantDb;
@@ -355,13 +416,35 @@ async function bootstrap() {
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
       const [{ count }] = await db.select({ count: sql`count(*)` }).from(products).where(whereClause);
-      const allProducts = await db.select().from(products).where(whereClause).limit(limit).offset(offset);
+      
+      let query = db.select({
+        id: products.id,
+        sku: products.sku,
+        name: products.name,
+        description: products.description,
+        category: products.category,
+        brand: products.brand,
+        stockDeposit: products.stockDeposit,
+        costPrice: products.costPrice,
+        priceCC: products.priceCC,
+        priceSC: products.priceSC,
+        active: products.active,
+        createdAt: products.createdAt,
+        stock: q.sellerId ? sellerInventory.stock : products.stockDeposit
+      }).from(products);
+
+      if (q.sellerId) {
+        query = query.leftJoin(sellerInventory, and(eq(sellerInventory.productId, products.id), eq(sellerInventory.sellerId, q.sellerId)));
+      }
+
+      const allProducts = await query.where(whereClause).limit(limit).offset(offset);
 
       const items = allProducts.map((p: any) => ({
         ...p,
-        subtotalCusto: Number(p.costPrice) * (Number(p.stockDeposit) || 0),
-        subtotalCC:    Number(p.priceCC) * (Number(p.stockDeposit) || 0),
-        subtotalSC:    Number(p.priceSC) * (Number(p.stockDeposit) || 0),
+        stock: Number(p.stock) || 0,
+        subtotalCusto: Number(p.costPrice) * (Number(p.stock) || 0),
+        subtotalCC:    Number(p.priceCC) * (Number(p.stock) || 0),
+        subtotalSC:    Number(p.priceSC) * (Number(p.stock) || 0),
       }));
 
       return { items, pagination: { total: Number(count), page, limit, pages: Math.ceil(Number(count) / limit) } };
@@ -504,6 +587,8 @@ async function bootstrap() {
             total: fichas.total,
             notes: fichas.notes,
             saleDate: fichas.saleDate,
+            discount: fichas.discount,
+            commissionPercent: fichas.commissionPercent,
             createdAt: fichas.createdAt,
             client: {
               name: clients.name,
@@ -531,7 +616,7 @@ async function bootstrap() {
 
         console.log("✅ Ficha head loaded. fetching items...");
 
-        const items = await db
+        const itemsQuery = db
           .select({
             id: fichaItems.id,
             productId: fichaItems.productId,
@@ -540,20 +625,29 @@ async function bootstrap() {
             quantity: fichaItems.quantity,
             unitPrice: fichaItems.unitPrice,
             subtotal: fichaItems.subtotal,
+            quantitySold: fichaItems.quantitySold,
+            quantityReturned: fichaItems.quantityReturned,
             commissionType: fichaItems.commissionType
           })
           .from(fichaItems)
           .leftJoin(products, eq(fichaItems.productId, products.id))
           .where(eq(fichaItems.fichaId, id));
 
-        console.log(`✅ Items loaded: ${items.length}. fetching payments...`);
+        console.log(`[SQL DEBUG] Query:`, itemsQuery.toSQL());
+        const items = await itemsQuery;
+
+        console.log(`✅ Items loaded for ficha ${id}:`, items.length);
+        if (items.length > 0) {
+          console.log(`   First item: ${items[0].productName} (${items[0].id})`);
+        }
 
         const fichaPayments = await db
           .select({
             id: payments.id,
             amount: payments.amount,
             methodName: paymentMethods.name,
-            paymentDate: payments.paymentDate
+            paymentDate: payments.paymentDate,
+            cancelled: payments.cancelled
           })
           .from(payments)
           .leftJoin(paymentMethods, eq(payments.methodId, paymentMethods.id))
@@ -561,21 +655,32 @@ async function bootstrap() {
 
         console.log(`✅ Payments loaded: ${fichaPayments.length}. Calculating stats...`);
 
-        const totalCC = items
+        const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
+
+        const totalValueCC = items
           .filter((i: any) => i.commissionType === 'CC')
-          .reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
+          .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
         
-        const totalSC = items
-          .filter((i: any) => i.commissionType === 'SC')
-          .reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
+        const totalValueSC = items
+          .filter((i: any) => i.commissionType !== 'CC')
+          .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
+
+        const totalPaid = fichaPayments.filter((p: any) => !p.cancelled).reduce((acc: number, p: any) => acc + Number(p.amount), 0);
+        const commissionVal = totalValueCC * (Number(ficha.commissionPercent || 30) / 100);
+        const netCC = totalValueCC - commissionVal;
+        const totalToPay = netCC + totalValueSC;
+        const balance = totalToPay - totalPaid - Number(ficha.discount || 0);
 
         return {
           ...ficha,
           items,
           payments: fichaPayments,
           stats: {
-            totalCC,
-            totalSC,
+            totalCC: totalValueCC,
+            totalSC: totalValueSC,
+            totalToPay,
+            totalPaid,
+            balance,
             itemCount: items.length
           }
         };
@@ -601,7 +706,7 @@ async function bootstrap() {
     instance.post('/fichas', async (request, reply) => {
       const db = (request as any).tenantDb;
       const body = request.body as any;
-      const { clientId, sellerId, routeId, items, total, notes } = body;
+      const { clientId, sellerId, routeId, items, total, notes, cobrancaId } = body;
 
       try {
         const result = await db.transaction(async (tx: any) => {
@@ -611,9 +716,8 @@ async function bootstrap() {
           const now = new Date();
           const datestr = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
           const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
-
           const [newFicha] = await tx.insert(fichas).values({
-            code: finalCode, clientId, sellerId, routeId, total, notes, status: 'nova'
+            code: finalCode, clientId, sellerId, routeId, total, notes, status: 'nova', cobrancaId
           }).returning();
 
           for (const item of items) {
@@ -627,7 +731,14 @@ async function bootstrap() {
               throw new Error(`Estoque insuficiente para o produto ${item.productId}`);
             }
 
-            await tx.insert(fichaItems).values({ fichaId: newFicha.id, productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice, subtotal: item.quantity * item.unitPrice });
+            await tx.insert(fichaItems).values({ 
+              fichaId: newFicha.id, 
+              productId: item.productId, 
+              quantity: item.quantity, 
+              unitPrice: item.unitPrice, 
+              subtotal: item.quantity * item.unitPrice,
+              commissionType: item.commissionType || 'CC'
+            });
             await tx.execute(sql`UPDATE seller_inventory SET stock = stock - ${item.quantity} WHERE seller_id = ${sellerId} AND product_id = ${item.productId}`);
           }
           return newFicha;
@@ -654,6 +765,265 @@ async function bootstrap() {
         return { linkToken, url: `/public/ficha/${linkToken}?tenant=${slug}` };
       } catch (err) {
         return reply.status(400).send({ error: "Erro ao criar ficha" });
+      }
+    });
+
+    instance.patch('/fichas/:id/settle', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const { items, discount, commissionPercent } = request.body as any;
+
+      try {
+        await db.transaction(async (tx: any) => {
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
+          if (!ficha) throw new Error("Ficha não encontrada");
+          if (ficha.status === 'paga') throw new Error("Ficha já está paga e não pode ser alterada");
+
+          // Update Ficha header
+          await tx.update(fichas)
+            .set({ 
+              discount: discount ?? ficha.discount, 
+              commissionPercent: commissionPercent ?? ficha.commissionPercent,
+              updatedAt: new Date() 
+            })
+            .where(eq(fichas.id, id));
+
+          for (const item of items) {
+            const [existingItem] = await tx.select().from(fichaItems).where(eq(fichaItems.id, item.id));
+            if (!existingItem) continue;
+
+            const returnDiff = item.quantityReturned - existingItem.quantityReturned;
+
+            await tx.update(fichaItems)
+              .set({
+                quantitySold: item.quantitySold,
+                quantityReturned: item.quantityReturned,
+              })
+              .where(eq(fichaItems.id, item.id));
+
+            if (returnDiff !== 0) {
+              await tx.execute(sql`
+                UPDATE seller_inventory 
+                SET stock = stock + ${returnDiff} 
+                WHERE seller_id = ${ficha.sellerId} AND product_id = ${existingItem.productId}
+              `);
+            }
+          }
+
+          // Check if balance is zero after settlement
+          await updateFichaStatusIfPaid(tx, id);
+        });
+        return { success: true };
+      } catch (err: any) {
+        console.error('Settle ficha failed:', err);
+        return reply.status(400).send({ error: err.message || "Erro ao salvar acerto" });
+      }
+    });
+
+    // Add item to existing ficha
+    instance.post('/fichas/:id/items', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const { productId, quantity, unitPrice, commissionType } = request.body as any;
+
+      try {
+        await db.transaction(async (tx: any) => {
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+          if (!ficha) throw new Error("Ficha não encontrada");
+          if (ficha.status !== 'nova') throw new Error("Apenas fichas com status NOVA podem receber novos produtos");
+
+          // Insert item
+          await tx.insert(fichaItems).values({
+            fichaId: id,
+            productId,
+            quantity,
+            unitPrice,
+            subtotal: Number(quantity) * Number(unitPrice),
+            commissionType: commissionType || 'CC'
+          });
+
+          // Recalculate ficha total
+          const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+          const newTotal = allItems.reduce((acc: number, curr: any) => acc + Number(curr.subtotal), 0);
+
+          await tx.update(fichas)
+            .set({ total: newTotal, updatedAt: new Date() })
+            .where(eq(fichas.id, id));
+
+          await updateFichaStatusIfPaid(tx, id);
+        });
+
+        return { message: "Produto adicionado com sucesso" };
+      } catch (err: any) {
+        console.error('Add item failed:', err);
+        return reply.status(400).send({ error: err.message || "Erro ao adicionar item" });
+      }
+    });
+
+    // Delete item from ficha
+    instance.delete('/fichas/:id/items/:itemId', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id, itemId } = request.params as { id: string, itemId: string };
+
+      try {
+        await db.transaction(async (tx: any) => {
+           const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+           if (!ficha) throw new Error("Ficha não encontrada");
+           if (ficha.status !== 'nova') throw new Error("Apenas fichas com status NOVA podem ter itens removidos");
+
+           await tx.delete(fichaItems).where(eq(fichaItems.id, itemId));
+
+           // Recalculate
+           const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+           const newTotal = allItems.reduce((acc: number, curr: any) => acc + Number(curr.subtotal), 0);
+           await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, id));
+           await updateFichaStatusIfPaid(tx, id);
+        });
+        return { message: "Item removido" };
+      } catch (err: any) {
+        return reply.status(400).send({ error: err.message });
+      }
+    });
+
+    // Update item in ficha
+    instance.patch('/fichas/:id/items/:itemId', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id, itemId } = request.params as { id: string, itemId: string };
+      const { quantity, unitPrice, commissionType } = request.body as any;
+
+      try {
+        await db.transaction(async (tx: any) => {
+           const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+           if (!ficha) throw new Error("Ficha não encontrada");
+           if (ficha.status !== 'nova') throw new Error("Apenas fichas com status NOVA podem ter itens alterados");
+
+           await tx.update(fichaItems)
+             .set({ 
+                quantity: Number(quantity), 
+                unitPrice: Number(unitPrice), 
+                subtotal: Number(quantity) * Number(unitPrice), 
+                commissionType,
+                updatedAt: new Date() 
+             })
+             .where(eq(fichaItems.id, itemId));
+
+           // Recalculate
+           const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+           const newTotal = allItems.reduce((acc: number, curr: any) => acc + Number(curr.subtotal), 0);
+           await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, id));
+           await updateFichaStatusIfPaid(tx, id);
+        });
+        return { message: "Item atualizado" };
+      } catch (err: any) {
+        return reply.status(400).send({ error: err.message });
+      }
+    });
+
+    // Helper to auto-update status to 'paga'
+    async function updateFichaStatusIfPaid(tx: any, fichaId: string) {
+      console.log(`[DEBUG] updateFichaStatusIfPaid triggered for ${fichaId}`);
+      const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, fichaId)).limit(1);
+      if (!ficha) return;
+
+      const itemsList = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, fichaId));
+      const paymentsList = await tx.select().from(payments).where(eq(payments.fichaId, fichaId));
+
+      console.log(`[DEBUG] items: ${itemsList.length}, payments: ${paymentsList.length}`);
+
+      const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
+
+      const totalValueCC = itemsList.filter((i: any) => i.commissionType === 'CC').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      const totalValueSC = itemsList.filter((i: any) => i.commissionType !== 'CC').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      
+      const commissionVal = totalValueCC * (Number(ficha.commissionPercent || 30) / 100);
+      const netCC = totalValueCC - commissionVal;
+      const totalToPay = netCC + totalValueSC;
+      
+      const totalPaid = paymentsList
+        .filter((p: any) => !p.cancelled)
+        .reduce((acc: number, p: any) => acc + Number(p.amount), 0);
+      const balance = totalToPay - totalPaid - Number(ficha.discount || 0);
+
+      console.log(`[DEBUG] qField: ${qField}, totalValueSC: ${totalValueSC}, totalToPay: ${totalToPay}, totalPaid: ${totalPaid}, balance: ${balance}`);
+
+      // Status should be 'paga' if balance <= 0, otherwise 'pendente' (if it were nova or pendente)
+      const newStatus = balance <= 0 ? 'paga' : (ficha.status === 'nova' ? 'nova' : 'pendente');
+      
+      console.log(`[DEBUG] Current status: ${ficha.status}, New status target: ${newStatus}`);
+      
+      if (ficha.status !== newStatus) {
+        await tx.update(fichas).set({ status: newStatus, updatedAt: new Date() }).where(eq(fichas.id, fichaId));
+      }
+    }
+
+    instance.post('/fichas/:id/payments', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const { amount, methodId } = request.body as any;
+
+      try {
+        const newPayment = await db.transaction(async (tx: any) => {
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
+          if (!ficha) throw new Error("Ficha não encontrada");
+          if (ficha.status === 'paga') throw new Error("Ficha já está paga e não aceita novos pagamentos");
+
+          // For 'nova' status, limit payment to total of SC items (initial quantity)
+          if (ficha.status === 'nova') {
+             const itemsList = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+             const paymentsList = await tx.select().from(payments).where(eq(payments.fichaId, id));
+             
+             const totalValueSC = itemsList
+               .filter((i: any) => i.commissionType !== 'CC')
+               .reduce((acc: number, i: any) => acc + (Number(i.quantity) * Number(i.unitPrice)), 0);
+             
+             const currentTotalPaid = paymentsList
+               .filter((p: any) => !p.cancelled)
+               .reduce((acc: number, p: any) => acc + Number(p.amount), 0);
+             
+             if (currentTotalPaid + Number(amount) > totalValueSC) {
+                throw new Error(`Fichas novas só aceitam pagamento até o total dos itens sem comissão (Limite: ${totalValueSC/100})`);
+             }
+          }
+
+          const [inserted] = await tx.insert(payments).values({
+            fichaId: id,
+            amount,
+            methodId,
+          }).returning();
+
+          await updateFichaStatusIfPaid(tx, id);
+          return inserted;
+        });
+
+        return newPayment;
+      } catch (err: any) {
+        console.error('Add payment failed:', err);
+        return reply.status(400).send({ error: "Erro ao lançar pagamento" });
+      }
+    });
+
+    instance.patch('/payments/:id/cancel', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+
+      try {
+        await db.transaction(async (tx: any) => {
+          const [pmt] = await tx.select().from(payments).where(eq(payments.id, id)).limit(1);
+          if (!pmt) throw new Error("Pagamento não encontrado");
+
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, pmt.fichaId));
+          if (ficha?.status === 'paga') throw new Error("Ficha já está paga e os pagamentos não podem ser cancelados");
+
+          await tx.update(payments)
+            .set({ cancelled: true, cancelledAt: new Date() })
+            .where(eq(payments.id, id));
+
+          await updateFichaStatusIfPaid(tx, pmt.fichaId);
+        });
+        return { success: true };
+      } catch (err: any) {
+        console.error('Cancel payment failed:', err);
+        return reply.status(400).send({ error: "Erro ao cancelar pagamento" });
       }
     });
 
@@ -784,11 +1154,15 @@ async function bootstrap() {
           .returning();
 
         // 2. Transition linked fiches from 'nova' to 'pendente'
+        // Include those linked to this trip AND those on the same route with no trip linked (web records)
         await db.update(fichas)
           .set({ status: 'pendente', updatedAt: new Date() })
           .where(and(
-            eq(fichas.cobrancaId, id),
-            eq(fichas.status, 'nova')
+            eq(fichas.status, 'nova'),
+            or(
+              eq(fichas.cobrancaId, id),
+              and(isNull(fichas.cobrancaId), eq(fichas.routeId, closedCobranca.routeId))
+            )
           ));
 
         return closedCobranca;
