@@ -1,5 +1,4 @@
 import * as SecureStore from 'expo-secure-store';
-import { ClerkProvider } from '@clerk/clerk-expo';
 
 export const tokenCache = {
   async getToken(key: string) {

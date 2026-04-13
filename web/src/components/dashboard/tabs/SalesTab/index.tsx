@@ -6,6 +6,7 @@ import { SalesFilters } from "./SalesFilters";
 import { SalesList }   from "./SalesList";
 import { NewFichaModal } from "./NewFichaModal";
 import { FichaLinkModal } from "./FichaLinkModal";
+import { FichaDetailModal } from "./FichaDetailModal";
 import type { FichaListItem, FichaFilters, Route } from "@/types/ficha.types";
 import { EMPTY_FILTERS } from "@/types/ficha.types";
 import { Pagination } from "@/components/dashboard/shared/Pagination";
@@ -33,9 +34,12 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedFichaId, setSelectedFichaId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [ordersCount, setOrdersCount] = useState(0);
   const debounceRef = useRef<any>(null);
 
   // Fetch available routes for the filter dropdown
@@ -68,6 +72,7 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
           setFichas(data.items || []);
           setTotalCount(data.pagination?.total || 0);
           setTotalPages(data.pagination?.pages || 1);
+          setOrdersCount(data.stats?.ordersCount || 0);
         }
       } catch (err) {
         console.error("Erro ao buscar fichas:", err);
@@ -110,9 +115,15 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             Fichas de Venda
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {loading ? "Carregando..." : `${totalCount} ficha${totalCount !== 1 ? "s" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
-          </p>
+          <div className="flex items-center gap-4 mt-0.5">
+            <p className="text-sm text-gray-500">
+              {loading ? "Carregando..." : `${totalCount} ficha${totalCount !== 1 ? "s" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
+            </p>
+            <div className="w-1 h-1 rounded-full bg-white/10 hidden sm:block" />
+            <p className="text-sm text-emerald-400 font-medium">
+              {loading ? "" : `${ordersCount} pedido${ordersCount !== 1 ? "s" : ""}`}
+            </p>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -147,7 +158,10 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
         loading={loading}
         tenantSlug={tenantSlug}
         onDelete={handleDeleteFicha}
-        onFichaClick={(ficha) => console.log("Ficha selecionada:", ficha.id)}
+        onFichaClick={(ficha) => {
+          setSelectedFichaId(ficha.id);
+          setIsDetailModalOpen(true);
+        }}
       />
 
       <Pagination 
@@ -170,6 +184,15 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
           setIsLinkModalOpen(false);
           fetchFichas(filters);
         }}
+        tenantSlug={tenantSlug}
+      />
+      <FichaDetailModal 
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedFichaId(null);
+        }}
+        fichaId={selectedFichaId}
         tenantSlug={tenantSlug}
       />
     </div>

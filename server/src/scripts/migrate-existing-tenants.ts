@@ -47,7 +47,8 @@ async function migrateDb(dbName: string, dbUrl: string, files: { name: string; s
           // 42701: column already exists
           // 42710: type already exists (enums)
           // 42P16: constraint already exists
-          if (err.code === "42P07" || err.code === "42701" || err.code === "42710" || err.code === "42P16" || err.code === "42P06") {
+          // 42703: undefined column (useful when dropping)
+          if (err.code === "42P07" || err.code === "42701" || err.code === "42710" || err.code === "42P16" || err.code === "42P06" || err.code === "42703") {
             // Silently continue for these idempotent cases
           } else {
             console.error(`  ❌ Error in ${file.name} statement:`, statement.slice(0, 100));

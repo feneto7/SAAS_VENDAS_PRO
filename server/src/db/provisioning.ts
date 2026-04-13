@@ -15,6 +15,32 @@ function getMigrationFiles(migrationsDir: string): string[] {
 }
 
 /**
+ * Seeds default payment methods for a tenant.
+ */
+async function seedPaymentMethods(client: any): Promise<void> {
+  const defaults = [
+    "Dinheiro", 
+    "PIX", 
+    "Cartão de Crédito", 
+    "Cartão de Débito", 
+    "Transferência", 
+    "Outro"
+  ];
+  try {
+    for (const name of defaults) {
+      await client.query(
+        `INSERT INTO payment_methods (name, active, updated_at) VALUES ($1, true, NOW()) 
+         ON CONFLICT DO NOTHING`, 
+        [name]
+      );
+    }
+    console.log("  🌱 Default payment methods seeded.");
+  } catch (err) {
+    console.error("  ❌ Error seeding payment methods:", err);
+  }
+}
+
+/**
  * Runs all pending SQL migration files against a given database.
  */
 export async function runMigrations(dbUrl: string): Promise<void> {
@@ -31,6 +57,10 @@ export async function runMigrations(dbUrl: string): Promise<void> {
       console.log(`  📄 Running migration: ${file.split(/[\\/]/).pop()}`);
       await client.query(sql);
     }
+    
+    // Run Seed
+    await seedPaymentMethods(client);
+
   } finally {
     client.release();
     await pool.end();

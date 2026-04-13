@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Users, MapPin, Loader2, Map } from "lucide-react";
 import { ClientList } from "./ClientList";
 import { ClientModal } from "./ClientModal";
+import { ClientDetailView } from "./ClientDetailView";
 import type { Client, ClientFilters } from "@/types/client.types";
 import type { Route } from "@/types/route.types";
 import { Pagination } from "@/components/dashboard/shared/Pagination";
@@ -29,6 +30,10 @@ export function ClientsTab({ serverUrl, tenantSlug }: ClientsTabProps) {
   const [selectedClient, setSelectedClient] = useState<Client | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Drill-down state
+  const [activeClientId, setActiveClientId] = useState<string | null>(null);
+  const [activeClientName, setActiveClientName] = useState<string>("");
 
   const fetchClients = async () => {
     try {
@@ -67,13 +72,17 @@ export function ClientsTab({ serverUrl, tenantSlug }: ClientsTabProps) {
   };
 
   useEffect(() => {
-    fetchRoutes();
-  }, []);
+    if (!activeClientId) {
+      fetchRoutes();
+    }
+  }, [activeClientId]);
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchClients(), 500);
-    return () => clearTimeout(timer);
-  }, [filters, currentPage]);
+    if (!activeClientId) {
+      const timer = setTimeout(() => fetchClients(), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [filters, currentPage, activeClientId]);
 
   const handleFilterChange = (newFilters: ClientFilters) => {
     setFilters(newFilters);
@@ -91,6 +100,23 @@ export function ClientsTab({ serverUrl, tenantSlug }: ClientsTabProps) {
       console.error(err);
     }
   };
+
+  const handleOpenClient = (client: Client) => {
+    setActiveClientId(client.id);
+    setActiveClientName(client.name);
+  };
+
+  if (activeClientId) {
+    return (
+      <ClientDetailView 
+        clientId={activeClientId}
+        clientName={activeClientName}
+        serverUrl={serverUrl}
+        tenantSlug={tenantSlug}
+        onBack={() => setActiveClientId(null)}
+      />
+    );
+  }
 
   const labelClass = "text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block ml-1";
   const inputClass = "w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:border-purple-500 outline-none transition-all";
@@ -173,22 +199,25 @@ export function ClientsTab({ serverUrl, tenantSlug }: ClientsTabProps) {
 
       {loading ? (
         <div className="h-64 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : (
         <ClientList 
           clients={clients} 
           onEdit={(c) => { setSelectedClient(c); setIsModalOpen(true); }}
           onToggleStatus={handleToggleStatus} 
+          onOpenClient={handleOpenClient}
         />
       )}
 
-      <Pagination 
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        loading={loading}
-      />
+      {!loading && totalPages > 1 && (
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          loading={loading}
+        />
+      )}
 
       <ClientModal 
         isOpen={isModalOpen}
