@@ -3,6 +3,7 @@
 Painel administrativo estratégico construído com **Next.js 16** (App Router) e **Tailwind CSS 4**.
 
 ## Características principais
+
 - Interface Dark Mode Premium.
 - Gestão modular baseada em abas (Tab-based modular loading).
 - Auditoria de estoque em tempo real.
@@ -15,14 +16,32 @@ cd web
 npm install
 ```
 
-## Configuração
+## Configuração do Ambiente
 
-Crie um arquivo `.env` na raiz da pasta `web` com as seguintes variáveis:
+Siga estes passos para configurar o projeto em uma nova máquina:
 
-```env
-NEXT_PUBLIC_SERVER_URL=http://localhost:3001
-# Outras configurações como CLERK_PUBLISHABLE_KEY se necessário
-```
+1. **Variáveis de Ambiente**:
+   Na raiz da pasta `web`, você encontrará um arquivo chamado `.env.example`.
+   - Crie uma cópia deste arquivo e renomeie para `.env`:
+     ```bash
+     cp .env.example .env
+     ```
+   - Abra o arquivo `.env` e certifique-se de que as chaves estão corretas:
+     - `NEXT_PUBLIC_SERVER_URL`: URL do seu backend (ex: `http://localhost:3001`).
+     - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Sua chave pública do Clerk.
+     - `CLERK_SECRET_KEY`: Sua chave secreta do Clerk.
+
+2. **Instalação de Dependências**:
+
+   ```bash
+   npm install
+   ```
+
+3. **Execução em Desenvolvimento**:
+   ```bash
+   npm run dev
+   ```
+   O painel estará acessível em `http://localhost:3000`.
 
 ## Scripts Disponíveis
 
@@ -31,6 +50,7 @@ NEXT_PUBLIC_SERVER_URL=http://localhost:3001
 - `npm run lint`: Executa a verificação lint para garantir qualidade de código.
 
 ## Organização Interna
+
 - `/src/components/dashboard/tabs`: Módulos de cada aba principal (Vendas, Clientes, Produtos, etc).
 - `/src/components/dashboard/shared`: Componentes genéricos reutilizáveis.
 - `/src/utils`: Helpers para tratamento de dinheiro, datas e strings.
