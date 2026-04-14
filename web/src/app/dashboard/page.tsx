@@ -39,58 +39,49 @@ interface DashboardStats {
   aiInsight: string;
 }
 
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+
 export default function DashboardPage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, step, tenant: tenantInfo } = useOnboardingStatus();
   const router = useRouter();
-  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("insights");
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [activeTab, setActiveTab ] = useState("insights");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    async function initDashboard() {
-      const slug = localStorage.getItem("tenant_slug");
-      if (!slug) {
-        router.push("/setup");
-        return;
-      }
+    async function fetchStats() {
+      if (step !== "completed" || !tenantInfo) return;
 
       try {
         const serverUrl =
           process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
 
-        const infoRes = await fetch(`${serverUrl}/tenant/info`, {
-          headers: { "x-tenant-slug": slug },
-        });
-        if (infoRes.ok) {
-          const info = await infoRes.json();
-          setTenantInfo(info);
-        }
-
         const statsRes = await fetch(`${serverUrl}/api/stats/insights`, {
-          headers: { "x-tenant-slug": slug },
+          headers: { "x-tenant-slug": tenantInfo.slug },
         });
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           setStats(statsData);
         }
       } catch (err) {
-        console.error("Dashboard data fetch error:", err);
+        console.error("Dashboard stats fetch error:", err);
       } finally {
-        setLoading(false);
+        setLoadingStats(false);
       }
     }
     
-    initDashboard();
-  }, [isLoaded, router]);
+    if (step === "completed") {
+        fetchStats();
+    }
+  }, [step, tenantInfo]);
 
   // Close sidebar on tab change (mobile)
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [activeTab]);
 
-  if (!isLoaded || loading) {
+  if (!isLoaded || step === "loading") {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />

@@ -8,6 +8,8 @@ export const tenants = pgTable("tenants", {
   slug: text("slug").notNull().unique(), // Will be used for DB name: companyname
   dbName: text("db_name").notNull().unique(), // Literal DB name in Postgres
   ownerClerkId: text("owner_clerk_id").notNull(),
+  ownerName: text("owner_name"),
+  ownerCpf: text("owner_cpf"),
   street: text("street"),
   number: text("number"),
   neighborhood: text("neighborhood"),

@@ -81,7 +81,9 @@ export async function provisionTenant(
     state?: string;
     zipCode?: string;
   },
-  contact?: string
+  contact?: string,
+  ownerName?: string,
+  ownerCpf?: string
 ) {
   const slug   = name.toLowerCase().replace(/[^a-z0-9]/g, "");
   const dbName = `vendas_${slug}`;
@@ -105,6 +107,7 @@ export async function provisionTenant(
     // Register in master
     await masterDb.insert(tenants).values({
       name, slug, dbName, ownerClerkId,
+      ownerName, ownerCpf,
       ...addressData, contact,
       status: "active",
     });
@@ -116,6 +119,23 @@ export async function provisionTenant(
     console.log(`🗃️  Applying migrations to "${dbName}"...`);
     await runMigrations(tenantUrl);
     console.log(`✅ Schema ready for "${dbName}".`);
+
+    // ─── Create First Seller (Contractor) ──────────────────────────────────
+    console.log(`👤 Creating first seller: ${ownerName || name}`);
+    const tenantDb = new Pool({ connectionString: tenantUrl });
+    try {
+      await tenantDb.query(
+        `INSERT INTO users (clerk_id, name, email, role, active, created_at) 
+         VALUES ($1, $2, $3, $4, true, NOW())`,
+        [ownerClerkId, ownerName || name, null, 'admin']
+      );
+      console.log(`✅ First seller created.`);
+    } catch (err) {
+      console.error("  ❌ Error creating first seller:", err);
+      // Don't fail the whole provisioning if user insert fails, BUT it's suspicious
+    } finally {
+      await tenantDb.end();
+    }
 
     return { slug, dbName };
   } catch (error: any) {

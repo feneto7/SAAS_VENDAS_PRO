@@ -1,11 +1,16 @@
-import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
+"use client";
+
+import { UserButton, useUser } from "@clerk/nextjs";
+import { AuthButtons } from "@/components/AuthButtons";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BarChart3, ShieldCheck, Zap, Sparkles, Globe, Laptop } from "lucide-react";
+import { ArrowRight, BarChart3, ShieldCheck, Zap, Sparkles, Globe, Laptop, Loader2 } from "lucide-react";
 
-export default async function HomePage() {
-  const { userId } = await auth();
+export default function HomePage() {
+  const { user, isLoaded } = useUser();
+  const { step } = useOnboardingStatus();
+  const userId = user?.id;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] selection:bg-purple-500/30">
@@ -26,10 +31,7 @@ export default async function HomePage() {
         
         <div className="flex items-center gap-2 sm:gap-6">
           {!userId ? (
-            <>
-              <SignInButton mode="modal"><button className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all px-4 py-2 opacity-70 hover:opacity-100">Entrar</button></SignInButton>
-              <SignUpButton mode="modal"><button className="bg-white text-black text-[10px] sm:text-xs font-black uppercase tracking-widest h-10 sm:h-12 px-6 rounded-full hover:bg-purple-500 hover:text-white transition-all shadow-xl shadow-white/5 active:scale-95 border border-white/10">Começar Grátis</button></SignUpButton>
-            </>
+            <AuthButtons />
           ) : (
             <>
               <Link href="/dashboard" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all px-4 py-2">

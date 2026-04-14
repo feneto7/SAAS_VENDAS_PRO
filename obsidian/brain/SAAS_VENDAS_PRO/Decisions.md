@@ -40,3 +40,15 @@
 
 - **Estabilidade de Foco**: Sub-componentes de input (ex: `InputField`) devem ser definidos FORA da função principal de renderização para manter referências estáveis, prevenindo que o teclado feche ao atualizar o estado (bug de re-render).
 - **Componentes Nativos**: Proibido o uso de tags HTML (`div`, `header`, `footer`) em arquivos `.tsx` do mobile; usar sempre `View` para garantir compatibilidade com o motor do React Native.
+
+### Segurança e Isolamento Multi-Tenant
+
+- **Fim do localStorage**: É PROIBIDO usar `localStorage.getItem("tenant_slug")` como única fonte de verdade para acesso a dados. O sistema agora utiliza o hook `useOnboardingStatus` que valida o tenant via backend (`/auth/status/:clerkId`).
+- **Validação Server-Side**: O isolamento entre empresas agora é garantido pelo servidor. Se um usuário não possuir empresa vinculada ao seu `clerkId`, ele é bloqueado e redirecionado para o onboarding, impedindo a visualização acidental de dados alheios.
+- **Identidade do Dono**: Campos `ownerName` e `ownerCpf` foram adicionados à tabela mestre de `tenants` para rastreabilidade e conformidade.
+
+### Fluxo de Onboarding (3 Etapas)
+
+1. **Autenticação Customizada**: Uso obrigatório do hook `useSignUp` com formulário customizado para incluir campo de **Confirmar Senha**.
+2. **Dados do Contratante**: Coleta obrigatória de Nome, CPF e Celular antes da criação da empresa.
+3. **Auto-Provisionamento**: O contratante é automaticamente inserido como o primeiro vendedor (vendedor 'admin') no banco de dados isolado da empresa após o provisionamento bem-sucedido.

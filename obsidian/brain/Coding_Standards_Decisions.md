@@ -26,3 +26,8 @@
 - **Custom Hooks**: Toda lógica de busca de dados, mutações e estados complexos de telas DEVEM ser extraídos para custom hooks (ex: `useCardDetail`, `useNewCard`).
 - **Navegação Linear**: Para garantir consistência em reloads e deep links, o `_layout.tsx` centraliza os overrides do botão voltar, garantindo o retorno ao contexto anterior correto em vez de apenas desempilhar a rota nativa.
 - **Preservação de Contexto**: Navegações entre telas de contexto (ex: de cliente para ficha) DEVEM sempre passar `clientName` e `routeName` via params para evitar estados em branco (blanks) durante o carregamento inicial.
+
+## 🤝 Protocolo de Interação e Git
+
+- **Controle Total do Usuário**: O Agente NUNCA deve realizar `git commit` ou `git push` automaticamente sem o comando explícito do usuário.
+- **Sincronização de Aprendizado**: Sempre que uma nova regra de negócio, decisão técnica ou padrão de código for estabelecido, o vault `brain` deve ser atualizado IMEDIATAMENTE antes de encerrar o turno.
