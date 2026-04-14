@@ -1,5 +1,6 @@
 import { masterDb } from "./master.js";
-import { tenants }  from "./schema/index.js";
+import { tenants, masterUsers }  from "./schema/index.js";
+import { eq }      from "drizzle-orm";
 import { Pool }     from "pg";
 import { readFileSync, readdirSync } from "fs";
 import { join }     from "path";
@@ -53,9 +54,16 @@ export async function runMigrations(dbUrl: string): Promise<void> {
   try {
     await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
     for (const file of files) {
-      const sql = readFileSync(file, "utf-8");
+      const sqlContent = readFileSync(file, "utf-8");
       console.log(`  📄 Running migration: ${file.split(/[\\/]/).pop()}`);
-      await client.query(sql);
+      
+      const statements = sqlContent.split("--> statement-breakpoint");
+      for (const stmt of statements) {
+        const query = stmt.trim();
+        if (query) {
+           await client.query(query);
+        }
+      }
     }
     
     // Run Seed
@@ -72,7 +80,9 @@ export async function runMigrations(dbUrl: string): Promise<void> {
  */
 export async function provisionTenant(
   name: string,
-  ownerClerkId: string,
+  ownerId: string,
+  ownerEmail: string,
+  ownerHash: string,
   addressData: {
     street?: string;
     number?: string;
@@ -87,6 +97,17 @@ export async function provisionTenant(
 ) {
   const slug   = name.toLowerCase().replace(/[^a-z0-9]/g, "");
   const dbName = `vendas_${slug}`;
+  
+  // ─── Pre-check: One tenant per user ─────────────────────────────────────
+  const [existingTenant] = await masterDb
+    .select()
+    .from(tenants)
+    .where(eq(tenants.ownerId, ownerId))
+    .limit(1);
+
+  if (existingTenant) {
+     throw new Error("Você já possui uma empresa cadastrada. Cada conta só pode gerenciar uma empresa.");
+  }
 
   const masterUrl = process.env.DATABASE_URL!;
   if (!masterUrl || !masterUrl.startsWith("postgres")) {
@@ -104,14 +125,6 @@ export async function provisionTenant(
     await client.query(`CREATE DATABASE "${dbName}"`);
     console.log(`✅ Database "${dbName}" created.`);
 
-    // Register in master
-    await masterDb.insert(tenants).values({
-      name, slug, dbName, ownerClerkId,
-      ownerName, ownerCpf,
-      ...addressData, contact,
-      status: "active",
-    });
-
     // Build tenant connection string
     const tenantUrl = masterUrl.replace(/\/([^/]+)$/, `/${dbName}`);
 
@@ -121,21 +134,40 @@ export async function provisionTenant(
     console.log(`✅ Schema ready for "${dbName}".`);
 
     // ─── Create First Seller (Contractor) ──────────────────────────────────
-    console.log(`👤 Creating first seller: ${ownerName || name}`);
+    console.log(`👤 Creating first seller: ${ownerName || name} (${ownerEmail})`);
     const tenantDb = new Pool({ connectionString: tenantUrl });
     try {
+      // 7. Insert the first user (The owner)
+      // They are the first "seller/staff" in the tenant database
+      console.log("  👤 Creating administrator user...");
       await tenantDb.query(
-        `INSERT INTO users (clerk_id, name, email, role, active, created_at) 
-         VALUES ($1, $2, $3, $4, true, NOW())`,
-        [ownerClerkId, ownerName || name, null, 'admin']
+        `INSERT INTO users (name, role, active, created_at, email, password_hash, web_access) 
+         VALUES ($1, $2, true, NOW(), $3, $4, true)`,
+        [ownerName || name, 'admin', ownerEmail, ownerHash]
       );
       console.log(`✅ First seller created.`);
     } catch (err) {
       console.error("  ❌ Error creating first seller:", err);
-      // Don't fail the whole provisioning if user insert fails, BUT it's suspicious
+      throw new Error("Falha ao criar usuário administrador no banco da empresa.");
     } finally {
       await tenantDb.end();
     }
+
+    // ─── Register in master ─────────────────────────────────────────────────
+    console.log(`📝 Registering tenant in master database...`);
+    const [newTenant] = await masterDb.insert(tenants).values({
+      name, slug, dbName, ownerId,
+      ownerName, ownerCpf,
+      ...addressData, contact,
+      status: "active",
+    }).returning();
+
+    // Link user to tenant in master database for login discovery
+    await masterDb.update(masterUsers)
+      .set({ tenantId: newTenant.id })
+      .where(eq(masterUsers.id, ownerId));
+
+    console.log(`✅ Tenant registered and linked in master.`);
 
     return { slug, dbName };
   } catch (error: any) {

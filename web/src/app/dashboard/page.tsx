@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUser, SignOutButton } from "@clerk/nextjs";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   Map,
   Briefcase,
   History,
+  User,
 } from "lucide-react";
 import { formatCentsToBRL } from "@/utils/money";
 import { SalesTab } from "@/components/dashboard/tabs/SalesTab";
@@ -43,6 +44,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 export default function DashboardPage() {
   const { user, isLoaded, step, tenant: tenantInfo } = useOnboardingStatus();
+  const { logout } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -81,7 +83,7 @@ export default function DashboardPage() {
     setIsSidebarOpen(false);
   }, [activeTab]);
 
-  if (!isLoaded || step === "loading") {
+  if (isLoaded || step === "loading") {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
@@ -91,10 +93,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex overflow-hidden relative">
-      {/* Sidebar Overlay (Mobile - only when fully expanded if needed, but here we use a partial width) */}
+      {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -102,11 +104,10 @@ export default function DashboardPage() {
       {/* Sidebar */}
       <aside
         className={`
-        fixed inset-y-0 left-0 z-50 bg-[#080808] border-r border-white/5 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-        lg:relative lg:translate-x-0 flex flex-col
-        ${isSidebarOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full lg:w-64"} 
-        ${!isSidebarOpen && "lg:w-64"}
-      `}
+          fixed inset-y-0 left-0 z-50 bg-[#080808] border-r border-white/5 
+          transition-all duration-300 ease-in-out flex flex-col
+          ${isSidebarOpen ? "w-72 translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-64"}
+        `}
       >
         <div
           className={`p-4 lg:p-6 flex items-center ${isSidebarOpen || "justify-center lg:justify-between"} justify-between`}
@@ -188,26 +189,25 @@ export default function DashboardPage() {
             onClick={() => setActiveTab("settings")}
             collapsed={!isSidebarOpen}
           />
-          <SignOutButton>
-            <button
-              className={`w-full flex items-center transition-all p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-2xl group ${!isSidebarOpen ? "justify-center lg:justify-start lg:px-4" : "gap-3 px-4"}`}
+          <button
+            onClick={logout}
+            className={`w-full flex items-center transition-all p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-2xl group ${!isSidebarOpen ? "justify-center lg:justify-start lg:px-4" : "gap-3 px-4"}`}
+          >
+            <LogOut
+              size={22}
+              className="group-hover:-translate-x-1 transition-transform"
+            />
+            <span
+              className={`font-bold text-[11px] uppercase tracking-widest lg:block ${isSidebarOpen ? "block" : "hidden"}`}
             >
-              <LogOut
-                size={22}
-                className="group-hover:-translate-x-1 transition-transform"
-              />
-              <span
-                className={`font-bold text-[11px] uppercase tracking-widest lg:block ${isSidebarOpen ? "block" : "hidden"}`}
-              >
-                Sair
-              </span>
-            </button>
-          </SignOutButton>
+              Sair
+            </span>
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 lg:pl-64 min-h-screen relative overflow-hidden bg-[#050505]">
         {/* Background glow */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
 
@@ -231,24 +231,18 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-3 lg:gap-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user?.firstName}</p>
+              <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-[10px] text-gray-500 truncate max-w-[150px]">
-                {user?.primaryEmailAddress?.emailAddress}
+                {user?.email}
               </p>
             </div>
-            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full border border-white/10 overflow-hidden bg-white/5 shrink-0">
-              {user?.imageUrl && (
-                <img
-                  src={user.imageUrl}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
-              )}
+            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full border border-white/10 overflow-hidden bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center shrink-0">
+               <User className="w-5 h-5 text-purple-400" />
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6 lg:space-y-8">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8 space-y-6 lg:space-y-8 scroll-smooth">
           {/* Insights Tab */}
           {activeTab === "insights" && (
             <>

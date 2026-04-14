@@ -26,10 +26,9 @@ Siga estes passos para configurar o projeto em uma nova máquina:
      ```bash
      cp .env.example .env
      ```
+     ```
    - Abra o arquivo `.env` e certifique-se de que as chaves estão corretas:
      - `NEXT_PUBLIC_SERVER_URL`: URL do seu backend (ex: `http://localhost:3001`).
-     - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Sua chave pública do Clerk.
-     - `CLERK_SECRET_KEY`: Sua chave secreta do Clerk.
 
 2. **Instalação de Dependências**:
 

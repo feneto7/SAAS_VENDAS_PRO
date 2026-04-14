@@ -127,7 +127,7 @@ export function ClientModal({ isOpen, onClose, onSuccess, client, routes, server
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col pb-28 sm:pb-0">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col custom-scrollbar">
           <div className="px-6 py-4 sm:p-8 space-y-8 sm:space-y-10 flex-1">
             <section className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
               <h3 className={sectionLabel}><User size={14} /> Dados de Identificação</h3>
@@ -198,17 +198,17 @@ export function ClientModal({ isOpen, onClose, onSuccess, client, routes, server
               </div>
             </section>
           </div>
-
-          <footer className="fixed sm:relative bottom-0 left-0 right-0 p-6 sm:p-8 border-t border-white/5 bg-[#0c0c0c] sm:bg-black/20 flex gap-4 shrink-0">
-            <button type="button" onClick={onClose} className="hidden sm:block flex-1 py-4 text-[10px] font-black text-zinc-500 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl uppercase tracking-widest">
-              Cancelar
-            </button>
-            <button type="submit" disabled={loading} className="flex-[2] sm:flex-1 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-              {client ? "Salvar Alterações" : "Cadastrar Cliente"}
-            </button>
-          </footer>
         </form>
+
+        <footer className="relative p-6 sm:p-8 border-t border-white/5 bg-[#0c0c0c] sm:bg-black/20 flex gap-4 shrink-0">
+          <button type="button" onClick={onClose} className="hidden sm:block flex-1 py-4 text-[10px] font-black text-zinc-500 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl uppercase tracking-widest">
+            Cancelar
+          </button>
+          <button onClick={handleSubmit} type="button" disabled={loading} className="flex-[2] sm:flex-1 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5">
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+            {client ? "Salvar Alterações" : "Cadastrar Cliente"}
+          </button>
+        </footer>
       </div>
     </div>
   );

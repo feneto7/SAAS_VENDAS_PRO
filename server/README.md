@@ -23,7 +23,6 @@ Crie um arquivo `.env` na raiz da pasta `server` com as seguintes variáveis:
 ```env
 DATABASE_URL=postgres://usuario:senha@localhost:5432/vendas_master
 PORT=3001
-# Outras configurações como CLERK_SECRET_KEY se necessário
 ```
 
 ## Scripts Disponíveis

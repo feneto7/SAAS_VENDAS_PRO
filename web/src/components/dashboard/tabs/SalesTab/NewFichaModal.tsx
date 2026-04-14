@@ -165,7 +165,7 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
         </header>
 
         {/* Body Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar pb-40 sm:pb-32">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
           <div className="max-w-5xl mx-auto space-y-12">
             
             {/* Context Section */}
@@ -327,7 +327,7 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
         </form>
 
         {/* Floating/Fixed Footer */}
-        <footer className="fixed sm:relative bottom-0 left-0 right-0 p-6 sm:p-8 border-t border-white/5 bg-[#0f0f0f]/90 backdrop-blur-2xl flex flex-col sm:flex-row gap-6 items-stretch sm:items-center shadow-2xl z-20">
+        <footer className="relative p-6 sm:p-8 border-t border-white/5 bg-[#0f0f0f]/90 backdrop-blur-2xl flex flex-col sm:flex-row gap-6 items-stretch sm:items-center shadow-2xl z-20 shrink-0">
           
           <div className="flex-1 flex gap-6 sm:gap-12 items-center justify-between sm:justify-start">
             <div className="space-y-1">

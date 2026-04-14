@@ -101,8 +101,8 @@ export function RouteModal({ isOpen, onClose, onSuccess, route, serverUrl, tenan
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
-          <div className="p-6 sm:p-8 space-y-6 flex-1 pb-32 sm:pb-8">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col custom-scrollbar">
+          <div className="p-6 sm:p-8 space-y-6 flex-1">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
                 Nome da Rota / Descrição Curta
@@ -138,25 +138,26 @@ export function RouteModal({ isOpen, onClose, onSuccess, route, serverUrl, tenan
               </p>
             </div>
           </div>
-
-          <footer className="fixed sm:relative bottom-0 left-0 right-0 p-6 sm:p-8 border-t border-white/5 bg-[#0c0c0c] sm:bg-black/20 flex gap-4 shrink-0">
-            <button 
-              type="button"
-              onClick={onClose}
-              className="hidden sm:block flex-1 py-4 text-sm font-bold text-gray-400 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit"
-              disabled={loading}
-              className="flex-[2] sm:flex-1 py-4 bg-white text-black rounded-2xl text-sm font-black flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-              {route ? "Salvar Alterações" : "Criar Rota"}
-            </button>
-          </footer>
         </form>
+
+        <footer className="relative p-6 sm:p-8 border-t border-white/5 bg-[#0c0c0c] sm:bg-black/20 flex gap-4 shrink-0">
+          <button 
+            type="button"
+            onClick={onClose}
+            className="hidden sm:block flex-1 py-4 text-sm font-bold text-gray-400 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-[2] sm:flex-1 py-4 bg-white text-black rounded-2xl text-sm font-black flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5"
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+            {route ? "Salvar Alterações" : "Criar Rota"}
+          </button>
+        </footer>
       </div>
     </div>
   );

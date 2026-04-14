@@ -115,7 +115,7 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 sm:p-8 overflow-y-auto custom-scrollbar flex-1 pb-24 sm:pb-8">
+        <form onSubmit={handleSubmit} className="px-6 py-4 sm:p-8 overflow-y-auto custom-scrollbar flex-1">
           <div className="space-y-6">
             {/* Main Info */}
             <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
@@ -228,32 +228,32 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
               </div>
             </div>
           </div>
-
-          <footer className="fixed sm:relative bottom-0 left-0 right-0 px-6 py-4 sm:p-0 sm:mt-8 flex gap-3 bg-[#0f0f0f] sm:bg-transparent border-t sm:border-t-0 border-white/5 shrink-0">
-            <button 
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="hidden sm:block flex-1 py-4 px-6 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit"
-              disabled={loading}
-              className="flex-[2] py-4 px-6 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl shadow-xl shadow-purple-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Save size={18} className="group-hover:rotate-12 transition-transform" />
-                  Salvar Produto
-                </>
-              )}
-            </button>
-          </footer>
         </form>
+
+        <footer className="relative px-6 py-6 sm:px-8 sm:py-6 bg-zinc-950 border-t border-white/5 flex gap-3 shrink-0">
+          <button 
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="hidden sm:block flex-1 py-4 px-6 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-[2] py-4 px-6 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl shadow-xl shadow-purple-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <Save size={18} className="group-hover:rotate-12 transition-transform" />
+                Salvar Produto
+              </>
+            )}
+          </button>
+        </footer>
       </div>
     </div>
   );

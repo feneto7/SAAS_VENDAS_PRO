@@ -119,7 +119,7 @@ export function MovementDetailsModal({ isOpen, onClose, movementId, tenantSlug, 
         </header>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 custom-scrollbar pb-32 sm:pb-8">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 custom-scrollbar">
           {movement && (
             <>
               {/* Info Cards */}
@@ -224,7 +224,7 @@ export function MovementDetailsModal({ isOpen, onClose, movementId, tenantSlug, 
         </div>
 
         {/* Fixed Footer */}
-        <footer className="fixed sm:relative bottom-0 left-0 right-0 p-6 sm:p-8 border-t border-white/5 bg-[#121212]/80 backdrop-blur-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
+        <footer className="relative p-6 sm:p-8 border-t border-white/5 bg-[#121212]/80 backdrop-blur-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
           <div className="flex-1">
             {movement && movement.pagination.pages > 1 && (
                 <div className="flex justify-center sm:justify-start">

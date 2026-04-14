@@ -13,24 +13,26 @@ import { tenantMiddleware } from './middleware/tenant.js';
 import { masterDb }         from './db/master.js';
 import { provisionTenant }  from './db/provisioning.js';
 import { 
-  fichas, 
-  clients, 
-  users, 
-  products, 
-  routes, 
-  fichaItems, 
-  userRoutes, 
-  sellerInventory,
-  inventoryMovements,
-  inventoryMovementItems,
+  inventoryMovementItems, 
   payments,
   paymentMethods,
   tenants,
-  cobrancas
+  masterUsers,
+  cobrancas,
+  fichas,
+  users,
+  products,
+  routes,
+  clients,
+  sellerInventory,
+  fichaItems,
+  inventoryMovements,
+  userRoutes
 } from './db/schema/index.js';
-import { eq, and, ilike, sql, desc, inArray, gte, lte, or, isNull } from "drizzle-orm";
+import { eq, ne, and, ilike, sql, desc, inArray, gte, lte, or, isNull } from "drizzle-orm";
 import { getTenantDb } from './db/tenant.js';
 import { generateProductSKU } from './lib/sku.js';
+import { hashPassword, comparePassword } from './lib/auth.js';
 
 
 import fastifyJwt from '@fastify/jwt';
@@ -51,19 +53,129 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ─── Public: Provisioning ─────────────────────────────────────────────────
+  // ─── Native Auth: Register Master User ────────────────────────────────────
+  fastify.post('/auth/register', async (request, reply) => {
+    const { email, password, name } = request.body as any;
+    
+    if (!email || !password || !name) {
+      return reply.status(400).send({ error: 'Dados incompletos' });
+    }
+
+    try {
+      const [existing] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, email)).limit(1);
+      if (existing) {
+        return reply.status(400).send({ error: 'E-mail já cadastrado' });
+      }
+
+      const passwordHash = await hashPassword(password);
+      const [newUser] = await masterDb.insert(masterUsers).values({
+        email,
+        name,
+        passwordHash
+      }).returning();
+
+      return { id: newUser.id, email: newUser.email, name: newUser.name };
+    } catch (error) {
+      console.error('Register error:', error);
+      return reply.status(500).send({ error: 'Erro interno ao registrar' });
+    }
+  });
+
+  // ─── Native Auth: Login ───────────────────────────────────────────────────
+  fastify.post('/auth/login', async (request, reply) => {
+    const { email, password } = request.body as any;
+
+    try {
+      const [user] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, email)).limit(1);
+      if (!user) {
+        return reply.status(401).send({ error: 'Credenciais inválidas' });
+      }
+
+      const isValid = await comparePassword(password, user.passwordHash);
+      if (!isValid) {
+        return reply.status(401).send({ error: 'Credenciais inválidas' });
+      }
+
+      // Check for tenant. Priority: Linked tenantId, Fallback: ownerId
+      let tenant;
+      if (user.tenantId) {
+        [tenant] = await masterDb.select().from(tenants).where(eq(tenants.id, user.tenantId)).limit(1);
+      } else {
+        [tenant] = await masterDb.select().from(tenants).where(eq(tenants.ownerId, user.id)).limit(1);
+      }
+
+      const token = fastify.jwt.sign({ 
+        userId: user.id, 
+        email: user.email, 
+        tenantId: tenant?.id,
+        tenantSlug: tenant?.slug 
+      });
+
+      return { 
+        token, 
+        user: { id: user.id, email: user.email, name: user.name },
+        tenant: tenant ? { slug: tenant.slug, name: tenant.name } : null
+      };
+    } catch (error) {
+      console.error('Login error:', error);
+      return reply.status(500).send({ error: 'Erro interno no login' });
+    }
+  });
+
+  // ─── Native Auth: Me ──────────────────────────────────────────────────────
+  fastify.get('/auth/me', async (request, reply) => {
+    try {
+      await request.jwtVerify();
+      const payload = request.user as any;
+      const [user] = await masterDb.select().from(masterUsers).where(eq(masterUsers.id, payload.userId)).limit(1);
+      if (!user) return reply.status(401).send({ error: 'Usuário não encontrado' });
+
+      // Identify tenant
+      let tenant;
+      if (user.tenantId) {
+        [tenant] = await masterDb.select().from(tenants).where(eq(tenants.id, user.tenantId)).limit(1);
+      } else {
+        [tenant] = await masterDb.select().from(tenants).where(eq(tenants.ownerId, user.id)).limit(1);
+      }
+
+      return { 
+        user: { id: user.id, email: user.email, name: user.name },
+        tenant: tenant ? { slug: tenant.slug, name: tenant.name } : null
+      };
+    } catch (err) {
+      return reply.status(401).send({ error: 'Não autorizado' });
+    }
+  });
+
+  // ─── Public: Provisioning (Updated for local User ID) ─────────────────────
   fastify.post('/auth/provision', async (request, reply) => {
-    const { name, clerkId, addressData, contact, ownerName, ownerCpf } = request.body as {
+    const { name, userId, email, addressData, contact, ownerName, ownerCpf } = request.body as {
       name: string;
-      clerkId: string;
+      userId: string;
+      email: string;
       addressData: any;
       contact?: string;
       ownerName?: string;
       ownerCpf?: string;
     };
-    console.log(`🚀 Provisioning: ${name} (${clerkId})`);
+    console.log(`🚀 Provisioning: ${name} (User: ${userId}, Email: ${email})`);
     try {
-      const result = await provisionTenant(name, clerkId, addressData, contact, ownerName, ownerCpf);
+      // Get the existing master user to retrieve their password hash
+      const [masterUser] = await masterDb.select().from(masterUsers).where(eq(masterUsers.id, userId)).limit(1);
+      if (!masterUser) {
+        throw new Error('Usuário mestre não encontrado para o provisionamento.');
+      }
+
+      const result = await provisionTenant(
+        name, 
+        userId, 
+        email, 
+        masterUser.passwordHash, // Sync password to tenant
+        addressData, 
+        contact, 
+        ownerName, 
+        ownerCpf
+      );
       return result;
     } catch (error: any) {
       console.error('Provisioning error:', error);
@@ -71,32 +183,43 @@ async function bootstrap() {
     }
   });
 
-  // ─── Public: Auth Status ──────────────────────────────────────────────────
-  fastify.get('/auth/status/:clerkId', async (request, reply) => {
-    const { clerkId } = request.params as { clerkId: string };
+  // ─── Public: Auth Status (Updated for local User ID) ──────────────────────
+  fastify.get('/auth/status/:userId', async (request, reply) => {
+    const { userId } = request.params as { userId: string };
     
     try {
-      const [tenant] = await masterDb
+      // 1. Get user from master specifically to find their tenant_id
+      const [user] = await masterDb
         .select()
-        .from(tenants)
-        .where(eq(tenants.ownerClerkId, clerkId))
+        .from(masterUsers)
+        .where(eq(masterUsers.id, userId))
         .limit(1);
+
+      if (!user) {
+        return { onboardingStep: 'personal', hasTenant: false };
+      }
+
+      // 2. Resolve tenant (either by direct link or ownership fallback)
+      let tenant;
+      if (user.tenantId) {
+        [tenant] = await masterDb
+          .select()
+          .from(tenants)
+          .where(eq(tenants.id, user.tenantId))
+          .limit(1);
+      } else {
+        // Fallback for owners whose tenantId might not be synced yet or legacy
+        [tenant] = await masterDb
+          .select()
+          .from(tenants)
+          .where(eq(tenants.ownerId, userId))
+          .limit(1);
+      }
 
       if (!tenant) {
         return { 
           onboardingStep: 'personal',
           hasTenant: false 
-        };
-      }
-
-      // If we have a tenant but no ownerName/CPF, it's personal step (legacy compatibility)
-      // BUT for new flow, we might need a better state.
-      // If we have the tenant record, we usually have company name.
-      if (!tenant.ownerName || !tenant.ownerCpf) {
-        return {
-          onboardingStep: 'personal',
-          hasTenant: true,
-          tenant: { slug: tenant.slug, name: tenant.name }
         };
       }
 
@@ -106,6 +229,7 @@ async function bootstrap() {
         tenant: { slug: tenant.slug, name: tenant.name }
       };
     } catch (error) {
+      console.error('🔥 Auth Status Error:', error);
       return reply.status(500).send({ error: 'Internal Server Error' });
     }
   });
@@ -257,7 +381,9 @@ async function bootstrap() {
           .where(and(eq(users.appCode, appCode), eq(users.active, true)))
           .limit(1);
 
-        if (!user || user.password !== password) {
+        const isValid = user.passwordHash ? await comparePassword(password, user.passwordHash) : (user.password === password);
+        
+        if (!user || !isValid) {
           return reply.status(401).send({ error: "Credenciais inválidas" });
         }
 
@@ -291,7 +417,7 @@ async function bootstrap() {
       const limit = Number(q.limit) || 10;
       const offset = (page - 1) * limit;
 
-      const conditions = [eq(users.role, 'seller')];
+      const conditions = [inArray(users.role, ['seller', 'admin'])];
       if (q.name) conditions.push(ilike(users.name, `%${q.name}%`));
 
       const [{ count }] = await db.select({ count: sql`count(*)` }).from(users).where(and(...conditions));
@@ -309,15 +435,45 @@ async function bootstrap() {
       const db = (request as any).tenantDb;
       const body = request.body as any;
       try {
+        if (body.email) {
+          const [exists] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, body.email)).limit(1);
+          if (exists) {
+            return reply.status(400).send({ error: "E-mail já cadastrado no sistema" });
+          }
+        }
+
         const result = await db.transaction(async (tx: any) => {
+          const passHash = await hashPassword(body.password);
           const [newUser] = await tx.insert(users).values({
             name:     body.name,
             appCode:  body.appCode,
-            password: body.password,
+            passwordHash: passHash,
+            webAccess: !!body.webAccess,
             phone:    body.phone,
-            role:     'seller',
-            email:    body.email || `app-${body.appCode}@custom.com`,
+            role:     body.role || 'seller', // Allow specifying role
+            email:    body.email,
           }).returning();
+
+          if (body.webAccess && body.email) {
+            const tenantId = (request as any).tenant?.id;
+            
+            // Check if user already exists in master (global unique email)
+            const [existingMaster] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, body.email)).limit(1);
+            
+            if (existingMaster) {
+              await masterDb.update(masterUsers)
+                .set({ passwordHash: passHash, tenantId: tenantId, name: body.name })
+                .where(eq(masterUsers.email, body.email));
+            } else {
+              await masterDb.insert(masterUsers).values({
+                name: body.name,
+                email: body.email,
+                passwordHash: passHash,
+                tenantId: tenantId
+              });
+            }
+          }
+
           if (body.routeIds && Array.isArray(body.routeIds)) {
             for (const rId of body.routeIds) {
               await tx.insert(userRoutes).values({ userId: newUser.id, routeId: rId });
@@ -327,6 +483,7 @@ async function bootstrap() {
         });
         return result;
       } catch (error) {
+        console.error('Create employee error:', error);
         return reply.status(400).send({ error: "Erro ao criar funcionário" });
       }
     });
@@ -338,18 +495,25 @@ async function bootstrap() {
 
       try {
         const result = await db.transaction(async (tx: any) => {
-          // Prepare update data
+          const [oldUser] = await tx.select().from(users).where(eq(users.id, id)).limit(1);
+          if (!oldUser) throw new Error("Funcionário não encontrado");
+
+          if (body.email && body.email !== oldUser.email) {
+            const [exists] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, body.email)).limit(1);
+            if (exists) throw new Error("E-mail já cadastrado no sistema");
+          }
+
           const updateData: any = {
             name:     body.name,
             appCode:  body.appCode,
             phone:    body.phone,
             email:    body.email,
+            webAccess: !!body.webAccess,
             updatedAt: new Date(),
           };
 
-          // Only update password if provided
           if (body.password) {
-            updateData.password = body.password;
+            updateData.passwordHash = await hashPassword(body.password);
           }
 
           const [updatedUser] = await tx
@@ -357,6 +521,37 @@ async function bootstrap() {
             .set(updateData)
             .where(eq(users.id, id))
             .returning();
+          
+          // Sync with Master
+          const [masterUser] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, oldUser.email)).limit(1);
+          
+          if (body.webAccess) {
+            const tenantId = (request as any).tenant?.id;
+            if (masterUser) {
+              await masterDb.update(masterUsers)
+                .set({
+                  name: body.name,
+                  email: body.email,
+                  passwordHash: updateData.passwordHash || masterUser.passwordHash,
+                  tenantId: tenantId // Ensure tenantId is set/updated
+                })
+                .where(eq(masterUsers.id, masterUser.id));
+            } else {
+              await masterDb.insert(masterUsers).values({
+                name: body.name,
+                email: body.email,
+                passwordHash: updateData.passwordHash || oldUser.passwordHash,
+                tenantId: tenantId
+              });
+            }
+          } else if (masterUser) {
+             // If webAccess REMOVED, delete from master unless it's the owner?
+             // Actually, the owner is in tenants table as ownerId.
+             const [isOwner] = await masterDb.select().from(tenants).where(eq(tenants.ownerId, masterUser.id)).limit(1);
+             if (!isOwner) {
+               await masterDb.delete(masterUsers).where(eq(masterUsers.id, masterUser.id));
+             }
+          }
 
           if (!updatedUser) {
             throw new Error("Funcionário não encontrado");
@@ -1773,7 +1968,7 @@ async function bootstrap() {
         status: fichas.status
       })
       .from(fichas)
-      .where(sql`${fichas.status} != 'link_gerado'`);
+      .where(ne(fichas.status, 'link_gerado'));
 
       const totalRevenue = sales.reduce((acc: number, curr: any) => acc + (Number(curr.total) || 0), 0);
       const salesCount = sales.length;

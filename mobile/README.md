@@ -1,6 +1,6 @@
 # Vendas PRO - Mobile (Expo)
 
-Aplicativo mobile para vendedores e logística. Utiliza Expo Router e Clerk para autenticação.
+Aplicativo mobile para vendedores e logística. Utiliza Expo Router para navegação e autenticação personalizada.
 
 ## 🚀 Como Executar
 
@@ -10,7 +10,6 @@ Certifique-se de ter o arquivo `.env` na raiz da pasta `mobile` (eu já criei pa
 
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:3001
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_cG9wdWxhci1hbnQtOTQuY2xlcmsuYWNjb3VudHMuZGV2JA
 ```
 
 > **Nota:** Se você for rodar em um dispositivo físico, substitua `localhost` pelo endereço IP do seu computador (ex: `192.168.1.10`).

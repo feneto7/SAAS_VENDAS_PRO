@@ -1,8 +1,7 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
+import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Mail, Lock, X } from "lucide-react";
 
@@ -12,7 +11,7 @@ interface SignInFormProps {
 }
 
 export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
-  const { isLoaded, signIn, setActive } = useSignIn() as any;
+  const { login } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -27,40 +26,32 @@ export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
-
     setLoading(true);
     setError("");
 
     try {
-      const result = await signIn.create({
-        identifier: email,
-        password,
+      const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
+      const res = await fetch(`${serverUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.push("/dashboard");
-      } else {
-        console.log(JSON.stringify(result, null, 2));
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao fazer login");
       }
+
+      login(data.token, data.user, data.tenant);
+      
+      onClose();
+      router.push("/dashboard");
     } catch (err: any) {
-      console.error(err);
-      setError(err.errors?.[0]?.message || "E-mail ou senha incorretos.");
+      console.error("Erro ao fazer login:", err);
+      setError(err?.message || "E-mail ou senha inválidos.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loginWithGoogle = () => {
-    if (!isLoaded) return;
-    try {
-      signIn.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrlComplete: "/dashboard",
-      });
-    } catch (err) {
-      console.error("Erro ao iniciar login com Google:", err);
     }
   };
 
@@ -69,7 +60,7 @@ export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
 
   if (!mounted) return null;
 
-  return createPortal(
+  return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 overflow-y-auto">
       <div 
         className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 my-auto"
@@ -86,22 +77,6 @@ export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
           <div className="text-center mb-8">
             <h2 className="text-2xl font-black mb-2 tracking-tight text-white">Bem-vindo de Volta</h2>
             <p className="text-gray-500 text-sm font-medium">Acesse sua conta VendasPro</p>
-          </div>
-
-          <div className="space-y-4 mb-8">
-            <button 
-              onClick={loginWithGoogle}
-              className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest text-white hover:bg-white/[0.1] transition-all"
-            >
-              <img src="https://www.google.com/favicon.ico" className="w-4 h-4 brightness-200" alt="Google" />
-              Continuar com Google
-            </button>
-          </div>
-
-          <div className="relative flex items-center gap-4 mb-8">
-            <div className="flex-1 h-[1px] bg-white/5" />
-            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">ou E-mail</span>
-            <div className="flex-1 h-[1px] bg-white/5" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -146,10 +121,10 @@ export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
             <button 
               type="submit"
               disabled={loading}
-              className="w-full h-14 bg-white text-black rounded-xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-500 hover:text-white transition-all active:scale-95 disabled:opacity-50 mt-2 shadow-xl shadow-white/5"
+              className="w-full h-14 bg-white text-black rounded-xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-500 hover:text-white transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed mt-2 shadow-xl shadow-white/5"
             >
               {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin text-black" />
               ) : (
                 <>
                   Entrar na Plataforma
@@ -162,12 +137,11 @@ export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
           <div className="mt-8 text-center">
             <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
               Não tem uma conta?{" "}
-              <button onClick={onSignUpClick} className="text-white hover:text-purple-400 transition-colors">Cadastrar Empresa</button>
+              <button type="button" onClick={onSignUpClick} className="text-white hover:text-purple-400 transition-colors">Cadastrar Empresa</button>
             </p>
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }

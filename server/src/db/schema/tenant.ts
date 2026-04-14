@@ -13,12 +13,12 @@ export const cobrancaStatusEnum = pgEnum("cobranca_status", ["aberta", "encerrad
 export const users = pgTable("users", {
   id:        uuid("id").defaultRandom().primaryKey(),
   code:      integer("code").generatedAlwaysAsIdentity(),
-  clerkId:   text("clerk_id").unique(), // Optional for mobile-only sellers
-  name:      text("name"),
-  email:     text("email"),             // Optional for mobile-only sellers
+  name:      text("name").notNull(),
+  email:     text("email").notNull().unique(), // Required for all users now
   role:      userRoleEnum("role").default("seller").notNull(),
   appCode:   text("app_code"),          // Login code for mobile app
-  password:  text("password"),          // Password for mobile app
+  passwordHash: text("password_hash"),  // Hashed password
+  webAccess: boolean("web_access").default(false).notNull(), // Web login allowed?
   phone:     text("phone"),
   active:    boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

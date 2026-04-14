@@ -1,6 +1,5 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, ArrowRight, Loader2, MapPin, Phone, Building, CheckCircle2 } from "lucide-react";
@@ -44,11 +43,24 @@ export default function SetupPage() {
         const stored = sessionStorage.getItem("onboarding_personal");
         if (stored) {
             setPersonalData(JSON.parse(stored));
-        } else if (isLoaded && step === 'personal' && !stored) {
+        } else if (!isLoaded && step === 'personal' && !stored) {
             router.push("/setup/personal");
         }
     }
+    
+    // Se o onboarding já foi completado, não deve estar aqui
+    if (!isLoaded && step === 'completed') {
+        router.push("/dashboard");
+    }
   }, [isLoaded, step]);
+
+  if (isLoaded || step === 'loading') return (
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+      <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+    </div>
+  );
+
+  if (step === 'completed') return null;
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +77,8 @@ export default function SetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: companyName,
-          clerkId: user.id,
+          userId: user.id,
+          email: user.email,
           addressData,
           contact: contact || personalData.phone,
           ownerName: personalData.name,
@@ -92,7 +105,7 @@ export default function SetupPage() {
     }
   };
 
-  if (!isLoaded) return null;
+  if (isLoaded) return null;
 
   const labelClass = "block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2.5 ml-1";
   const inputClass = "w-full h-14 bg-white/[0.03] border border-white/10 rounded-2xl px-5 text-sm text-white outline-none focus:border-purple-500/50 focus:bg-white/[0.06] transition-all placeholder:text-gray-700";
@@ -122,7 +135,7 @@ export default function SetupPage() {
           </div>
           <h1 className="text-3xl sm:text-5xl font-black mb-4 tracking-tighter">Prepare-se para <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Vencer.</span></h1>
           <p className="text-gray-400 sm:text-lg max-w-lg mx-auto font-medium">
-            Seja bem-vindo, <span className="text-white font-bold">{user?.firstName || "Parceiro"}</span>! 
+            Seja bem-vindo, <span className="text-white font-bold">{user?.name || "Parceiro"}</span>! 
             Estamos a um passo de criar sua infraestrutura dedicada.
           </p>
         </div>

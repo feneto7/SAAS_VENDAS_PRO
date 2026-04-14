@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Edit2, ShieldAlert, ShieldCheck, Mail, Phone, Hash, Map, Package } from 'lucide-react';
+import { Edit2, ShieldAlert, ShieldCheck, Mail, Phone, Hash, Map, Package, Globe } from 'lucide-react';
 import { Employee } from '@/types/employee.types';
 
 const ROUTE_COLORS = [
@@ -79,9 +79,16 @@ export default function EmployeeList({ employees, loading, onEdit, onToggleStatu
                   <h3 className="text-base font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">
                     {emp.name}
                   </h3>
-                  <span className="px-2 py-0.5 bg-white/5 text-[9px] font-black text-gray-400 uppercase tracking-widest rounded-md border border-white/10">
-                    {emp.role === 'seller' ? 'Vendedor' : emp.role}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="px-2 py-0.5 bg-white/5 text-[9px] font-black text-gray-400 uppercase tracking-widest rounded-md border border-white/10">
+                      {emp.role === 'seller' ? 'Vendedor' : emp.role === 'admin' ? 'Administrador' : emp.role}
+                    </span>
+                    {emp.webAccess && (
+                      <span className="px-2 py-0.5 bg-purple-500/10 text-[9px] font-black text-purple-400 uppercase tracking-widest rounded-md border border-purple-500/20 flex items-center gap-1">
+                        <Globe size={8} /> Web
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -175,9 +182,16 @@ export default function EmployeeList({ employees, loading, onEdit, onToggleStatu
                 </td>
                 <td className="p-5">
                   <div className="flex flex-col gap-1">
-                    <span className="px-2 py-0.5 w-fit bg-white/5 text-[9px] font-black text-gray-400 uppercase tracking-widest rounded-md border border-white/10">
-                      {emp.role === 'seller' ? 'Vendedor' : emp.role}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 w-fit bg-white/5 text-[9px] font-black text-gray-400 uppercase tracking-widest rounded-md border border-white/10">
+                        {emp.role === 'seller' ? 'Vendedor' : emp.role === 'admin' ? 'Administrador' : emp.role}
+                      </span>
+                      {emp.webAccess && (
+                        <span className="px-2 py-0.5 w-fit bg-purple-500/10 text-[9px] font-black text-purple-400 uppercase tracking-widest rounded-md border border-purple-500/20 flex items-center gap-1" title="Acesso Web Ativo">
+                          <Globe size={10} />
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[10px] text-gray-500 font-mono">APP: {emp.appCode || '---'}</span>
                   </div>
                 </td>

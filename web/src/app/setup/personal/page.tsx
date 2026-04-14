@@ -1,16 +1,24 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, ArrowRight, Loader2, User, FileText, Phone, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Zap, ArrowRight, ArrowLeft, Loader2, User, FileText, Phone, CheckCircle2, ShieldCheck, LogOut } from "lucide-react";
 
 export default function PersonalSetupPage() {
-  const { user, isLoaded } = useUser();
+  const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [error, setError] = useState("");
+  const [initTime] = useState(Date.now());
+
+  console.log('[SetupPage] Rendering...', { 
+    authLoading, 
+    user: user?.email, 
+    checkingStatus,
+    timeSinceInit: Date.now() - initTime 
+  });
 
   // Form states
   const [name, setName] = useState("");
@@ -38,34 +46,59 @@ export default function PersonalSetupPage() {
   };
 
   useEffect(() => {
-    if (isLoaded && user) {
-        setName(user.fullName || "");
-        // Check if user already completed this step
+    // Safety timeout: stop showing spinner after 5 seconds no matter what
+    const timeout = setTimeout(() => {
+      if (checkingStatus) {
+        console.warn('[SetupPage] Safety timeout reached. Forcing checkingStatus to false.');
+        setCheckingStatus(false);
+      }
+    }, 5000);
+
+    if (!authLoading && user) {
+        console.log('[SetupPage] Auth ready, user detected. Checking status...');
+        setName(user.name || "");
         checkStatus();
-    } else if (isLoaded && !user) {
+    } else if (!authLoading && !user) {
+        console.log('[SetupPage] Auth ready, NO user. Redirecting...');
         router.push("/");
     }
-  }, [isLoaded, user]);
+
+    return () => clearTimeout(timeout);
+  }, [authLoading, user]);
 
   const checkStatus = async () => {
-    if (!user) return;
+    if (!user) {
+      console.warn('[SetupPage] checkStatus called without user.');
+      setCheckingStatus(false);
+      return;
+    }
+
     const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
+    console.log('[SetupPage] Fetching status from:', `${serverUrl}/auth/status/${user.id}`);
+    
     try {
         const res = await fetch(`${serverUrl}/auth/status/${user.id}`);
+        console.log('[SetupPage] Status response:', res.status);
+        
         if (res.ok) {
             const data = await res.json();
+            console.log('[SetupPage] Status data:', data);
+            
             if (data.onboardingStep === 'completed') {
-                localStorage.setItem("tenant_slug", data.tenant.slug);
+                console.log('[SetupPage] Onboarding completed. Redirecting to dashboard...');
+                if (data.tenant?.slug) {
+                    localStorage.setItem("tenant_slug", data.tenant.slug);
+                }
                 router.push("/dashboard");
-            } else if (data.onboardingStep === 'company') {
-                // If they have personal data but no tenant record (in this logic 'personal' means missing BOTH usually, 
-                // but let's assume we handle it)
-                // For now, if step is not 'personal', go to setup
+                return; // Keep checkingStatus true until redirect
             }
+        } else {
+          console.warn('[SetupPage] Status fetch failed with status:', res.status);
         }
     } catch (err) {
-        console.error("Status check error:", err);
+        console.error("[SetupPage] Status check error:", err);
     } finally {
+        console.log('[SetupPage] Setting checkingStatus to false.');
         setCheckingStatus(false);
     }
   };
@@ -90,7 +123,7 @@ export default function PersonalSetupPage() {
     router.push("/setup");
   };
 
-  if (!isLoaded || checkingStatus) {
+  if (authLoading || checkingStatus) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
@@ -108,6 +141,24 @@ export default function PersonalSetupPage() {
       <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/5 blur-[130px] rounded-full pointer-events-none z-0" />
       
       <div className="relative w-full max-w-xl z-10">
+        <div className="flex items-center justify-between mb-8">
+            <button 
+                onClick={() => router.push("/")}
+                className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5"
+            >
+                <ArrowLeft size={14} />
+                Voltar
+            </button>
+
+            <button 
+                onClick={() => logout()}
+                className="flex items-center gap-2 text-gray-500 hover:text-red-400 transition-colors text-[10px] font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/5"
+            >
+                <LogOut size={14} />
+                Sair
+            </button>
+        </div>
+
         <div className="flex items-center justify-center gap-2 mb-12">
             <div className="px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest text-purple-400">
                 1. Cadastro

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { X, Copy, Check, MessageSquare, ExternalLink, Link as LinkIcon, User, Map, Loader2, Share2, Sparkles, QrCode } from "lucide-react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/context/AuthContext";
+import Cookies from "js-cookie";
 import { CustomSelect } from "@/components/dashboard/shared/CustomSelect";
 import { SearchableSelect } from "@/components/dashboard/shared/SearchableSelect";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -37,7 +38,7 @@ const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
 
 export function FichaLinkModal({ isOpen, onClose, onSuccess, tenantSlug }: FichaLinkModalProps) {
   const isMobile = useIsMobile();
-  const { getToken } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [routes, setRoutes] = useState<RouteItem[]>([]);
   const [sellers, setSellers] = useState<SellerItem[]>([]);
@@ -62,7 +63,7 @@ export function FichaLinkModal({ isOpen, onClose, onSuccess, tenantSlug }: Ficha
 
   async function fetchData() {
     try {
-      const token = await getToken();
+      const token = Cookies.get("vendas_token");
       const headers = { 
         "Authorization": `Bearer ${token}`,
         "x-tenant-slug": tenantSlug 
@@ -108,7 +109,7 @@ export function FichaLinkModal({ isOpen, onClose, onSuccess, tenantSlug }: Ficha
 
     setLoading(true);
     try {
-      const token = await getToken();
+      const token = Cookies.get("vendas_token");
       const res = await fetch(`${SERVER_URL}/api/fichas/generate-link`, {
         method: "POST",
         headers: {

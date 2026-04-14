@@ -6,6 +6,7 @@ export interface Employee {
   appCode: string | null;
   phone: string | null;
   active: boolean;
+  webAccess: boolean;
   createdAt: string;
   routeIds: string[];
 }
@@ -16,5 +17,6 @@ export interface EmployeeForm {
   password: string;
   phone: string;
   email: string;
+  webAccess: boolean;
   routeIds: string[];
 }

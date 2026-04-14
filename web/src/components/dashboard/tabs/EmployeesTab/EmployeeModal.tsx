@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Smartphone, Key, Hash, ChevronDown, Check, Map } from 'lucide-react';
+import { X, Save, User, Smartphone, Key, Hash, ChevronDown, Check, Map, Globe } from 'lucide-react';
 import { Employee } from '@/types/employee.types';
 
 const ROUTE_COLORS = [
@@ -39,8 +39,11 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
     name:     employee?.name || '',
     appCode:  employee?.appCode || '',
     password: '', // Don't fill password for security
+    confirmPassword: '',
     phone:    employee?.phone || '',
     email:    employee?.email || '',
+    role:     employee?.role || 'seller',
+    webAccess: employee?.webAccess || false,
     routeIds: employee?.routeIds || []
   });
   const [isRouteSelectOpen, setIsRouteSelectOpen] = useState(false);
@@ -63,6 +66,11 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      toast.error('As senhas não coincidem!');
+      return;
+    }
+
     setLoading(true);
     try {
       const url = employee 
@@ -130,7 +138,7 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8 overflow-y-auto flex-1 pb-28 sm:pb-8 custom-scrollbar">
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
           <div className="space-y-6">
             <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-6">
                <div className="flex items-center gap-2 text-emerald-400 border-b border-white/5 pb-3">
@@ -154,10 +162,36 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+                      Perfil de Acesso
+                    </label>
+                    <div className="flex bg-zinc-900/50 rounded-2xl p-1 border border-white/5">
+                      <button 
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role: 'seller' })}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          formData.role === 'seller' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-white'
+                        }`}
+                      >
+                        Vendedor
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role: 'admin' })}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          formData.role === 'admin' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'text-zinc-500 hover:text-white'
+                        }`}
+                      >
+                        Administrador
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Código App */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
-                      Código App (Login)
+                      Código App (Mobile)
                     </label>
                     <input
                       required
@@ -167,21 +201,6 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                       placeholder="Ex: 1001"
                     />
                   </div>
-
-                  {/* Senha */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
-                      Senha App
-                    </label>
-                    <input
-                      required={!employee}
-                      type="password"
-                      value={formData.password}
-                      onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                      placeholder={employee ? "••••••••" : "****"}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
@@ -189,7 +208,7 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
             <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
               <div className="flex items-center gap-2 text-zinc-400 border-b border-white/5 pb-3">
                 <Smartphone size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Contato e Acesso</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Contato e Acesso Web</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -203,7 +222,7 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Email</label>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Email (Login Web)</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -212,6 +231,73 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                     placeholder="vendedor@empresa.com"
                   />
                 </div>
+              </div>
+
+              {/* Password Fields - Unified */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest ml-1">
+                    Senha de Acesso <span className="text-emerald-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
+                    <input
+                      required={!employee}
+                      type="password"
+                      value={formData.password}
+                      onChange={e => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-inner"
+                      placeholder={employee ? "••••••••" : "Senha"}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest ml-1">
+                    Confirmar Senha <span className="text-emerald-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
+                    <input
+                      required={!employee || formData.password !== ''}
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      className={`w-full bg-zinc-900/50 border rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:ring-2 transition-all shadow-inner ${
+                        formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword 
+                          ? 'border-red-500/50 focus:ring-red-500/20' 
+                          : 'border-white/5 focus:ring-emerald-500/20'
+                      }`}
+                      placeholder={employee ? "••••••••" : "Repita a senha"}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-[9px] text-zinc-600 italic px-1 -mt-2">Esta senha será usada tanto para o painel web quanto para o aplicativo móvel.</p>
+
+              {/* Web Access Toggle */}
+              <div 
+                className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${
+                  formData.webAccess 
+                    ? 'bg-purple-500/10 border-purple-500/30 ring-1 ring-purple-500/20' 
+                    : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
+                }`}
+                onClick={() => setFormData({ ...formData, webAccess: !formData.webAccess })}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl border ${formData.webAccess ? 'bg-purple-500/20 border-purple-500/20 text-purple-400' : 'bg-zinc-900 border-white/5 text-zinc-500'}`}>
+                    <Globe size={18} />
+                  </div>
+                  <div>
+                    <h4 className={`text-sm font-bold ${formData.webAccess ? 'text-purple-400' : 'text-zinc-300'}`}>Acesso Web</h4>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-tighter">Permitir login no painel administrativo</p>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${formData.webAccess ? 'bg-purple-500' : 'bg-zinc-800'}`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${formData.webAccess ? 'left-7' : 'left-1'}`} />
+                </div>
+              </div>
+
               </div>
 
               {/* Seletor de Rotas */}
@@ -272,12 +358,11 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                     </div>
                   )}
                 </div>
-              </div>
             </div>
           </div>
         </form>
 
-        <footer className="fixed sm:relative bottom-0 left-0 right-0 px-6 py-6 sm:px-8 sm:py-6 bg-zinc-950 border-t border-white/5 flex gap-3 shrink-0">
+        <footer className="relative px-6 py-6 sm:px-8 sm:py-6 bg-zinc-950 border-t border-white/5 flex gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}

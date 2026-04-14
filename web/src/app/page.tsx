@@ -1,16 +1,22 @@
 "use client";
 
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { AuthButtons } from "@/components/AuthButtons";
+import { SignInForm } from "@/components/auth/SignInForm";
+import { SignUpForm } from "@/components/auth/SignUpForm";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BarChart3, ShieldCheck, Zap, Sparkles, Globe, Laptop, Loader2 } from "lucide-react";
+import { ArrowRight, BarChart3, ShieldCheck, Zap, Sparkles, Globe, Laptop, Loader2, LogOut } from "lucide-react";
 
 export default function HomePage() {
-  const { user, isLoaded } = useUser();
+  const { user, logout } = useAuth();
   const { step } = useOnboardingStatus();
   const userId = user?.id;
+
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] selection:bg-purple-500/30">
@@ -31,16 +37,23 @@ export default function HomePage() {
         
         <div className="flex items-center gap-2 sm:gap-6">
           {!userId ? (
-            <AuthButtons />
+            <AuthButtons 
+              onSignInClick={() => setShowSignIn(true)} 
+              onSignUpClick={() => setShowSignUp(true)} 
+            />
           ) : (
-            <>
-              <Link href="/dashboard" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all px-4 py-2">
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard" className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-white px-4 py-2 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all">
                 Dashboard
               </Link>
-              <div className="scale-110">
-                <UserButton />
-              </div>
-            </>
+              <button 
+                onClick={logout}
+                className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-500 hover:text-red-400 transition-all"
+              >
+                <LogOut size={16} />
+                Sair
+              </button>
+            </div>
           )}
         </div>
       </nav>
@@ -150,6 +163,26 @@ export default function HomePage() {
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-700">© 2026 VendasPro. All Rights Reserved.</p>
         </div>
       </section>
+
+      {showSignIn && (
+        <SignInForm 
+          onClose={() => setShowSignIn(false)} 
+          onSignUpClick={() => {
+            setShowSignIn(false);
+            setShowSignUp(true);
+          }}
+        />
+      )}
+
+      {showSignUp && (
+        <SignUpForm 
+          onClose={() => setShowSignUp(false)} 
+          onSignInClick={() => {
+            setShowSignUp(false);
+            setShowSignIn(true);
+          }}
+        />
+      )}
     </div>
   );
 }

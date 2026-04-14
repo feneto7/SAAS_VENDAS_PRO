@@ -5,99 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775755650925,
-      "tag": "0000_ambitious_longshot",
+      "when": 1776177626091,
+      "tag": "0000_initial_schema",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1775831543000,
-      "tag": "0001_shiny_joystick",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1775833760591,
-      "tag": "0002_flashy_lockheed",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1775837906052,
-      "tag": "0003_money_to_integer_cents",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1775839645750,
-      "tag": "0004_add_route_inventory",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1775839791399,
-      "tag": "0005_add_route_inventory_index",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1775840879863,
-      "tag": "0006_update_routes_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1775841665830,
-      "tag": "0007_update_clients_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1775845678495,
-      "tag": "0008_update_users_for_employees",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1775867842300,
-      "tag": "0009_peaceful_wolf_cub",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1775915106954,
-      "tag": "0010_sloppy_sugar_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1775951482912,
-      "tag": "0011_greedy_arachne",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1775953750156,
-      "tag": "0012_classy_sunset_bain",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1775957222909,
-      "tag": "0013_opposite_spectrum",
+      "when": 1776189766352,
+      "tag": "0001_real_cerebro",
       "breakpoints": true
     }
   ]
