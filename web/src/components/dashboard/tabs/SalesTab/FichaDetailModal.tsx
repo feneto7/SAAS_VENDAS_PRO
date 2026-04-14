@@ -177,7 +177,25 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
                               {item.commissionType}
                             </span>
                           </td>
-                          <td className="px-6 py-3 text-center font-bold text-gray-400">{item.quantity}</td>
+                          <td className="px-6 py-3 text-center">
+                            {ficha.status === 'paga' ? (
+                              <div className="flex flex-col items-center">
+                                <div className="text-[10px] font-black text-white/40 mb-1 border-b border-white/5 pb-1 w-full text-center">
+                                  {item.quantity} <span className="text-[8px] uppercase tracking-tighter">Total</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-white font-bold">{item.quantitySold}</span>
+                                  <span className="text-[8px] text-emerald-500 uppercase font-black">vend</span>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-50">
+                                  <span className="text-gray-400 font-medium">{item.quantityReturned}</span>
+                                  <span className="text-[8px] text-gray-500 uppercase font-bold">dev</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="font-bold text-gray-400">{item.quantity}</span>
+                            )}
+                          </td>
                           <td className="px-6 py-3 text-right text-gray-400">{formatCentsToBRL(item.unitPrice)}</td>
                           <td className="px-6 py-3 text-right font-black text-white">{formatCentsToBRL(item.subtotal)}</td>
                         </tr>
@@ -215,7 +233,7 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
                     {ficha.payments.map((p: any) => (
                       <div key={p.id} className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">{p.method}</p>
+                          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">{p.methodName || p.method}</p>
                           <p className="text-sm font-bold text-white">{formatCentsToBRL(p.amount)}</p>
                         </div>
                         <p className="text-[10px] text-gray-500 font-medium">

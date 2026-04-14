@@ -5,11 +5,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, ArrowRight, Loader2, MapPin, Phone, Building, CheckCircle2 } from "lucide-react";
 
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+
 export default function SetupPage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, step, refresh } = useOnboardingStatus();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [personalData, setPersonalData] = useState<{name: string, cpf: string, phone: string} | null>(null);
 
   // Form states
   const [companyName, setCompanyName] = useState("");
@@ -35,15 +39,25 @@ export default function SetupPage() {
     return value.substring(0, 15);
   };
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const stored = sessionStorage.getItem("onboarding_personal");
+        if (stored) {
+            setPersonalData(JSON.parse(stored));
+        } else if (isLoaded && step === 'personal' && !stored) {
+            router.push("/setup/personal");
+        }
+    }
+  }, [isLoaded, step]);
+
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !user) return;
+    if (!companyName || !user || !personalData) return;
 
     setLoading(true);
     setError("");
 
-    const envUrl = process.env.NEXT_PUBLIC_SERVER_URL;
-    const serverUrl = (envUrl && envUrl !== "undefined") ? envUrl : "http://localhost:3001";
+    const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
 
     try {
       const response = await fetch(`${serverUrl}/auth/provision`, {
@@ -53,7 +67,9 @@ export default function SetupPage() {
           name: companyName,
           clerkId: user.id,
           addressData,
-          contact,
+          contact: contact || personalData.phone,
+          ownerName: personalData.name,
+          ownerCpf: personalData.cpf
         }),
       });
 
@@ -64,6 +80,10 @@ export default function SetupPage() {
 
       const data = await response.json();
       localStorage.setItem("tenant_slug", data.slug);
+      sessionStorage.removeItem("onboarding_personal");
+      
+      // Force refresh status hook
+      await refresh();
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Ocorreu um erro inesperado.");

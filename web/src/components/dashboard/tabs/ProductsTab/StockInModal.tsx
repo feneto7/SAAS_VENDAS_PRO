@@ -206,7 +206,7 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
           
           {/* STEP 1: Identification */}
           {step === 1 && (
-            <div className="max-w-xl mx-auto space-y-10 py-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="max-w-xl mx-auto space-y-6 py-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center space-y-2">
                 <h3 className="text-xl sm:text-2xl font-black text-white">Como esta carga chegou?</h3>
                 <p className="text-xs sm:text-sm text-gray-500 font-medium">Selecione a origem para começar a registrar os itens.</p>
@@ -215,27 +215,27 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button 
                   onClick={() => setEntryType("propria")}
-                  className={`group p-6 sm:p-8 rounded-[2.5rem] border-2 flex flex-col items-center gap-5 transition-all active:scale-95 ${entryType === 'propria' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-2xl shadow-emerald-500/10' : 'bg-white/[0.02] border-white/5 text-gray-500 hover:bg-white/5 hover:border-white/10'}`}
+                  className={`group p-4 sm:p-6 rounded-3xl border-2 flex flex-col items-center gap-4 transition-all active:scale-95 ${entryType === 'propria' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-2xl shadow-emerald-500/10' : 'bg-white/[0.02] border-white/5 text-gray-500 hover:bg-white/5 hover:border-white/10'}`}
                 >
-                  <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${entryType === 'propria' ? 'bg-emerald-500 text-black rotate-3' : 'bg-white/5'}`}>
-                    <Warehouse size={32} />
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${entryType === 'propria' ? 'bg-emerald-500 text-black rotate-3' : 'bg-white/5'}`}>
+                    <Warehouse size={24} />
                   </div>
                   <div className="text-center">
-                    <span className="text-base sm:text-lg font-black block group-hover:text-white transition-colors">Entrada Própria</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Direto do estoque</span>
+                    <span className="text-sm sm:text-base font-black block group-hover:text-white transition-colors">Entrada Própria</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Direto do estoque</span>
                   </div>
                 </button>
 
                 <button 
                   onClick={() => setEntryType("fornecedor")}
-                  className={`group p-6 sm:p-8 rounded-[2.5rem] border-2 flex flex-col items-center gap-5 transition-all active:scale-95 ${entryType === 'fornecedor' ? 'bg-purple-500/10 border-purple-500 text-purple-400 shadow-2xl shadow-purple-500/10' : 'bg-white/[0.02] border-white/5 text-gray-500 hover:bg-white/5 hover:border-white/10'}`}
+                  className={`group p-4 sm:p-6 rounded-3xl border-2 flex flex-col items-center gap-4 transition-all active:scale-95 ${entryType === 'fornecedor' ? 'bg-purple-500/10 border-purple-500 text-purple-400 shadow-2xl shadow-purple-500/10' : 'bg-white/[0.02] border-white/5 text-gray-500 hover:bg-white/5 hover:border-white/10'}`}
                 >
-                  <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${entryType === 'fornecedor' ? 'bg-purple-500 text-black -rotate-3' : 'bg-white/5'}`}>
-                    <Package size={32} />
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${entryType === 'fornecedor' ? 'bg-purple-500 text-black -rotate-3' : 'bg-white/5'}`}>
+                    <Package size={24} />
                   </div>
                   <div className="text-center">
-                    <span className="text-base sm:text-lg font-black block group-hover:text-white transition-colors">Fornecedor</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Compra externa</span>
+                    <span className="text-sm sm:text-base font-black block group-hover:text-white transition-colors">Fornecedor</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Compra externa</span>
                   </div>
                 </button>
               </div>
@@ -304,9 +304,9 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                       <table className="w-full text-left">
                         <thead className="sticky top-0 bg-[#121212] z-10 text-[9px] font-black text-gray-600 uppercase tracking-widest border-b border-white/5">
                           <tr>
-                            <th className="p-5">Produto</th>
-                            {!isMobile && <th className="p-5">Categoria</th>}
-                            <th className="p-5 text-right w-20">Ação</th>
+                            <th className="p-3 sm:p-4">Produto</th>
+                            {!isMobile && <th className="p-3 sm:p-4">Categoria</th>}
+                            <th className="p-3 sm:p-4 text-right w-20">Ação</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/[0.03]">
@@ -314,7 +314,7 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                             const isSelected = !!selectedItems.find(i => i.productId === p.id);
                             return (
                               <tr key={p.id} className="group hover:bg-white/[0.03] transition-all">
-                                <td className="p-5">
+                                <td className="p-3 sm:p-4">
                                   <div className="flex flex-col">
                                     <span className="text-[10px] font-mono text-emerald-500/60 font-black mb-1">{p.sku || 'SEM SKU'}</span>
                                     <span className={`text-sm font-bold leading-tight transition-colors ${isSelected ? 'text-emerald-400' : 'text-gray-200 group-hover:text-white'}`}>{p.name}</span>
@@ -322,17 +322,17 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                                   </div>
                                 </td>
                                 {!isMobile && (
-                                  <td className="p-5">
+                                  <td className="p-3 sm:p-4">
                                     <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{p.category}</span>
                                   </td>
                                 )}
-                                <td className="p-5 text-right">
+                                <td className="p-3 sm:p-4 text-right">
                                   <button 
                                     onClick={() => handleSelectItem(p)}
                                     disabled={isSelected}
-                                    className={`p-3 rounded-xl transition-all active:scale-90 ${isSelected ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-lg shadow-emerald-500/10'}`}
+                                    className={`p-2.5 rounded-xl transition-all active:scale-90 ${isSelected ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-lg shadow-emerald-500/10'}`}
                                   >
-                                    <Plus size={isMobile ? 18 : 16} />
+                                    <Plus size={isMobile ? 16 : 14} />
                                   </button>
                                 </td>
                               </tr>
@@ -384,12 +384,12 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                         </div>
                       ) : (
                         selectedItems.map(item => (
-                          <div key={item.productId} className="bg-white/5 border border-white/5 p-5 rounded-[1.8rem] space-y-4 relative group hover:bg-white/[0.08] transition-all">
+                          <div key={item.productId} className="bg-white/5 border border-white/5 p-3.5 rounded-2xl space-y-3 relative group hover:bg-white/[0.08] transition-all">
                             <button 
                               onClick={() => removeItem(item.productId)}
-                              className="absolute top-5 right-5 text-gray-600 hover:text-red-500 transition-colors p-2"
+                              className="absolute top-3.5 right-3.5 text-gray-600 hover:text-red-500 transition-colors p-1.5"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={14} />
                             </button>
                             
                             <div>
@@ -441,16 +441,16 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
           {step === 3 && (
             <div className="max-w-3xl mx-auto space-y-10 py-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Total Card */}
-              <div className="bg-emerald-500/10 border border-emerald-500/20 p-8 sm:p-12 rounded-[3rem] text-center shadow-2xl relative overflow-hidden group">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-5 sm:p-8 rounded-[2.5rem] text-center shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-50" />
-                <span className="relative text-[10px] sm:text-xs text-emerald-400 font-black uppercase tracking-[0.3em]">Custo Total Estimado</span>
-                <div className="relative text-5xl sm:text-7xl font-black text-white mt-4 tracking-tighter transition-transform group-hover:scale-105 duration-500">
+                <span className="relative text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Custo Total Estimado</span>
+                <div className="relative text-3xl sm:text-5xl font-black text-white mt-3 tracking-tighter transition-transform group-hover:scale-105 duration-500">
                   {formatCentsToBRL(calculateTotal())}
                 </div>
-                <div className="relative mt-8 flex items-center justify-center gap-6 text-gray-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]">
-                  <span className="flex items-center gap-2"><Package size={14} /> {selectedItems.length} Itens</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                  <span className="flex items-center gap-2"><ArrowRight size={14} /> {entryType === 'propria' ? 'Acerto Direto' : supplier}</span>
+                <div className="relative mt-5 flex items-center justify-center gap-4 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em]">
+                  <span className="flex items-center gap-2"><Package size={12} /> {selectedItems.length} Itens</span>
+                  <span className="w-1 h-1 rounded-full bg-white/10" />
+                  <span className="flex items-center gap-2"><ArrowRight size={12} /> {entryType === 'propria' ? 'Acerto Direto' : supplier}</span>
                 </div>
               </div>
 
@@ -463,18 +463,18 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                   <button 
                     disabled={loading}
                     onClick={() => handleFinalize("deposito")}
-                    className="group bg-white/[0.03] border-2 border-white/5 hover:border-emerald-500/50 p-6 sm:p-8 rounded-[2.5rem] flex items-center justify-between transition-all active:scale-[0.98]"
+                    className="group bg-white/[0.03] border-2 border-white/5 hover:border-emerald-500/50 p-4 sm:p-6 rounded-3xl flex items-center justify-between transition-all active:scale-[0.98]"
                   >
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/5 rounded-3xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-black transition-all group-hover:rotate-3 shadow-xl">
-                        <Warehouse size={28} />
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-black transition-all group-hover:rotate-3 shadow-xl">
+                        <Warehouse size={24} />
                       </div>
                       <div className="text-left">
-                        <span className="text-base sm:text-xl font-black text-white block">Estoque Central</span>
+                        <span className="text-sm sm:text-base font-black text-white block">Estoque Central</span>
                         <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1 block">Aumentar saldo do depósito principal</span>
                       </div>
                     </div>
-                    <ArrowRight className="text-gray-700 group-hover:text-white group-hover:translate-x-2 transition-all" size={24} />
+                    <ArrowRight className="text-gray-700 group-hover:text-white group-hover:translate-x-2 transition-all" size={20} />
                   </button>
 
                   <div className="py-4 flex items-center gap-4">
@@ -490,14 +490,14 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                         key={seller.id}
                         disabled={loading}
                         onClick={() => handleFinalize("vendedor", seller.id)}
-                        className="group bg-white/[0.03] border-2 border-white/5 hover:border-purple-500/50 p-5 rounded-[2rem] flex items-center gap-4 transition-all active:scale-95 text-left"
+                        className="group bg-white/[0.03] border-2 border-white/5 hover:border-purple-500/50 p-3.5 sm:p-4 rounded-2xl flex items-center gap-3 transition-all active:scale-95 text-left"
                       >
-                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all shadow-lg group-hover:-rotate-3">
-                          <User size={20} className="text-gray-500 group-hover:text-white" />
+                        <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all shadow-lg group-hover:-rotate-3 shrink-0">
+                          <User size={18} className="text-gray-500 group-hover:text-white" />
                         </div>
                         <div>
-                          <span className="text-sm font-black text-white block truncate max-w-[150px]">{seller.name}</span>
-                          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Vendedor: {seller.appCode || 'S/COD'}</span>
+                          <span className="text-xs font-black text-white block truncate max-w-[150px]">{seller.name}</span>
+                          <span className="text-[9px] text-gray-500 font-bold uppercase tracking-tighter">Vendedor: {seller.appCode || 'S/COD'}</span>
                         </div>
                       </button>
                     ))}
@@ -510,20 +510,20 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
         </div>
 
         {/* Fixed Navigation Footer */}
-        <footer className="px-6 py-6 sm:p-8 border-t border-white/5 bg-[#0f0f0f]/90 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
+        <footer className="px-6 py-3 sm:px-8 sm:py-4 border-t border-white/5 bg-[#0f0f0f]/90 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
           <button 
             type="button"
             onClick={step === 1 ? handleCancelClick : () => setStep(step - 1)}
-            className="flex items-center gap-2 py-4 px-6 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-all active:scale-90"
+            className="flex items-center gap-2 py-3 px-4 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-all active:scale-90"
           >
-            {step === 1 ? 'Sair' : <><ChevronLeft size={18} /> Voltar</>}
+            {step === 1 ? 'Sair' : <><ChevronLeft size={16} /> Voltar</>}
           </button>
 
           <div className="hidden sm:block">
             {step === 2 && (
               <div className="flex flex-col items-center">
                 <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Total Previsto</span>
-                <span className="text-xl font-black text-emerald-400 leading-none mt-1">{formatCentsToBRL(calculateTotal())}</span>
+                <span className="text-lg font-black text-emerald-400 leading-none mt-1">{formatCentsToBRL(calculateTotal())}</span>
               </div>
             )}
           </div>
@@ -532,10 +532,10 @@ export function StockInModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
             <button 
               disabled={step === 2 && selectedItems.length === 0}
               onClick={() => setStep(step + 1)}
-              className="group bg-white text-black py-4 px-10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale shadow-xl shadow-white/5"
+              className="group bg-white text-black py-3 px-8 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale shadow-xl shadow-white/5"
             >
               Prosseguir
-              <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
           ) : (
             <div className="text-[9px] text-emerald-500/50 font-black uppercase tracking-[0.3em] animate-pulse pr-4">

@@ -53,19 +53,60 @@ async function bootstrap() {
 
   // ─── Public: Provisioning ─────────────────────────────────────────────────
   fastify.post('/auth/provision', async (request, reply) => {
-    const { name, clerkId, addressData, contact } = request.body as {
+    const { name, clerkId, addressData, contact, ownerName, ownerCpf } = request.body as {
       name: string;
       clerkId: string;
       addressData: any;
       contact?: string;
+      ownerName?: string;
+      ownerCpf?: string;
     };
     console.log(`🚀 Provisioning: ${name} (${clerkId})`);
     try {
-      const result = await provisionTenant(name, clerkId, addressData, contact);
+      const result = await provisionTenant(name, clerkId, addressData, contact, ownerName, ownerCpf);
       return result;
     } catch (error: any) {
       console.error('Provisioning error:', error);
       return reply.status(400).send({ error: error.message || 'Failed to provision' });
+    }
+  });
+
+  // ─── Public: Auth Status ──────────────────────────────────────────────────
+  fastify.get('/auth/status/:clerkId', async (request, reply) => {
+    const { clerkId } = request.params as { clerkId: string };
+    
+    try {
+      const [tenant] = await masterDb
+        .select()
+        .from(tenants)
+        .where(eq(tenants.ownerClerkId, clerkId))
+        .limit(1);
+
+      if (!tenant) {
+        return { 
+          onboardingStep: 'personal',
+          hasTenant: false 
+        };
+      }
+
+      // If we have a tenant but no ownerName/CPF, it's personal step (legacy compatibility)
+      // BUT for new flow, we might need a better state.
+      // If we have the tenant record, we usually have company name.
+      if (!tenant.ownerName || !tenant.ownerCpf) {
+        return {
+          onboardingStep: 'personal',
+          hasTenant: true,
+          tenant: { slug: tenant.slug, name: tenant.name }
+        };
+      }
+
+      return {
+        onboardingStep: 'completed',
+        hasTenant: true,
+        tenant: { slug: tenant.slug, name: tenant.name }
+      };
+    } catch (error) {
+      return reply.status(500).send({ error: 'Internal Server Error' });
     }
   });
 

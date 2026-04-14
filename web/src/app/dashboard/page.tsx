@@ -39,58 +39,49 @@ interface DashboardStats {
   aiInsight: string;
 }
 
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+
 export default function DashboardPage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, step, tenant: tenantInfo } = useOnboardingStatus();
   const router = useRouter();
-  const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("insights");
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [activeTab, setActiveTab ] = useState("insights");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    async function initDashboard() {
-      const slug = localStorage.getItem("tenant_slug");
-      if (!slug) {
-        router.push("/setup");
-        return;
-      }
+    async function fetchStats() {
+      if (step !== "completed" || !tenantInfo) return;
 
       try {
         const serverUrl =
           process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
 
-        const infoRes = await fetch(`${serverUrl}/tenant/info`, {
-          headers: { "x-tenant-slug": slug },
-        });
-        if (infoRes.ok) {
-          const info = await infoRes.json();
-          setTenantInfo(info);
-        }
-
         const statsRes = await fetch(`${serverUrl}/api/stats/insights`, {
-          headers: { "x-tenant-slug": slug },
+          headers: { "x-tenant-slug": tenantInfo.slug },
         });
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           setStats(statsData);
         }
       } catch (err) {
-        console.error("Dashboard data fetch error:", err);
+        console.error("Dashboard stats fetch error:", err);
       } finally {
-        setLoading(false);
+        setLoadingStats(false);
       }
     }
     
-    initDashboard();
-  }, [isLoaded, router]);
+    if (step === "completed") {
+        fetchStats();
+    }
+  }, [step, tenantInfo]);
 
   // Close sidebar on tab change (mobile)
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [activeTab]);
 
-  if (!isLoaded || loading) {
+  if (!isLoaded || step === "loading") {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
@@ -112,8 +103,9 @@ export default function DashboardPage() {
       <aside
         className={`
         fixed inset-y-0 left-0 z-50 bg-[#080808] border-r border-white/5 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-        lg:relative lg:w-64 flex flex-col
-        ${isSidebarOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full lg:w-64 lg:translate-x-0"}
+        lg:relative lg:translate-x-0 flex flex-col
+        ${isSidebarOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full lg:w-64"} 
+        ${!isSidebarOpen && "lg:w-64"}
       `}
       >
         <div
@@ -123,13 +115,13 @@ export default function DashboardPage() {
             <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-600/20 shrink-0">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            {(isSidebarOpen || window.innerWidth >= 1024) && (
-              <span className="font-black text-lg tracking-tighter uppercase animate-in fade-in duration-500 lg:block hidden">
-                Vendas PRO
-              </span>
-            )}
+            {/* Desktop Label */}
+            <span className="font-black text-lg tracking-tighter uppercase hidden lg:block">
+              Vendas PRO
+            </span>
+            {/* Mobile Label (only when sidebar is expanded) */}
             {isSidebarOpen && (
-              <span className="font-black text-lg tracking-tighter uppercase animate-in fade-in slide-in-from-left-2 duration-500 lg:hidden">
+              <span className="font-black text-lg tracking-tighter uppercase lg:hidden animate-in fade-in slide-in-from-left-2 duration-500">
                 Vendas PRO
               </span>
             )}
@@ -204,13 +196,11 @@ export default function DashboardPage() {
                 size={22}
                 className="group-hover:-translate-x-1 transition-transform"
               />
-              {(isSidebarOpen || window.innerWidth >= 1024) && (
-                <span
-                  className={`font-bold text-[11px] uppercase tracking-widest lg:block ${isSidebarOpen ? "block" : "hidden"}`}
-                >
-                  Sair
-                </span>
-              )}
+              <span
+                className={`font-bold text-[11px] uppercase tracking-widest lg:block ${isSidebarOpen ? "block" : "hidden"}`}
+              >
+                Sair
+              </span>
             </button>
           </SignOutButton>
         </div>
@@ -403,14 +393,11 @@ function NavItem({
       >
         {icon}
       </div>
-      {(!collapsed ||
-        (typeof window !== "undefined" && window.innerWidth >= 1024)) && (
-        <span
-          className={`font-bold text-[11px] uppercase tracking-widest leading-none lg:block ${collapsed ? "hidden" : "block"} animate-in fade-in slide-in-from-left-2 duration-500`}
-        >
-          {label}
-        </span>
-      )}
+      <span
+        className={`font-bold text-[11px] uppercase tracking-widest leading-none lg:block ${collapsed ? "hidden" : "block"} animate-in fade-in slide-in-from-left-2 duration-500`}
+      >
+        {label}
+      </span>
     </button>
   );
 }
