@@ -17,7 +17,7 @@
 - **Dashboard Travado**: Corrigido `useEffect` que não invocava `initDashboard`.
 - **API Stats 404**: Implementada rota `/api/stats/insights` para métricas do dashboard.
 - **Contador de Vendas**: Adicionado suporte a metadados de paginação e `ordersCount` no backend.
-- **Clerk UI**: Ajustado JSX do `SignUpButton` para evitar erro de múltiplos filhos.
+- **Sincronização de Ambiente**: Em caso de mudanças de schema no DB, é obrigatório **reiniciar os terminais** e **limpar o cache do editor** (fechar e abrir arquivos) para evitar falsos erros de módulo ou tipos.
 
 ### Mobile & Navegação
 
@@ -41,14 +41,19 @@
 - **Estabilidade de Foco**: Sub-componentes de input (ex: `InputField`) devem ser definidos FORA da função principal de renderização para manter referências estáveis, prevenindo que o teclado feche ao atualizar o estado (bug de re-render).
 - **Componentes Nativos**: Proibido o uso de tags HTML (`div`, `header`, `footer`) em arquivos `.tsx` do mobile; usar sempre `View` para garantir compatibilidade com o motor do React Native.
 
-### Segurança e Isolamento Multi-Tenant
+### Segurança e Isolamento Multi-Tenant (Auth Nativo)
 
-- **Fim do localStorage**: É PROIBIDO usar `localStorage.getItem("tenant_slug")` como única fonte de verdade para acesso a dados. O sistema agora utiliza o hook `useOnboardingStatus` que valida o tenant via backend (`/auth/status/:clerkId`).
-- **Validação Server-Side**: O isolamento entre empresas agora é garantido pelo servidor. Se um usuário não possuir empresa vinculada ao seu `clerkId`, ele é bloqueado e redirecionado para o onboarding, impedindo a visualização acidental de dados alheios.
-- **Identidade do Dono**: Campos `ownerName` e `ownerCpf` foram adicionados à tabela mestre de `tenants` para rastreabilidade e conformidade.
+- **Fim do Clerk & localStorage**: O sistema foi migrado para um **Auth Nativo (JWT)**. É PROIBIDO usar Clerk hooks ou `localStorage` para persistência de tenant. O estado de autenticação deve vir exclusivamente do `AuthContext` (web) ou `AuthStore` (mobile).
+- **Validação Server-Side**: O isolamento agora é garantido pelo vínculo entre `master_users` e `tenants` via `tenant_id` no banco de dados Master. Se um usuário não tiver `tenant_id`, ele é guiado para o fluxo de setup.
+- **Identidade do Dono**: Coluna `owner_clerk_id` foi **REMOVIDA**. Agora usamos `owner_id` (UUID) que referencia a tabela `master_users`.
 
-### Fluxo de Onboarding (3 Etapas)
+### Fluxo de Onboarding (Sistema Nativo)
 
-1. **Autenticação Customizada**: Uso obrigatório do hook `useSignUp` com formulário customizado para incluir campo de **Confirmar Senha**.
-2. **Dados do Contratante**: Coleta obrigatória de Nome, CPF e Celular antes da criação da empresa.
-3. **Auto-Provisionamento**: O contratante é automaticamente inserido como o primeiro vendedor (vendedor 'admin') no banco de dados isolado da empresa após o provisionamento bem-sucedido.
+1. **Email & Senha**: Cadastro inicial na tabela `master_users` (Banco Master).
+2. **Dados da Empresa**: Coleta de Nome, CPF e Endereço.
+3. **Provisionamento**: Criação automática do banco de dados do tenant (`vendas_slug`) e inserção do dono como usuário `admin` no banco isolado.
+4. **Vinculação**: O `tenant_id` do novo tenant é gravado no registro do usuário no banco Master para permitir logins subsequentes.
+
+### Sincronização de Schema (Post-Clerk)
+
+- **Remoção de Constraints Antigas**: Sempre que migrar um sistema legado de auth, verifique as constraints `NOT NULL`. A coluna `owner_clerk_id` em `tenants` foi removida por causar falhas de inserção no novo fluxo.

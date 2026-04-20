@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react-native';
 import { useTenant } from '@/lib/TenantContext';
 import { formatCurrencyBRL } from '@/lib/utils/money';
+import { useThemeColor } from '@/components/Themed';
 import dayjs from 'dayjs';
 
 export default function OrderDetailScreen() {
@@ -28,6 +29,17 @@ export default function OrderDetailScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [processing, setProcessing] = useState(false);
   const [total, setTotal] = useState(0);
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
 
   const fetchOrderItems = async () => {
     try {
@@ -83,84 +95,83 @@ export default function OrderDetailScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
       {/* HEADER */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Pedido #{String(code).padStart(4, '0')}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>{clientName || 'Cliente'}</Text>
-        </View>
-        <View style={styles.bagIcon}>
-          <ShoppingBag size={24} color="#A78BFA" />
-        </View>
-      </View>
+      <DefaultView style={[styles.header, { borderBottomColor: borderColor }]}>
+        <DefaultView style={{ flex: 1 }}>
+          <DefaultText style={[styles.title, { color: textColor }]}>Pedido #{String(code).padStart(4, '0')}</DefaultText>
+          <DefaultText style={[styles.subtitle, { color: primaryColor }]} numberOfLines={1}>{clientName || 'Cliente'}</DefaultText>
+        </DefaultView>
+        <DefaultView style={[styles.bagIcon, { backgroundColor: primaryColor + '10' }]}>
+          <ShoppingBag size={24} color={primaryColor} />
+        </DefaultView>
+      </DefaultView>
 
       {/* ITEMS LIST */}
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         {loading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#A78BFA" />
-            <Text style={styles.loadingText}>Carregando itens...</Text>
-          </View>
+          <DefaultView style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={primaryColor} />
+            <DefaultText style={[styles.loadingText, { color: secondaryColor }]}>Carregando itens...</DefaultText>
+          </DefaultView>
         ) : items.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Package size={64} color="#1F2937" />
-            <Text style={styles.emptyText}>Nenhum item encontrado</Text>
-          </View>
+          <DefaultView style={styles.emptyContainer}>
+            <Package size={64} color={borderColor} />
+            <DefaultText style={[styles.emptyText, { color: textColor }]}>Nenhum item encontrado</DefaultText>
+          </DefaultView>
         ) : (
           items.map((item, idx) => (
-            <View key={item.id || idx} style={styles.itemCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <View style={styles.itemMeta}>
-                  <Text style={[styles.itemType, { color: '#60A5FA' }]}>
+            <DefaultView key={item.id || idx} style={[styles.itemCard, { backgroundColor: cardColor, borderColor }]}>
+              <DefaultView style={{ flex: 1 }}>
+                <DefaultText style={[styles.itemName, { color: textColor }]}>{item.name}</DefaultText>
+                <DefaultView style={styles.itemMeta}>
+                  <DefaultText style={[styles.itemType, { color: primaryColor }]}>
                     {item.commissionType}
-                  </Text>
-                  <Text style={styles.itemDetails}>
+                  </DefaultText>
+                  <DefaultText style={[styles.itemDetails, { color: secondaryColor }]}>
                     {formatCurrencyBRL(item.unitPrice)} x {item.quantity}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.itemRight}>
-                <Text style={styles.itemSubtotal}>{formatCurrencyBRL(item.subtotal)}</Text>
-              </View>
-            </View>
+                  </DefaultText>
+                </DefaultView>
+              </DefaultView>
+              <DefaultView style={styles.itemRight}>
+                <DefaultText style={[styles.itemSubtotal, { color: textColor }]}>{formatCurrencyBRL(item.subtotal)}</DefaultText>
+              </DefaultView>
+            </DefaultView>
           ))
         )}
       </ScrollView>
 
       {/* FOOTER */}
       {!loading && (
-        <View style={styles.footer}>
-          <View style={styles.totalInfo}>
-            <Text style={styles.totalLabel}>TOTAL DO PEDIDO</Text>
-            <Text style={styles.totalValue}>{formatCurrencyBRL(total)}</Text>
-          </View>
+        <DefaultView style={[styles.footer, { backgroundColor: cardColor, borderTopColor: borderColor }]}>
+          <DefaultView style={styles.totalInfo}>
+            <DefaultText style={[styles.totalLabel, { color: secondaryColor }]}>TOTAL DO PEDIDO</DefaultText>
+            <DefaultText style={[styles.totalValue, { color: textColor }]}>{formatCurrencyBRL(total)}</DefaultText>
+          </DefaultView>
           <TouchableOpacity 
-            style={styles.finalizeBtn} 
+            style={[styles.finalizeBtn, { backgroundColor: primaryColor }]} 
             activeOpacity={0.8}
             onPress={handleConvert}
             disabled={processing}
           >
             {processing ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.finalizeText}>GERAR FICHA</Text>
-                <CheckCircle2 size={20} color="#000" />
+                <DefaultText style={[styles.finalizeText, { color: '#fff' }]}>GERAR FICHA</DefaultText>
+                <CheckCircle2 size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </DefaultView>
       )}
-    </View>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     paddingHorizontal: 24,
@@ -170,16 +181,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
   },
   title: {
-    color: '#FFF',
     fontSize: 20,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   subtitle: {
-    color: '#A78BFA',
     fontSize: 14,
     fontWeight: '700',
     marginTop: 2,
@@ -188,7 +196,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: 'rgba(167, 139, 250, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -204,7 +211,6 @@ const styles = StyleSheet.create({
     marginTop: 100,
   },
   loadingText: {
-    color: '#9CA3AF',
     marginTop: 12,
     fontSize: 14,
   },
@@ -214,23 +220,19 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   emptyText: {
-    color: '#FFF',
     fontSize: 16,
     fontWeight: '800',
     marginTop: 16,
   },
   itemCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
   },
   itemName: {
-    color: '#FFF',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -245,14 +247,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   itemDetails: {
-    color: '#6B7280',
     fontSize: 12,
   },
   itemRight: {
     alignItems: 'flex-end',
   },
   itemSubtotal: {
-    color: '#FFF',
     fontSize: 16,
     fontWeight: '900',
     fontStyle: 'italic',
@@ -262,11 +262,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0A0A0A',
     padding: 24,
     paddingBottom: 32,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(167, 139, 250, 0.2)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -275,19 +273,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   totalLabel: {
-    color: '#6B7280',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
   },
   totalValue: {
-    color: '#FFF',
     fontSize: 22,
     fontWeight: '900',
     fontStyle: 'italic',
   },
   finalizeBtn: {
-    backgroundColor: '#A78BFA',
     paddingHorizontal: 24,
     height: 52,
     borderRadius: 16,
@@ -296,7 +291,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   finalizeText: {
-    color: '#000',
     fontSize: 14,
     fontWeight: '900',
   },

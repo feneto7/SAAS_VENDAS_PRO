@@ -14,6 +14,9 @@ export interface CardItem {
   subtotal: number;
 }
 
+import { execute } from '@/lib/db';
+import { SyncService } from '@/lib/sync/syncService';
+
 export function useNewCard() {
   const { clientId } = useLocalSearchParams();
   const { tenantSlug, activeTrip, seller } = useTenant();
@@ -26,7 +29,7 @@ export function useNewCard() {
   const addItem = (item: any) => {
     const newItem: CardItem = {
       ...item,
-      id: Math.random().toString(36).substring(7),
+      id: SyncService.generateUUID(),
     };
     setItems(prev => [...prev, newItem]);
     setModalVisible(false);
@@ -51,9 +54,12 @@ export function useNewCard() {
           onPress: async () => {
             try {
               setLoading(true);
-              const apiURL = process.env.EXPO_PUBLIC_API_URL;
               
+              const fichaId = SyncService.generateUUID();
+              const now = new Date().toISOString();
+
               const payload = {
+                id: fichaId,
                 clientId,
                 sellerId: seller?.id,
                 routeId: activeTrip?.routeId,
@@ -68,25 +74,37 @@ export function useNewCard() {
                 }))
               };
 
-              const res = await fetch(`${apiURL}/api/fichas`, {
-                method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'x-tenant-slug': tenantSlug || ''
-                },
-                body: JSON.stringify(payload)
-              });
+              // 1. Save Locally
+              await execute(
+                `INSERT INTO fichas (id, status, total, notes, sale_date, client_id, seller_id, route_id, cobranca_id, is_local, sync_status, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending', ?)`,
+                [fichaId, 'nova', totalCard, "", now, clientId as string, seller?.id as string, activeTrip?.routeId as string, activeTrip?.id || null, now]
+              );
 
-              if (res.ok) {
-                Alert.alert("Sucesso", "Ficha criada com sucesso!");
-                router.back();
-              } else {
-                const errData = await res.json();
-                Alert.alert("Erro", errData.error || "Erro ao criar ficha");
+              for (const item of items) {
+                const itemId = SyncService.generateUUID();
+                await execute(
+                  `INSERT INTO ficha_items (id, ficha_id, product_id, quantity, unit_price, subtotal, commission_type, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [itemId, fichaId, item.productId, item.quantity, item.unitPrice, item.subtotal, item.type, now]
+                );
+
+                // --- SUBTRACT LOCAL STOCK ---
+                console.log(`[Sync] Lowering local stock for product ${item.productId} by ${item.quantity}`);
+                await execute(
+                  'UPDATE products SET stock = stock - ? WHERE id = ?',
+                  [item.quantity, item.productId]
+                );
               }
+
+              // 2. Enqueue for Sync
+              await SyncService.enqueue('CREATE_FICHA', '/api/fichas', 'POST', payload);
+
+              Alert.alert("Sucesso", "Ficha/Venda salva localmente! Sincronizando...");
+              router.back();
             } catch (err) {
               console.error('Finalize card failed:', err);
-              Alert.alert("Erro", "Falha de conexão com o servidor");
+              Alert.alert("Erro", "Falha ao salvar ficha localmente");
             } finally {
               setLoading(false);
             }

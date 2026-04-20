@@ -1,8 +1,16 @@
-# ESTE ARQUIVO FOI MOVIDO
+## 🚀 SAAS_VENDAS_PRO
 
-O conteúdo deste arquivo foi organizado na pasta específica do projeto por questões de escalabilidade do vault:
+- **Principais Funcionalidades**:
+  - Gestão de Viagens e Rotas.
+  - Fichas de Venda com controle de comissão (CC/SC).
+  - Links de pagamento externos.
+  - Recibos térmicos via Bluetooth.
+  - **Vendas Offline**: Suporte total a operação sem internet com sincronização automática via SQLite.
 
-👉 Consulte: [[SAAS_VENDAS_PRO/SAAS_VENDAS_PRO]] 6. Fluxo de Cobranças (Viagens): Gerenciamento de rotas por períodos de viagem. 7. Ciclo de Fichas: Transição automática (Nova -> Pendente) ao encerrar viagens. 8. Visão Detalhada do Cliente: Dashboards individuais com histórico e saldo devedor. 9. Configurações Financeiras: Juros e multas customizáveis por empresa.
+- **Status**: Em fase de finalização das funcionalidades de campo (offline-first implementado).
 
-- Sincronização em tempo real Mobile/Server.
-- Processamento financeiro de vendas de campo.
+- **Destaques Técnicos**:
+  - Sincronização em tempo real Mobile/Server.
+  - Processamento financeiro de vendas de campo.
+  - Isolamento físico de dados por empresa (multi-tenant).
+  - Design System Premium (Dark/Light).

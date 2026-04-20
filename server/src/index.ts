@@ -68,11 +68,11 @@ async function bootstrap() {
       }
 
       const passwordHash = await hashPassword(password);
-      const [newUser] = await masterDb.insert(masterUsers).values({
+      const [newUser] = (await masterDb.insert(masterUsers).values({
         email,
         name,
         passwordHash
-      }).returning();
+      }).returning()) as any[];
 
       return { id: newUser.id, email: newUser.email, name: newUser.name };
     } catch (error) {
@@ -258,6 +258,16 @@ async function bootstrap() {
       if (q.city)    conditions.push(ilike(clients.city,    `%${q.city}%`));
       if (q.street)  conditions.push(ilike(clients.street,  `%${q.street}%`));
       if (q.routeId) conditions.push(eq(clients.routeId,   q.routeId));
+      
+      if (q.sellerId) {
+        // Filter clients belonging to routes assigned to this seller
+        const subquery = db
+          .select({ id: userRoutes.routeId })
+          .from(userRoutes)
+          .where(eq(userRoutes.userId, q.sellerId));
+        
+        conditions.push(inArray(clients.routeId, subquery));
+      }
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -306,7 +316,8 @@ async function bootstrap() {
       const db = (request as any).tenantDb;
       const body = request.body as any;
       try {
-        const [newClient] = await db.insert(clients).values({
+        const [newClient] = (await db.insert(clients).values({
+          id:           body.id || require('crypto').randomUUID(),
           name:         body.name,
           cpf:          body.cpf || null,
           phone:        body.phone || null,
@@ -317,7 +328,7 @@ async function bootstrap() {
           state:        body.state || null,
           zipCode:      body.zipCode || null,
           routeId:      body.routeId || null,
-        }).returning();
+        }).returning()) as any[];
         return newClient;
       } catch (error) {
         console.error("Create client error:", error);
@@ -330,7 +341,7 @@ async function bootstrap() {
       const { id } = request.params as { id: string };
       const body = request.body as any;
       try {
-        const [updatedClient] = await db
+        const [updatedClient] = (await db
           .update(clients)
           .set({
             name:         body.name,
@@ -345,7 +356,7 @@ async function bootstrap() {
             routeId:      body.routeId,
           })
           .where(eq(clients.id, id))
-          .returning();
+          .returning()) as any[];
         return updatedClient;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao atualizar cliente" });
@@ -358,7 +369,7 @@ async function bootstrap() {
       try {
         const [client] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
         if (!client) return reply.status(404).send({ error: "Cliente não encontrado" });
-        const [updated] = await db.update(clients).set({ active: !client.active }).where(eq(clients.id, id)).returning();
+        const [updated] = (await db.update(clients).set({ active: !client.active }).where(eq(clients.id, id)).returning()) as any[];
         return updated;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao alterar status" });
@@ -444,7 +455,7 @@ async function bootstrap() {
 
         const result = await db.transaction(async (tx: any) => {
           const passHash = await hashPassword(body.password);
-          const [newUser] = await tx.insert(users).values({
+          const [newUser] = (await tx.insert(users).values({
             name:     body.name,
             appCode:  body.appCode,
             passwordHash: passHash,
@@ -452,7 +463,7 @@ async function bootstrap() {
             phone:    body.phone,
             role:     body.role || 'seller', // Allow specifying role
             email:    body.email,
-          }).returning();
+          }).returning()) as any[];
 
           if (body.webAccess && body.email) {
             const tenantId = (request as any).tenant?.id;
@@ -516,11 +527,11 @@ async function bootstrap() {
             updateData.passwordHash = await hashPassword(body.password);
           }
 
-          const [updatedUser] = await tx
+          const [updatedUser] = (await tx
             .update(users)
             .set(updateData)
             .where(eq(users.id, id))
-            .returning();
+            .returning()) as any[];
           
           // Sync with Master
           const [masterUser] = await masterDb.select().from(masterUsers).where(eq(masterUsers.email, oldUser.email)).limit(1);
@@ -615,7 +626,7 @@ async function bootstrap() {
           // Generate a code following existing pattern (Seller(4) + DDMMHHmm + Route(4))
           const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
 
-          const [updated] = await tx.update(fichas)
+          const [updated] = (await tx.update(fichas)
             .set({ 
               status: 'nova', 
               code: finalCode,
@@ -624,7 +635,7 @@ async function bootstrap() {
               updatedAt: new Date()
             })
             .where(eq(fichas.id, id))
-            .returning();
+            .returning()) as any[];
             
           return updated;
         });
@@ -691,7 +702,7 @@ async function bootstrap() {
       const body = request.body as any;
       try {
         const sku = body.sku || generateProductSKU();
-        const [newProduct] = await db.insert(products).values({
+        const [newProduct] = (await db.insert(products).values({
           name:         body.name,
           sku:          sku,
           category:     body.category || null,
@@ -701,7 +712,7 @@ async function bootstrap() {
           priceCC:      Number(body.priceCC) || 0,
           priceSC:      Number(body.priceSC) || 0,
           active:       true,
-        }).returning();
+        }).returning()) as any[];
         return newProduct;
       } catch (error) {
         console.error("Create product error:", error);
@@ -714,7 +725,7 @@ async function bootstrap() {
       const { id } = request.params as { id: string };
       const body = request.body as any;
       try {
-        const [updatedProduct] = await db
+        const [updatedProduct] = (await db
           .update(products)
           .set({
             name:         body.name,
@@ -726,7 +737,7 @@ async function bootstrap() {
             updatedAt:    new Date(),
           })
           .where(eq(products.id, id))
-          .returning();
+          .returning()) as any[];
         return updatedProduct;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao atualizar produto" });
@@ -738,7 +749,7 @@ async function bootstrap() {
       const { id } = request.params as { id: string };
       try {
         // Soft delete as requested
-        const [updated] = await db.update(products).set({ active: false }).where(eq(products.id, id)).returning();
+        const [updated] = (await db.update(products).set({ active: false }).where(eq(products.id, id)).returning()) as any[];
         return updated;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao desativar produto" });
@@ -758,6 +769,7 @@ async function bootstrap() {
       if (q.status) conditions.push(eq(fichas.status, q.status as any));
       if (q.routeId) conditions.push(eq(fichas.routeId, q.routeId));
       if (q.cliente) conditions.push(ilike(clients.name, `%${q.cliente}%`));
+      if (q.sellerId) conditions.push(eq(fichas.sellerId, q.sellerId));
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -781,6 +793,10 @@ async function bootstrap() {
           status: fichas.status,
           total: fichas.total,
           saleDate: fichas.saleDate,
+          clientId: fichas.clientId,
+          sellerId: fichas.sellerId,
+          routeId: fichas.routeId,
+          cobrancaId: fichas.cobrancaId,
           clientName: clients.name,
           sellerName: users.name,
           routeName: routes.name,
@@ -815,81 +831,49 @@ async function bootstrap() {
       console.log(`🔍 Fetching ficha details for ID: ${id}`);
 
       try {
-        const [ficha] = await db
-          .select({
-            id: fichas.id,
-            code: fichas.code,
-            status: fichas.status,
-            total: fichas.total,
-            notes: fichas.notes,
-            saleDate: fichas.saleDate,
-            discount: fichas.discount,
-            commissionPercent: fichas.commissionPercent,
-            createdAt: fichas.createdAt,
-            client: {
-              name: clients.name,
-              phone: clients.phone,
-              street: clients.street,
-              number: clients.number,
-              neighborhood: clients.neighborhood,
-              city: clients.city,
-              state: clients.state
-            },
+        const ficha = await db.query.fichas.findFirst({
+          where: eq(fichas.id, id),
+          with: {
+            client: true,
             seller: {
-              name: users.name
+              columns: { name: true }
+            },
+            items: {
+              with: {
+                product: {
+                  columns: { name: true, sku: true }
+                }
+              }
+            },
+            payments: {
+              with: {
+                method: {
+                  columns: { name: true }
+                }
+              }
             }
-          })
-          .from(fichas)
-          .leftJoin(clients, eq(fichas.clientId, clients.id))
-          .leftJoin(users, eq(fichas.sellerId, users.id))
-          .where(eq(fichas.id, id))
-          .limit(1);
+          }
+        });
 
         if (!ficha) {
           console.error("❌ Ficha not found");
           return reply.status(404).send({ error: "Ficha não encontrada" });
         }
 
-        console.log("✅ Ficha head loaded. fetching items...");
+        console.log(`✅ Ficha ${id} loaded with ${ficha.items?.length || 0} items. Calculating stats...`);
 
-        const itemsQuery = db
-          .select({
-            id: fichaItems.id,
-            productId: fichaItems.productId,
-            productName: products.name,
-            sku: products.sku,
-            quantity: fichaItems.quantity,
-            unitPrice: fichaItems.unitPrice,
-            subtotal: fichaItems.subtotal,
-            quantitySold: fichaItems.quantitySold,
-            quantityReturned: fichaItems.quantityReturned,
-            commissionType: fichaItems.commissionType
-          })
-          .from(fichaItems)
-          .leftJoin(products, eq(fichaItems.productId, products.id))
-          .where(eq(fichaItems.fichaId, id));
+        // Transform items to match expected format (flatten productName)
+        const items = (ficha.items || []).map((i: any) => ({
+          ...i,
+          productName: i.product?.name,
+          sku: i.product?.sku
+        }));
 
-        console.log(`[SQL DEBUG] Query:`, itemsQuery.toSQL());
-        const items = await itemsQuery;
-
-        console.log(`✅ Items loaded for ficha ${id}:`, items.length);
-        if (items.length > 0) {
-          console.log(`   First item: ${items[0].productName} (${items[0].id})`);
-        }
-
-        const fichaPayments = await db
-          .select({
-            id: payments.id,
-            amount: payments.amount,
-            methodName: paymentMethods.name,
-            paymentDate: payments.paymentDate,
-            cancelled: payments.cancelled
-          })
-          .from(payments)
-          .leftJoin(paymentMethods, eq(payments.methodId, paymentMethods.id))
-          .where(eq(payments.fichaId, id));
-
-        console.log(`✅ Payments loaded: ${fichaPayments.length}. Calculating stats...`);
+        // Transform payments to match expected format (flatten methodName)
+        const fichaPayments = (ficha.payments || []).map((p: any) => ({
+          ...p,
+          methodName: p.method?.name
+        }));
 
         const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
 
@@ -952,9 +936,17 @@ async function bootstrap() {
           const now = new Date();
           const datestr = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
           const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
-          const [newFicha] = await tx.insert(fichas).values({
-            code: finalCode, clientId, sellerId, routeId, total, notes, status: 'nova', cobrancaId
-          }).returning();
+          const [newFicha] = (await tx.insert(fichas).values({
+            id: body.id || require('crypto').randomUUID(),
+            code: finalCode, 
+            clientId, 
+            sellerId, 
+            routeId, 
+            total, 
+            notes, 
+            status: 'nova', 
+            cobrancaId
+          }).returning()) as any[];
 
           for (const item of items) {
             // Validate Stock
@@ -994,9 +986,9 @@ async function bootstrap() {
 
       try {
         const linkToken = Math.random().toString(36).substring(2, 10);
-        const [newFicha] = await db.insert(fichas).values({
+        const [newFicha] = (await db.insert(fichas).values({
           clientId, sellerId, routeId, notes: notes || "Link gerado para o cliente", status: 'link_gerado', linkToken, total: 0
-        }).returning();
+        }).returning()) as any[];
 
         return { linkToken, url: `/public/ficha/${linkToken}?tenant=${slug}` };
       } catch (err) {
@@ -1070,6 +1062,7 @@ async function bootstrap() {
 
           // Insert item
           await tx.insert(fichaItems).values({
+            id: request.body?.id || require('crypto').randomUUID(),
             fichaId: id,
             productId,
             quantity,
@@ -1221,11 +1214,12 @@ async function bootstrap() {
              }
           }
 
-          const [inserted] = await tx.insert(payments).values({
+          const [inserted] = (await tx.insert(payments).values({
+            id: request.body?.id || require('crypto').randomUUID(),
             fichaId: id,
             amount,
             methodId,
-          }).returning();
+          }).returning()) as any[];
 
           await updateFichaStatusIfPaid(tx, id);
           return inserted;
@@ -1278,16 +1272,16 @@ async function bootstrap() {
       try {
         if (id) {
           // Update
-          const [updated] = await db.update(paymentMethods)
+          const [updated] = (await db.update(paymentMethods)
             .set({ name, active, updatedAt: new Date() })
             .where(eq(paymentMethods.id, id))
-            .returning();
+            .returning()) as any[];
           return updated;
         } else {
           // Create
-          const [created] = await db.insert(paymentMethods)
+          const [created] = (await db.insert(paymentMethods)
             .values({ name, active: active ?? true })
-            .returning();
+            .returning()) as any[];
           return created;
         }
       } catch (err) {
@@ -1300,7 +1294,7 @@ async function bootstrap() {
       const body = request.body as any;
       
       try {
-        const [updated] = await masterDb.update(tenants)
+        const [updated] = (await masterDb.update(tenants)
           .set({
             name: body.name,
             street: body.street,
@@ -1313,7 +1307,7 @@ async function bootstrap() {
             updatedAt: new Date()
           })
           .where(eq(tenants.slug, slug))
-          .returning();
+          .returning()) as any[];
         
         return updated;
       } catch (err) {
@@ -1336,6 +1330,22 @@ async function bootstrap() {
           ORDER BY start_date DESC
         `);
         return result.rows;
+      } catch (err: any) {
+        return reply.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    instance.get('/cobrancas', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      try {
+        const result = await db.execute(sql`
+          SELECT id, code, route_id as "routeId", seller_id as "sellerId", status, 
+                 start_date as "startDate", end_date as "endDate", 
+                 created_at as "createdAt", updated_at as "updatedAt"
+          FROM cobrancas
+          ORDER BY start_date DESC
+        `);
+        return { items: result.rows };
       } catch (err: any) {
         return reply.status(500).send({ error: "Internal Server Error" });
       }
@@ -1380,14 +1390,14 @@ async function bootstrap() {
 
       try {
         // 1. Mark trip as closed
-        const [closedCobranca] = await db.update(cobrancas)
+        const [closedCobranca] = (await db.update(cobrancas)
           .set({ 
             status: 'encerrada', 
             endDate: new Date(),
             updatedAt: new Date()
           })
           .where(eq(cobrancas.id, id))
-          .returning();
+          .returning()) as any[];
 
         // 2. Transition linked fiches from 'nova' to 'pendente'
         // Include those linked to this trip AND those on the same route with no trip linked (web records)
@@ -1404,6 +1414,73 @@ async function bootstrap() {
         return closedCobranca;
       } catch (err) {
         return reply.status(400).send({ error: "Erro ao encerrar viagem" });
+      }
+    });
+
+    instance.get('/payments', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const q = request.query as Record<string, string>;
+      const limit = Number(q.limit) || 1000;
+
+      try {
+        const conditions: any[] = [];
+        if (q.sellerId) {
+            const subquery = db
+                .select({ id: fichas.id })
+                .from(fichas)
+                .where(eq(fichas.sellerId, q.sellerId));
+            conditions.push(inArray(payments.fichaId, subquery));
+        }
+
+        const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+        const results = await db
+          .select({
+            id: payments.id,
+            fichaId: payments.fichaId,
+            methodId: payments.methodId,
+            amount: payments.amount,
+            paymentDate: payments.paymentDate,
+            cancelled: payments.cancelled,
+            createdAt: payments.createdAt
+          })
+          .from(payments)
+          .where(whereClause)
+          .limit(limit)
+          .orderBy(desc(payments.paymentDate));
+
+        return results;
+      } catch (err: any) {
+        console.error('Fetch payments failed:', err);
+        return reply.status(500).send({ error: "Erro ao buscar pagamentos" });
+      }
+    });
+
+    instance.get('/ficha-items', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const q = request.query as Record<string, string>;
+      const limit = Number(q.limit) || 2000;
+
+      try {
+        const conditions: any[] = [];
+        if (q.sellerId) {
+            const subquery = db
+                .select({ id: fichas.id })
+                .from(fichas)
+                .where(eq(fichas.sellerId, q.sellerId));
+            conditions.push(inArray(fichaItems.fichaId, subquery));
+        }
+
+        const items = await db
+          .select()
+          .from(fichaItems)
+          .where(and(...conditions))
+          .limit(limit);
+
+        return items;
+      } catch (err: any) {
+        console.error('Fetch ficha items failed:', err);
+        return reply.status(500).send({ error: "Erro ao buscar itens das fichas" });
       }
     });
 
@@ -1660,7 +1737,7 @@ async function bootstrap() {
       const db = (request as any).tenantDb;
       const body = request.body as any;
       if (body.periodicity) body.periodicity = Number(body.periodicity);
-      const [newRoute] = await db.insert(routes).values(body).returning();
+      const [newRoute] = (await db.insert(routes).values(body).returning()) as any[];
       return newRoute;
     });
 
@@ -1671,11 +1748,11 @@ async function bootstrap() {
       if (body.periodicity) body.periodicity = Number(body.periodicity);
       
       try {
-        const [updatedRoute] = await db
+        const [updatedRoute] = (await db
           .update(routes)
           .set(body)
           .where(eq(routes.id, id))
-          .returning();
+          .returning()) as any[];
         return updatedRoute;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao atualizar rota" });
@@ -1699,7 +1776,7 @@ async function bootstrap() {
       try {
         const [route] = await db.select().from(routes).where(eq(routes.id, id)).limit(1);
         if (!route) return reply.status(404).send({ error: "Rota não encontrada" });
-        const [updated] = await db.update(routes).set({ active: !route.active }).where(eq(routes.id, id)).returning();
+        const [updated] = (await db.update(routes).set({ active: !route.active }).where(eq(routes.id, id)).returning()) as any[];
         return updated;
       } catch (error) {
         return reply.status(400).send({ error: "Erro ao alterar status" });
@@ -1766,11 +1843,11 @@ async function bootstrap() {
 
       try {
         await db.transaction(async (tx: any) => {
-          const [movement] = await tx.insert(inventoryMovements).values({
+          const [movement] = (await tx.insert(inventoryMovements).values({
             type: 'entrada_estoque',
             description: type === 'propria' ? 'Entrada Própria' : `Fornecedor: ${supplier}`,
             sellerId: destination === 'vendedor' ? sellerId : null
-          }).returning();
+          }).returning()) as any[];
 
           for (const item of items) {
             const qty = Number(item.quantity);
@@ -1821,11 +1898,11 @@ async function bootstrap() {
 
       try {
         await db.transaction(async (tx: any) => {
-          const [movement] = await tx.insert(inventoryMovements).values({
+          const [movement] = (await tx.insert(inventoryMovements).values({
             type: 'ajuste_manual',
             description,
             sellerId
-          }).returning();
+          }).returning()) as any[];
 
           for (const item of items) {
             if (item.quantity < 0) {

@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Alert
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { 
   User, 
   MapPin, 
@@ -23,6 +23,9 @@ import { useTenant } from '@/lib/TenantContext';
 import { formatCurrencyBRL } from '@/lib/utils/money';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
+import { useThemeColor } from '@/components/Themed';
+import { queryAll, queryFirst } from '@/lib/db';
+import { SyncService } from '@/lib/sync/syncService';
 
 dayjs.locale('pt-br');
 
@@ -42,7 +45,7 @@ export default function ClientDetailScreen() {
     routeName: initialRouteName,
     tab: initialTab
   } = useLocalSearchParams();
-  const { tenantSlug, activeTrip } = useTenant();
+  const { tenantSlug, activeTrip, seller } = useTenant();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -51,8 +54,41 @@ export default function ClientDetailScreen() {
   const [data, setData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState((initialTab as string) || 'pendentes');
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+  const successColor = useThemeColor({}, 'success');
+  const errorColor = useThemeColor({}, 'error');
+  const infoColor = useThemeColor({}, 'primary');
+  const iconColor = useThemeColor({}, 'icon');
+
   const fetchClientDetails = async () => {
     try {
+      setLoading(true);
+      
+      // 1. Try local data first
+      const client = await queryFirst<any>('SELECT c.*, r.name as routeName FROM clients c LEFT JOIN routes r ON c.route_id = r.id WHERE c.id = ?', [clientId]);
+      const clientFichas = await queryAll<any>('SELECT * FROM fichas WHERE client_id = ? ORDER BY sale_date DESC', [clientId]);
+      
+      if (client) {
+        setData({
+          client,
+          fichas: clientFichas.map(f => ({
+            ...f,
+            code: f.code || 'NOVO',
+            saleDate: f.sale_date,
+            sellerName: seller?.name // Local best guess
+          }))
+        });
+        setLoading(false);
+      }
+
+      // 2. Background sync
       const apiURL = process.env.EXPO_PUBLIC_API_URL;
       const res = await fetch(`${apiURL}/api/clients/${clientId}/details`, {
         headers: { 'x-tenant-slug': tenantSlug || '' }
@@ -62,16 +98,18 @@ export default function ClientDetailScreen() {
         setData(json);
       }
     } catch (err) {
-      console.error('Failed to fetch client details:', err);
+      // Silence background refresh errors when offline
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchClientDetails();
-  }, [clientId]);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchClientDetails();
+    }, [clientId])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -91,37 +129,37 @@ export default function ClientDetailScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* Sub-Header */}
-      <View style={styles.subHeader}>
+      <View style={[styles.subHeader, { backgroundColor: cardColor, borderBottomColor: borderColor }]}>
         <View style={styles.routeBox}>
-          <MapPin size={14} color="#A78BFA" />
-          <Text style={styles.routeText} numberOfLines={1}>
-            {initialRouteName || 'Rota'}
+          <MapPin size={14} color={primaryColor} />
+          <Text style={[styles.routeText, { color: primaryColor }]} numberOfLines={1}>
+            {data?.client?.routeName || initialRouteName || 'Rota'}
           </Text>
         </View>
         <View style={styles.clientBox}>
-          <User size={14} color="#A78BFA" />
-          <Text style={styles.clientText} numberOfLines={1}>
-            {initialClientName || 'Cliente'}
+          <User size={14} color={primaryColor} />
+          <Text style={[styles.clientText, { color: textColor }]} numberOfLines={1}>
+            {data?.client?.name || initialClientName || 'Cliente'}
           </Text>
         </View>
       </View>
 
       {/* Stats Quick View (Optional but premium) */}
       {!loading && (
-        <View style={styles.statsContainer}>
+        <View style={[styles.statsContainer, { borderBottomColor: borderColor }]}>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
-              <StatItem label="Em Aberto" value={formatCurrencyBRL(stats.totalPending)} color="#60A5FA" />
-              <StatItem label="Vendido" value={formatCurrencyBRL(stats.totalSold)} color="#A78BFA" />
-              <StatItem label="Pago" value={formatCurrencyBRL(stats.totalPaid)} color="#10B981" />
-              <StatItem label="Restante" value={formatCurrencyBRL(stats.totalRemaining)} color="#EF4444" />
+              <StatItem label="Em Aberto" value={formatCurrencyBRL(stats.totalPending)} color={infoColor} />
+              <StatItem label="Vendido" value={formatCurrencyBRL(stats.totalSold)} color={primaryColor} />
+              <StatItem label="Pago" value={formatCurrencyBRL(stats.totalPaid)} color={successColor} />
+              <StatItem label="Restante" value={formatCurrencyBRL(stats.totalRemaining)} color={errorColor} />
            </ScrollView>
         </View>
       )}
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { borderBottomColor: borderColor }]}>
         <TabButton 
           label="Pendentes" 
           active={activeTab === 'pendentes'} 
@@ -151,24 +189,24 @@ export default function ClientDetailScreen() {
       {/* Scrollable Content */}
       <ScrollView 
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#A78BFA" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />}
       >
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#A78BFA" />
-            <Text style={styles.loadingText}>Buscando fichas...</Text>
+            <ActivityIndicator size="large" color={primaryColor} />
+            <Text style={[styles.loadingText, { color: placeholderColor }]}>Buscando fichas...</Text>
           </View>
         ) : filteredCards.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <FileText size={48} color="#374151" />
-            <Text style={styles.emptyText}>Nenhuma ficha encontrada</Text>
+            <FileText size={48} color={borderColor} />
+            <Text style={[styles.emptyText, { color: secondaryColor }]}>Nenhuma ficha encontrada</Text>
           </View>
         ) : (
           <View style={styles.list}>
             {filteredCards.map((card: Card) => (
               <TouchableOpacity 
                 key={card.id} 
-                style={styles.card}
+                style={[styles.card, { backgroundColor: cardColor, borderColor }]}
                 onPress={() => {
                   if (card.status === 'pedido') {
                     router.push({
@@ -189,20 +227,20 @@ export default function ClientDetailScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View>
-                    <Text style={styles.cardLabel}>FICHA</Text>
-                    <Text style={styles.cardCode}>#{String(card.code).padStart(4, '0')}</Text>
+                    <Text style={[styles.cardLabel, { color: placeholderColor }]}>FICHA</Text>
+                    <Text style={[styles.cardCode, { color: textColor }]}>#{String(card.code).padStart(4, '0')}</Text>
                   </View>
                   <View style={styles.cardValueContainer}>
-                    <Text style={styles.cardTotal}>{formatCurrencyBRL(card.total)}</Text>
-                    <ChevronRight size={20} color="#4B5563" />
+                    <Text style={[styles.cardTotal, { color: textColor }]}>{formatCurrencyBRL(card.total)}</Text>
+                    <ChevronRight size={20} color={borderColor} />
                   </View>
                 </View>
-                <View style={styles.cardFooter}>
-                  <Text style={styles.cardDate}>
+                <View style={[styles.cardFooter, { borderTopColor: borderColor }]}>
+                  <Text style={[styles.cardDate, { color: secondaryColor }]}>
                     {card.saleDate ? dayjs(card.saleDate).format("DD/MM/YYYY HH:mm[h]") : '---'}
                   </Text>
                   {card.sellerName && (
-                    <Text style={styles.cardSeller}>{card.sellerName}</Text>
+                    <Text style={[styles.cardSeller, { color: primaryColor }]}>{card.sellerName}</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -215,7 +253,7 @@ export default function ClientDetailScreen() {
       {/* Floating Action Button (only in Novas) */}
       {activeTab === 'novas' && (
         <TouchableOpacity 
-          style={styles.fab} 
+          style={[styles.fab, { backgroundColor: primaryColor, shadowColor: primaryColor }]} 
           activeOpacity={0.8}
           onPress={() => router.push({
             pathname: `/(main)/new-card/${clientId}`,
@@ -225,7 +263,7 @@ export default function ClientDetailScreen() {
             }
           } as any)}
         >
-          <Plus size={32} color="#000" />
+          <Plus size={32} color="#fff" />
         </TouchableOpacity>
       )}
     </View>
@@ -233,27 +271,33 @@ export default function ClientDetailScreen() {
 }
 
 function StatItem({ label, value, color }: any) {
+  const surfaceColor = useThemeColor({}, 'surface');
   return (
-    <View style={[styles.statItem, { borderColor: color + '33' }]}>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={[styles.statItem, { backgroundColor: surfaceColor, borderColor: color + '33' }]}>
+      <Text style={[styles.statLabel, { color: '#9CA3AF' }]}>{label}</Text>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
     </View>
   );
 }
 
 function TabButton({ label, active, count, onPress }: any) {
+  const primaryColor = useThemeColor({}, 'primary');
+  const textColor = useThemeColor({}, 'text');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const errorColor = useThemeColor({}, 'error');
+
   return (
     <TouchableOpacity 
-      style={[styles.tabButton, active && styles.activeTab]} 
+      style={[styles.tabButton, active && { backgroundColor: primaryColor + '08' }]} 
       onPress={onPress}
     >
-      <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
+      <Text style={[styles.tabText, { color: active ? textColor : secondaryColor }]}>{label}</Text>
       {count > 0 && (
-        <View style={styles.badge}>
+        <View style={[styles.badge, { backgroundColor: errorColor }]}>
           <Text style={styles.badgeText}>{count}</Text>
         </View>
       )}
-      {active && <View style={styles.activeIndicator} />}
+      {active && <View style={[styles.activeIndicator, { backgroundColor: primaryColor }]} />}
     </TouchableOpacity>
   );
 }
@@ -261,7 +305,6 @@ function TabButton({ label, active, count, onPress }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   subHeader: {
     flexDirection: 'row',
@@ -269,8 +312,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
-    backgroundColor: '#000',
   },
   routeBox: {
     flexDirection: 'row',
@@ -279,7 +320,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   routeText: {
-    color: '#A78BFA',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -291,21 +331,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   clientText: {
-    color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
   },
   statsContainer: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
   },
   statsScroll: {
     paddingHorizontal: 20,
     gap: 12,
   },
   statItem: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -313,7 +350,6 @@ const styles = StyleSheet.create({
     minWidth: 140,
   },
   statLabel: {
-    color: '#9CA3AF',
     fontSize: 10,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -327,7 +363,6 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
   },
   tabButton: {
     flex: 1,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   TouchableOpacity, 
   FlatList, 
@@ -15,6 +15,9 @@ import {
   Route as RouteIcon,
   ChevronRight
 } from 'lucide-react-native';
+import { useThemeColor } from '../../../components/Themed';
+import { queryAll, queryFirst, execute } from '../../../lib/db';
+import { SyncService } from '../../../lib/sync/syncService';
 
 interface Cobranca {
   id: string;
@@ -33,6 +36,17 @@ export default function CollectionsScreen() {
   const [trips, setTrips] = useState<Cobranca[]>([]);
   const [routeName, setRouteName] = useState('Rota');
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+
   useEffect(() => {
     console.log('Mounting CollectionsScreen for route:', routeId);
     if (routeId) {
@@ -42,35 +56,54 @@ export default function CollectionsScreen() {
   }, [routeId]);
 
   const fetchRouteInfo = async () => {
-     try {
+    try {
+      // 1. Try local cache first
+      const resLocal = await queryFirst<any>('SELECT name FROM routes WHERE id = ?', [routeId]);
+      if (resLocal) setRouteName(resLocal.name);
+
       const apiURL = process.env.EXPO_PUBLIC_API_URL;
       const res = await fetch(`${apiURL}/api/routes?limit=100`, {
         headers: { 'x-tenant-slug': tenantSlug || '' }
       });
-      const data = await res.json();
-      const current = data.items?.find((r: any) => r.id === routeId);
-      if (current) setRouteName(current.name);
+      if (res.ok) {
+        const data = await res.json();
+        const current = data.items?.find((r: any) => r.id === routeId);
+        if (current) setRouteName(current.name);
+      }
     } catch (err) {
-      console.error('Failed to fetch route info:', err);
+      console.warn('[Collections] Failed to fetch route info in background:', err);
     }
   }
 
   const fetchCollections = async () => {
     try {
+      setLoading(true);
+      // 1. Local
+      const localData = await queryAll<any>('SELECT * FROM cobrancas WHERE route_id = ? ORDER BY start_date DESC', [routeId]);
+      if (localData.length > 0) {
+        setTrips(localData.map(t => ({
+          ...t,
+          startDate: t.start_date,
+          endDate: t.end_date
+        })));
+        setLoading(false);
+      }
+
+      // 2. Remote
       const apiURL = process.env.EXPO_PUBLIC_API_URL;
+      await SyncService.downloadMasterData(tenantSlug || '', seller?.id);
       
       const res = await fetch(`${apiURL}/api/routes/${routeId}/cobrancas`, {
         headers: { 'x-tenant-slug': tenantSlug || '' }
       });
-      const data = await res.json();
-      
-      if (Array.isArray(data)) {
-        setTrips(data);
-      } else {
-        setTrips([]);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setTrips(data);
+        }
       }
     } catch (err) {
-      setTrips([]);
+      console.log('[CollectionsScreen] Fetch collections failed');
     } finally {
       setLoading(false);
     }
@@ -92,29 +125,32 @@ export default function CollectionsScreen() {
 
     setCreating(true);
     try {
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      const res = await fetch(`${apiURL}/api/routes/${routeId}/cobrancas`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-tenant-slug': tenantSlug || '' 
-        },
-        body: JSON.stringify({ sellerId: seller?.id })
+      const newTripId = SyncService.generateUUID();
+      const now = new Date().toISOString();
+      const nextCode = (trips.length > 0 ? (trips[0].code + 1) : 1);
+
+      // 1. Local Persistence
+      await execute(
+        `INSERT INTO cobrancas (id, code, route_id, seller_id, status, start_date, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newTripId, nextCode, routeId, seller?.id, 'aberta', now, now, now]
+      );
+
+      // 2. Sync Queue
+      await SyncService.enqueue('CREATE_TRIP', `/api/routes/${routeId}/cobrancas`, 'POST', {
+        id: newTripId,
+        sellerId: seller?.id
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to create trip');
-      }
+      await setActiveTrip({ id: newTripId, routeId: routeId as string, code: nextCode });
       
-      await setActiveTrip({ id: data.id, routeId: routeId as string, code: data.code });
-      await fetchCollections();
-      Alert.alert('Sucesso', 'Nova viagem iniciada!');
+      Alert.alert('Sucesso', 'Nova viagem iniciada localmente!');
       router.push({
-        pathname: `/(main)/collection-detail/${data.id}`,
-        params: { routeName, code: data.code }
+        pathname: `/(main)/collection-detail/${newTripId}`,
+        params: { routeName, code: String(nextCode) }
       } as any);
+      
+      fetchCollections(); // Refresh list
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Não foi possível iniciar a viagem.');
     } finally {
@@ -128,14 +164,14 @@ export default function CollectionsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.pageTitle}>{routeName}</Text>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
+      <DefaultView style={styles.content}>
+        <DefaultText style={[styles.pageTitle, { color: textColor }]}>{routeName}</DefaultText>
         
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#10b981" />
-          </View>
+          <DefaultView style={styles.center}>
+            <ActivityIndicator size="large" color={successColor} />
+          </DefaultView>
         ) : (
           <FlatList
             data={trips}
@@ -143,7 +179,7 @@ export default function CollectionsScreen() {
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <TouchableOpacity 
-                style={styles.card}
+                style={[styles.card, { backgroundColor: cardColor, borderColor }]}
                 onPress={() => {
                   if (item.status === 'aberta') {
                     setActiveTrip({ id: item.id, routeId: routeId as string, code: item.code });
@@ -157,65 +193,64 @@ export default function CollectionsScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <View style={[
+                <DefaultView style={[
                   styles.statusHeader, 
-                  { backgroundColor: item.status === 'aberta' ? '#10b981' : '#ef4444' }
+                  { backgroundColor: item.status === 'aberta' ? successColor : errorColor }
                 ]}>
-                   <Text style={styles.statusText}>
+                   <DefaultText style={styles.statusText}>
                      {item.status === 'aberta' ? 'EM ANDAMENTO' : 'FINALIZADA'}
-                   </Text>
-                </View>
+                   </DefaultText>
+                </DefaultView>
 
-                <View style={styles.cardBody}>
-                  <Text style={styles.tripTitle}>VIAGEM - {String(item.code).padStart(2, '0')}</Text>
+                <DefaultView style={[styles.cardBody, { backgroundColor: cardColor, borderColor }]}>
+                  <DefaultText style={[styles.tripTitle, { color: textColor }]}>VIAGEM - {String(item.code).padStart(2, '0')}</DefaultText>
                   
-                  <View style={styles.dateRow}>
-                    <View style={styles.dateCol}>
-                      <Text style={styles.dateLabel}>DATA INÍCIO: {formatDate(item.startDate)}</Text>
-                    </View>
-                    <View style={styles.dateCol}>
-                      <Text style={styles.dateLabel}>DATA FINAL: {formatDate(item.endDate)}</Text>
-                    </View>
-                  </View>
-                </View>
+                  <DefaultView style={[styles.dateRow, { backgroundColor: surfaceColor }]}>
+                    <DefaultView style={styles.dateCol}>
+                      <DefaultText style={[styles.dateLabel, { color: secondaryColor }]}>DATA INÍCIO: {formatDate(item.startDate)}</DefaultText>
+                    </DefaultView>
+                    <DefaultView style={styles.dateCol}>
+                      <DefaultText style={[styles.dateLabel, { color: secondaryColor }]}>DATA FINAL: {formatDate(item.endDate)}</DefaultText>
+                    </DefaultView>
+                  </DefaultView>
+                </DefaultView>
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <RouteIcon size={48} color="#444" />
-                <Text style={styles.emptyText}>Nenhuma viagem registrada.</Text>
-              </View>
+              <DefaultView style={styles.emptyContainer}>
+                <RouteIcon size={48} color={borderColor} />
+                <DefaultText style={[styles.emptyText, { color: secondaryColor }]}>Nenhuma viagem registrada.</DefaultText>
+              </DefaultView>
             }
           />
         )}
-      </View>
+      </DefaultView>
 
       {/* FIXED BOTTOM BUTTON */}
-      <View style={styles.footerAction}>
+      <DefaultView style={styles.footerAction}>
         <TouchableOpacity 
-          style={styles.newTripButton} 
+          style={[styles.newTripButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]} 
           onPress={handleNewTrip}
           disabled={creating}
           activeOpacity={0.8}
         >
           {creating ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Plus size={20} color="#000" strokeWidth={3} style={{ marginRight: 8 }} />
-              <Text style={styles.newTripText}>NOVA VIAGEM</Text>
+              <Plus size={20} color="#fff" strokeWidth={3} style={{ marginRight: 8 }} />
+              <DefaultText style={styles.newTripText}>NOVA VIAGEM</DefaultText>
             </>
           )}
         </TouchableOpacity>
-      </View>
-    </View>
+      </DefaultView>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   content: {
     flex: 1,
@@ -224,7 +259,6 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 20,
     textTransform: 'uppercase',
@@ -243,7 +277,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
   statusHeader: {
     paddingVertical: 6,
@@ -252,17 +285,14 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#000',
+    color: '#fff',
     letterSpacing: 1,
   },
   cardBody: {
     padding: 20,
-    backgroundColor: '#111111', // Um pouco mais claro que o fundo preto #050505
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
   },
   tripTitle: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -272,7 +302,6 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.2)',
     padding: 12,
     borderRadius: 12,
   },
@@ -280,14 +309,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateLabel: {
-    color: 'rgba(255,255,255,0.4)',
     fontSize: 9,
     fontWeight: '900',
     marginBottom: 2,
     textTransform: 'uppercase',
   },
   dateValue: {
-    color: '#fff',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -297,7 +324,6 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   emptyText: {
-    color: '#fff',
     marginTop: 16,
     fontSize: 14,
   },
@@ -306,20 +332,18 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   newTripButton: {
-    backgroundColor: '#10b981',
     height: 56,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#10b981',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   newTripText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 1,

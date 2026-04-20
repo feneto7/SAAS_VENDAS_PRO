@@ -1,16 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { 
+  View as DefaultView, 
+  Text as DefaultText, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Platform 
+} from 'react-native';
 import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, LogOut, ChevronLeft } from 'lucide-react-native';
+import { User, LogOut, ChevronLeft, RefreshCcw, CloudOff, Cloud } from 'lucide-react-native';
 import { useTenant } from '../../lib/TenantContext';
+import { useThemeColor } from '../../components/Themed';
+import { useSync } from '../../hooks/useSync';
 
 export default function MainLayout() {
   const { seller, companyName, logout, activeTrip } = useTenant();
+  const { isOnline, pendingCount, forceSync } = useSync();
   const router = useRouter();
   const segments = useSegments();
   const params = useGlobalSearchParams();
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const borderColor = useThemeColor({}, 'border');
+  const errorColor = useThemeColor({}, 'error');
 
   // Determine path info
   const isTripDetail = (segments as any[]).includes('collection-detail');
@@ -58,7 +74,6 @@ export default function MainLayout() {
         router.replace({
           pathname: `/(main)/client-detail/${clientIdParam}`,
           params: { 
-            id: clientIdParam,
             tab: 'pendentes',
             clientName: params.clientName,
             routeName: params.routeName
@@ -122,74 +137,83 @@ export default function MainLayout() {
   };
 
   return (
-    <View style={styles.container}>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
       {/* PERSISTENT HEADER STRIP */}
-      <View style={styles.topStrip}>
+      <DefaultView style={[styles.topStrip, { borderBottomColor: borderColor }]}>
         <LinearGradient
-          colors={['#1a1033', '#050505']}
+          colors={[primaryColor + '20', backgroundColor]}
           style={styles.stripGradient}
         >
           <SafeAreaView edges={['top']}>
-            <View style={styles.headerContent}>
+            <DefaultView style={styles.headerContent}>
               {/* LEFT: BACK BUTTON */}
-              <View style={styles.headerSide}>
+              <DefaultView style={styles.headerSide}>
                 {!isHome && (
                   <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                    <ChevronLeft size={24} color="#7c3aed" />
+                    <ChevronLeft size={24} color={primaryColor} />
                   </TouchableOpacity>
                 )}
-              </View>
+              </DefaultView>
 
               {/* CENTER: BRANDING */}
-              <View style={styles.headerCenter}>
-                <Text style={styles.companyNameText}>{companyName || 'Empresa'}</Text>
-                <Text style={styles.sellerNameText}>{seller?.name || 'Vendedor'}</Text>
-              </View>
+              <DefaultView style={styles.headerCenter}>
+                <DefaultText style={[styles.companyNameText, { color: primaryColor }]}>{companyName || 'Empresa'}</DefaultText>
+                <DefaultText style={[styles.sellerNameText, { color: textColor }]}>{seller?.name || 'Vendedor'}</DefaultText>
+              </DefaultView>
 
-              {/* RIGHT: PROFILE */}
-              <View style={styles.headerSide}>
-                <TouchableOpacity style={styles.profileBadge}>
-                  <User size={20} color="#7c3aed" />
+              {/* RIGHT: PROFILE & SYNC */}
+              <DefaultView style={[styles.headerSide, { flexDirection: 'row', width: 100, gap: 8 }]}>
+                {pendingCount > 0 ? (
+                  <TouchableOpacity onPress={forceSync} style={styles.syncBadge}>
+                    <RefreshCcw size={16} color={primaryColor} />
+                    <DefaultText style={[styles.pendingText, { color: primaryColor }]}>{pendingCount}</DefaultText>
+                  </TouchableOpacity>
+                ) : (
+                  <DefaultView style={styles.syncIconOnly}>
+                    {isOnline ? <Cloud size={20} color={primaryColor} /> : <CloudOff size={20} color={errorColor} />}
+                  </DefaultView>
+                )}
+                
+                <TouchableOpacity style={[styles.profileBadge, { backgroundColor: primaryColor + '10', borderColor: primaryColor + '20' }]}>
+                  <User size={20} color={primaryColor} />
                 </TouchableOpacity>
-              </View>
-            </View>
+              </DefaultView>
+            </DefaultView>
           </SafeAreaView>
         </LinearGradient>
-      </View>
+      </DefaultView>
 
       {/* CONTENT AREA (SLIDING) */}
-      <View style={styles.content}>
+      <DefaultView style={styles.content}>
         <Stack 
           screenOptions={{ 
             headerShown: false,
             animation: 'slide_from_right',
-            contentStyle: { backgroundColor: '#050505' }
+            contentStyle: { backgroundColor }
           }} 
         />
-      </View>
+      </DefaultView>
 
       {/* PERSISTENT FOOTER LOGOUT - Hide when trip or list is active */}
       {!(isTripDetail || isCollections || isClientDetail || isNewCard || isOrderDetail || isCardDetail || isClients) && (
-        <View style={styles.footer}>
+        <DefaultView style={[styles.footer, { backgroundColor, borderTopColor: borderColor }]}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <LogOut size={20} color="#ef4444" />
-            <Text style={styles.logoutText}>Encerrar Sessão</Text>
+            <LogOut size={20} color={errorColor} />
+            <DefaultText style={[styles.logoutText, { color: errorColor }]}>Encerrar Sessão</DefaultText>
           </TouchableOpacity>
-        </View>
+        </DefaultView>
       )}
-    </View>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   topStrip: {
     width: '100%',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(124, 58, 237, 0.2)',
     zIndex: 10,
   },
   stripGradient: {
@@ -216,7 +240,6 @@ const styles = StyleSheet.create({
   },
   companyNameText: {
     fontSize: 10,
-    color: '#7c3aed',
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 2,
@@ -225,27 +248,22 @@ const styles = StyleSheet.create({
   sellerNameText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
     letterSpacing: -0.5,
   },
   profileBadge: {
     width: 40,
     height: 40,
     borderRadius: 16,
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.2)',
   },
   content: {
     flex: 1,
   },
   footer: {
     padding: 24,
-    backgroundColor: '#050505',
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -255,8 +273,32 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   logoutText: {
-    color: '#ef4444',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#eee',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  pendingText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  syncIconOnly: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   }
 });

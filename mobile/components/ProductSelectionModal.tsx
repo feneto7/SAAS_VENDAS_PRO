@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
@@ -15,6 +15,9 @@ import {
 import { Search, X, Plus, Minus } from 'lucide-react-native';
 import { formatCurrencyBRL, centsToReais, applyCurrencyMask, parseBRLToCents } from '@/lib/utils/money';
 import { useTenant } from '@/lib/TenantContext';
+import { useThemeColor } from './Themed';
+import { queryAll } from '@/lib/db';
+import { SyncService } from '@/lib/sync/syncService';
 
 interface ProductSelectionModalProps {
   visible: boolean;
@@ -23,9 +26,10 @@ interface ProductSelectionModalProps {
   sellerId?: string;
   isAppending?: boolean; 
   initialItem?: any; // To support Edit Mode
+  currentCartItems?: any[]; // To deduct pending cart items from available stock
 }
 
-export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initialItem }: ProductSelectionModalProps) {
+export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initialItem, currentCartItems = [] }: ProductSelectionModalProps) {
   const { tenantSlug } = useTenant();
   
   const [modalStep, setModalStep] = useState(1); 
@@ -39,12 +43,41 @@ export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initi
   const [selectedType, setSelectedType] = useState<'CC' | 'SC' | 'BRINDE'>('CC');
   const [customPrice, setCustomPrice] = useState('');
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+
+  const getRemainingStock = (p: any) => {
+    if (!p) return 0;
+    const inCart = (currentCartItems || [])
+      .filter((i: any) => (i.productId === p.id || i.product?.id === p.id) && i.id !== initialItem?.id)
+      .reduce((sum: number, i: any) => sum + Number(i.quantity || i.quantitySold || 0), 0);
+    
+    const editOffset = (initialItem && (initialItem.productId === p.id || initialItem.product?.id === p.id || initialItem.id === p.id))
+      ? Number(initialItem.quantity || initialItem.quantitySold || 0)
+      : 0;
+
+    return Math.max(0, p.stock + editOffset - inCart);
+  };
+
   useEffect(() => {
     if (visible) {
       if (initialItem) {
         setModalStep(2);
-        setSelectedProduct({ id: initialItem.productId, name: initialItem.name, priceCC: initialItem.unitPrice, priceSC: initialItem.unitPrice });
-        setQuantity(initialItem.quantity);
+        // Retain original stock to properly calculate available space taking into account edit offsets
+        setSelectedProduct({ 
+          id: initialItem.productId || initialItem.product?.id, 
+          name: initialItem.name || initialItem.productName || initialItem.product?.name, 
+          priceCC: initialItem.unitPrice, 
+          priceSC: initialItem.unitPrice,
+          stock: initialItem.product?.stock ?? initialItem.stock ?? 99999 // fallback if unknown, handled dynamically upstream
+        });
+        setQuantity(initialItem.quantity || initialItem.quantitySold || 0);
         setSelectedType(initialItem.commissionType || initialItem.type || 'CC');
         setCustomPrice(applyCurrencyMask(centsToReais(initialItem.unitPrice).toFixed(2).replace('.', ',')));
       } else {
@@ -58,13 +91,40 @@ export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initi
   const fetchProducts = async () => {
     try {
       setProductsLoading(true);
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      const url = `${apiURL}/api/products?limit=500${sellerId ? `&sellerId=${sellerId}` : ''}`;
-      const res = await fetch(url, {
-        headers: { 'x-tenant-slug': tenantSlug || '' }
-      });
-      const data = await res.json();
-      setAllProducts(data.items || []);
+      
+      // 1. Try Local DB first
+      const localData = await queryAll<any>(
+        'SELECT * FROM products WHERE active = 1 ORDER BY name ASC'
+      );
+      
+      if (localData.length > 0) {
+        const mapped = localData.map(p => ({
+          ...p,
+          priceCC: p.price_cc,
+          priceSC: p.price_sc,
+          stock: p.stock // Use seller stock
+        }));
+        setAllProducts(mapped);
+        setProductsLoading(false);
+      }
+
+      // 2. Background sync if online
+      try {
+        const apiURL = process.env.EXPO_PUBLIC_API_URL;
+        const url = `${apiURL}/api/products?limit=500${sellerId ? `&sellerId=${sellerId}` : ''}`;
+        const res = await fetch(url, {
+          headers: { 'x-tenant-slug': tenantSlug || '' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || [];
+          setAllProducts(items);
+          
+          await SyncService.updateLocalProducts(items);
+        }
+      } catch (err) {
+        // Silence noise
+      }
     } catch (err) {
       console.error('Fetch products failed:', err);
     } finally {
@@ -98,8 +158,6 @@ export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initi
     if (!selectedProduct) return;
     const priceCents = parseBRLToCents(customPrice);
     
-    // In local mode (New Ficha), we just return the object
-    // In appending mode (Ficha Detail), the parent might handle the API call
     onAdd({
       productId: selectedProduct.id,
       name: selectedProduct.name,
@@ -115,37 +173,39 @@ export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initi
     p.sku?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const availableStock = getRemainingStock(selectedProduct);
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <DefaultView style={styles.modalOverlay}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContent}
+          style={[styles.modalContent, { backgroundColor: backgroundColor, borderColor }]}
         >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+          <DefaultView style={styles.modalHeader}>
+            <DefaultText style={[styles.modalTitle, { color: textColor }]}>
               {modalStep === 1 ? 'Selecionar Produto' : 'Configurar Item'}
-            </Text>
+            </DefaultText>
             <TouchableOpacity onPress={onClose}>
-              <X size={24} color="#9CA3AF" />
+              <X size={24} color={secondaryColor} />
             </TouchableOpacity>
-          </View>
+          </DefaultView>
 
           {modalStep === 1 ? (
-            <View style={{ flex: 1 }}>
-              <View style={styles.searchContainer}>
-                <Search size={18} color="#4B5563" style={{ marginRight: 8 }} />
+            <DefaultView style={{ flex: 1 }}>
+              <DefaultView style={[styles.searchContainer, { backgroundColor: cardColor }]}>
+                <Search size={18} color={secondaryColor} style={{ marginRight: 8 }} />
                 <TextInput
                   placeholder="Buscar produto..."
-                  placeholderTextColor="#4B5563"
-                  style={styles.searchInput}
+                  placeholderTextColor={placeholderColor}
+                  style={[styles.searchInput, { color: textColor }]}
                   value={search}
                   onChangeText={setSearch}
                 />
-              </View>
+              </DefaultView>
 
               {productsLoading ? (
-                <ActivityIndicator size="large" color="#A78BFA" style={{ marginTop: 40 }} />
+                <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 40 }} />
               ) : (
                 <FlatList
                   data={filteredProducts}
@@ -153,35 +213,35 @@ export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initi
                   style={styles.modalBody}
                   renderItem={({ item: p }) => (
                     <TouchableOpacity 
-                      style={styles.productOption}
+                      style={[styles.productOption, { backgroundColor: cardColor, borderColor }]}
                       onPress={() => handleSelectProduct(p)}
                     >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.optionName}>{p.name}</Text>
-                        <View style={styles.optionPrices}>
-                          <Text style={styles.optionPriceLabel}>
-                            CC: <Text style={styles.optionPriceVal}>{formatCurrencyBRL(p.priceCC)}</Text>
-                          </Text>
-                          <Text style={styles.optionPriceLabel}>
-                            SC: <Text style={styles.optionPriceVal}>{formatCurrencyBRL(p.priceSC)}</Text>
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.stockBadge}>
-                         <Text style={styles.stockLabel}>ESTOQUE</Text>
-                         <Text style={styles.stockVal}>{p.stock}</Text>
-                      </View>
+                      <DefaultView style={{ flex: 1 }}>
+                        <DefaultText style={[styles.optionName, { color: textColor }]}>{p.name}</DefaultText>
+                        <DefaultView style={styles.optionPrices}>
+                          <DefaultText style={[styles.optionPriceLabel, { color: secondaryColor }]}>
+                            CC: <DefaultText style={[styles.optionPriceVal, { color: primaryColor }]}>{formatCurrencyBRL(p.priceCC)}</DefaultText>
+                          </DefaultText>
+                          <DefaultText style={[styles.optionPriceLabel, { color: secondaryColor }]}>
+                            SC: <DefaultText style={[styles.optionPriceVal, { color: primaryColor }]}>{formatCurrencyBRL(p.priceSC)}</DefaultText>
+                          </DefaultText>
+                        </DefaultView>
+                      </DefaultView>
+                      <DefaultView style={[styles.stockBadge, { backgroundColor: primaryColor + '10' }]}>
+                         <DefaultText style={[styles.stockLabel, { color: primaryColor }]}>ESTOQUE</DefaultText>
+                         <DefaultText style={[styles.stockVal, { color: textColor }]}>{getRemainingStock(p)}</DefaultText>
+                      </DefaultView>
                     </TouchableOpacity>
                   )}
                 />
               )}
-            </View>
+            </DefaultView>
           ) : selectedProduct ? (
-            <View style={styles.configBody}>
-              <Text style={styles.selectedName}>{selectedProduct.name}</Text>
+            <DefaultView style={styles.configBody}>
+              <DefaultText style={[styles.selectedName, { color: primaryColor }]}>{selectedProduct.name}</DefaultText>
               
-              <Text style={styles.fieldLabel}>TIPO DE VENDA</Text>
-              <View style={styles.radioGroup}>
+              <DefaultText style={[styles.fieldLabel, { color: secondaryColor }]}>TIPO DE VENDA</DefaultText>
+              <DefaultView style={styles.radioGroup}>
                  <RadioButton 
                   label="Com Comissão" 
                   selected={selectedType === 'CC'} 
@@ -197,88 +257,121 @@ export function ProductSelectionModal({ visible, onClose, onAdd, sellerId, initi
                   selected={selectedType === 'BRINDE'} 
                   onPress={() => handleTypeChange('BRINDE')} 
                  />
-              </View>
+              </DefaultView>
 
-              <Text style={styles.fieldLabel}>PREÇO DE VENDA</Text>
+              <DefaultText style={[styles.fieldLabel, { color: secondaryColor }]}>PREÇO DE VENDA</DefaultText>
               <TextInput
-                style={[styles.priceInput, selectedType === 'BRINDE' && styles.disabledInput]}
+                style={[styles.priceInput, { backgroundColor: cardColor, color: textColor, borderColor }, selectedType === 'BRINDE' && styles.disabledInput]}
                 value={customPrice}
                 onChangeText={(val) => setCustomPrice(applyCurrencyMask(val))}
                 keyboardType="numeric"
                 editable={selectedType !== 'BRINDE'}
               />
 
-              <Text style={styles.fieldLabel}>QUANTIDADE</Text>
-              <View style={styles.qtyContainer}>
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => setQuantity(q => Math.max(1, q - 1))}>
+              <DefaultText style={[styles.fieldLabel, { color: secondaryColor }]}>QUANTIDADE (Máx: {availableStock})</DefaultText>
+              <DefaultView style={styles.qtyContainer}>
+                <TouchableOpacity 
+                  style={[styles.qtyBtn, { backgroundColor: availableStock > 0 ? primaryColor : '#ccc' }]} 
+                  onPress={() => setQuantity(q => Math.max(1, q - 1))}
+                  disabled={availableStock <= 0}
+                >
                   <Minus size={24} color="#FFF" />
                 </TouchableOpacity>
-                <Text style={styles.qtyVal}>{quantity}</Text>
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => setQuantity(q => q + 1)}>
+                <TextInput
+                  style={[styles.qtyVal, { color: textColor, width: 80, textAlign: 'center' }]}
+                  value={String(quantity)}
+                  keyboardType="numeric"
+                  onChangeText={(val) => {
+                    const parsed = parseInt(val.replace(/[^0-9]/g, ''), 10);
+                    if (isNaN(parsed)) {
+                      setQuantity(0);
+                    } else if (parsed > availableStock) {
+                      setQuantity(availableStock);
+                    } else {
+                      setQuantity(parsed);
+                    }
+                  }}
+                  editable={availableStock > 0}
+                />
+                <TouchableOpacity 
+                  style={[styles.qtyBtn, { backgroundColor: availableStock > 0 && quantity < availableStock ? primaryColor : '#ccc' }]} 
+                  onPress={() => setQuantity(q => Math.min(availableStock, q + 1))}
+                  disabled={availableStock <= 0 || quantity >= availableStock}
+                >
                   <Plus size={24} color="#FFF" />
                 </TouchableOpacity>
-              </View>
+              </DefaultView>
 
-              <TouchableOpacity style={styles.addBtn} onPress={handleConfirm}>
-                 <Text style={styles.addBtnText}>ADICIONAR À FICHA</Text>
+              <TouchableOpacity 
+                style={[styles.addBtn, { backgroundColor: availableStock > 0 && quantity > 0 ? primaryColor : '#ccc' }]} 
+                onPress={handleConfirm}
+                disabled={availableStock <= 0 || quantity <= 0}
+              >
+                 <DefaultText style={[styles.addBtnText, { color: '#fff' }]}>
+                   {availableStock <= 0 ? 'SEM ESTOQUE' : 'ADICIONAR À FICHA'}
+                 </DefaultText>
               </TouchableOpacity>
               <TouchableOpacity style={styles.backBtn} onPress={() => setModalStep(1)}>
-                 <Text style={styles.backBtnText}>Voltar para a lista</Text>
+                 <DefaultText style={[styles.backBtnText, { color: secondaryColor }]}>Voltar para a lista</DefaultText>
               </TouchableOpacity>
-            </View>
+            </DefaultView>
           ) : (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator color="#A78BFA" />
-            </View>
+            <DefaultView style={{ padding: 40, alignItems: 'center' }}>
+              <ActivityIndicator color={primaryColor} />
+            </DefaultView>
           )}
         </KeyboardAvoidingView>
-      </View>
+      </DefaultView>
     </Modal>
   );
 }
 
 function RadioButton({ label, selected, onPress }: any) {
+  const primaryColor = useThemeColor({}, 'primary');
+  const textColor = useThemeColor({}, 'text');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+
   return (
-    <TouchableOpacity style={styles.radioItem} onPress={onPress}>
-      <View style={[styles.radioCircle, selected && styles.radioSelected]} />
-      <Text style={[styles.radioLabel, selected && styles.radioLabelActive]}>{label}</Text>
+    <TouchableOpacity style={[styles.radioItem, { backgroundColor: cardColor, borderColor }]} onPress={onPress}>
+      <DefaultView style={[styles.radioCircle, { borderColor: secondaryColor }, selected && { borderColor: primaryColor, backgroundColor: primaryColor }]} />
+      <DefaultText style={[styles.radioLabel, { color: secondaryColor }, selected && { color: textColor }]}>{label}</DefaultText>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#0F1117', borderTopLeftRadius: 32, borderTopRightRadius: 32, height: '90%', padding: 24, borderWidth: 1, borderColor: 'rgba(167, 139, 250, 0.2)' },
+  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, height: '90%', padding: 24, borderWidth: 1 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { color: '#FFF', fontSize: 20, fontWeight: '900' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, paddingHorizontal: 16, height: 56, marginBottom: 12 },
-  searchInput: { flex: 1, color: '#FFF', fontSize: 16 },
+  modalTitle: { fontSize: 20, fontWeight: '900' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, paddingHorizontal: 16, height: 56, marginBottom: 12 },
+  searchInput: { flex: 1, fontSize: 16 },
   modalBody: { flex: 1 },
-  productOption: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  optionName: { color: '#FFF', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  productOption: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 12, borderWidth: 1 },
+  optionName: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   optionPrices: { flexDirection: 'row', gap: 12 },
-  optionPriceLabel: { color: '#6B7280', fontSize: 12, fontWeight: '600' },
-  optionPriceVal: { color: '#A78BFA' },
-  stockBadge: { backgroundColor: 'rgba(167, 139, 250, 0.1)', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center' },
-  stockLabel: { color: '#A78BFA', fontSize: 8, fontWeight: '900' },
-  stockVal: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  optionPriceLabel: { fontSize: 12, fontWeight: '600' },
+  optionPriceVal: { },
+  stockBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center' },
+  stockLabel: { fontSize: 8, fontWeight: '900' },
+  stockVal: { fontSize: 14, fontWeight: '800' },
   
   configBody: { flex: 1, gap: 16 },
-  selectedName: { color: '#A78BFA', fontSize: 24, fontWeight: '900', marginBottom: 8 },
-  fieldLabel: { color: '#4B5563', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  selectedName: { fontSize: 24, fontWeight: '900', marginBottom: 8 },
+  fieldLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   radioGroup: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  radioItem: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12, gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  radioCircle: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: '#4B5563' },
-  radioSelected: { borderColor: '#A78BFA', backgroundColor: '#A78BFA' },
-  radioLabel: { color: '#6B7280', fontSize: 10, fontWeight: '700' },
-  radioLabelActive: { color: '#FFF' },
-  priceInput: { backgroundColor: '#1F2937', height: 64, borderRadius: 16, color: '#FFF', fontSize: 24, fontWeight: '900', textAlign: 'center' },
-  disabledInput: { opacity: 0.5, backgroundColor: '#111827' },
+  radioItem: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 8, borderWidth: 1 },
+  radioCircle: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
+  radioLabel: { fontSize: 10, fontWeight: '700' },
+  priceInput: { height: 64, borderRadius: 16, fontSize: 24, fontWeight: '900', textAlign: 'center', borderWidth: 1 },
+  disabledInput: { opacity: 0.5 },
   qtyContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 40, marginVertical: 10 },
-  qtyBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#A78BFA', justifyContent: 'center', alignItems: 'center' },
-  qtyVal: { color: '#FFF', fontSize: 32, fontWeight: '900' },
-  addBtn: { backgroundColor: '#FFF', height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
-  addBtnText: { color: '#000', fontSize: 16, fontWeight: '900' },
+  qtyBtn: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  qtyVal: { fontSize: 32, fontWeight: '900' },
+  addBtn: { height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  addBtnText: { fontSize: 16, fontWeight: '900' },
   backBtn: { height: 50, justifyContent: 'center', alignItems: 'center' },
-  backBtnText: { color: '#6B7280', fontSize: 14, fontWeight: '700' }
+  backBtnText: { fontSize: 14, fontWeight: '700' }
 });

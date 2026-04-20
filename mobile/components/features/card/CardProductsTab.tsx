@@ -1,13 +1,14 @@
 import React from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   TouchableOpacity, 
   ActivityIndicator,
   ViewStyle
 } from 'react-native';
 import { Package, Pencil, Trash2, CheckCircle2 } from 'lucide-react-native';
+import { useThemeColor } from '../../../components/Themed';
 
 interface CardProductsTabProps {
   items: any[];
@@ -32,123 +33,129 @@ export function CardProductsTab({
   saveLoading,
   formatCurrencyBRL
 }: CardProductsTabProps) {
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+
   if (items.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Package size={48} color="#374151" />
-        <Text style={styles.emptyText}>Nenhum produto nesta ficha</Text>
-      </View>
+      <DefaultView style={styles.emptyContainer}>
+        <Package size={48} color={borderColor} />
+        <DefaultText style={[styles.emptyText, { color: textColor }]}>Nenhum produto nesta ficha</DefaultText>
+      </DefaultView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <DefaultView style={styles.container}>
       {items.map(item => (
-        <View key={item.id} style={[styles.itemCard, isPaid && { opacity: 0.8 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.itemName}>{item.productName || item.product?.name || 'Produto'}</Text>
-            <View style={styles.itemMeta}>
-              <Text style={[
+        <DefaultView key={item.id} style={[styles.itemCard, { backgroundColor: cardColor, borderColor }, isPaid && { opacity: 0.8 }]}>
+          <DefaultView style={{ flex: 1 }}>
+            <DefaultText style={[styles.itemName, { color: textColor }]}>{item.productName || item.product?.name || 'Produto'}</DefaultText>
+            <DefaultView style={styles.itemMeta}>
+              <DefaultText style={[
                 styles.itemType, 
-                { color: item.commissionType === 'BRINDE' ? '#EF4444' : (item.commissionType === 'SC' ? '#60A5FA' : '#A78BFA') }
+                { color: item.commissionType === 'BRINDE' ? errorColor : (item.commissionType === 'SC' ? '#60A5FA' : primaryColor) }
               ]}>
                 {item.commissionType}
-              </Text>
-              <Text style={styles.itemPrice}>{formatCurrencyBRL(item.unitPrice)} x {item.quantity}</Text>
-            </View>
-          </View>
+              </DefaultText>
+              <DefaultText style={[styles.itemPrice, { color: secondaryColor }]}>{formatCurrencyBRL(item.unitPrice)} x {item.quantity}</DefaultText>
+            </DefaultView>
+          </DefaultView>
 
           {status === 'nova' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.itemSubtotal, { color: '#FFF', fontSize: 16, fontWeight: '900' }]}>
+            <DefaultView style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <DefaultView style={{ alignItems: 'flex-end' }}>
+                <DefaultText style={[styles.itemSubtotal, { color: textColor, fontSize: 16, fontWeight: '900' }]}>
                   {formatCurrencyBRL(item.subtotal)}
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                </DefaultText>
+                <DefaultView style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   <TouchableOpacity 
                     onPress={() => onEditItem(item)}
-                    style={{ padding: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8 }}
+                    style={{ padding: 6, backgroundColor: `${primaryColor}10`, borderRadius: 8 }}
                   >
-                    <Pencil size={16} color="#A78BFA" />
+                    <Pencil size={16} color={primaryColor} />
                   </TouchableOpacity>
                   <TouchableOpacity 
                     onPress={() => onDeleteItem(item.id)}
-                    style={{ padding: 6, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 }}
+                    style={{ padding: 6, backgroundColor: `${errorColor}15`, borderRadius: 8 }}
                   >
-                    <Trash2 size={16} color="#EF4444" />
+                    <Trash2 size={16} color={errorColor} />
                   </TouchableOpacity>
-                </View>
-              </View>
-            </View>
+                </DefaultView>
+              </DefaultView>
+            </DefaultView>
           ) : (
             <TouchableOpacity 
               style={styles.itemQuantities}
               onPress={() => !isPaid && onOpenItemModal(item)}
               disabled={isPaid}
             >
-              <View style={styles.qtyBox}>
-                <Text style={styles.qtyLabel}>DEIXADO</Text>
-                <Text style={styles.qtyVal}>{item.quantity}</Text>
-              </View>
-              <View style={[styles.qtyBox, { borderLeftWidth: 1, borderLeftColor: '#1F2937' }]}>
-                <Text style={styles.qtyLabel}>VENDIDO</Text>
-                <Text style={styles.qtyValPrimary}>{item.quantitySold || 0}</Text>
-              </View>
+              <DefaultView style={styles.qtyBox}>
+                <DefaultText style={[styles.qtyLabel, { color: placeholderColor }]}>DEIXADO</DefaultText>
+                <DefaultText style={[styles.qtyVal, { color: secondaryColor }]}>{item.quantity}</DefaultText>
+              </DefaultView>
+              <DefaultView style={[styles.qtyBox, { borderLeftWidth: 1, borderLeftColor: borderColor }]}>
+                <DefaultText style={[styles.qtyLabel, { color: placeholderColor }]}>VENDIDO</DefaultText>
+                <DefaultText style={[styles.qtyValPrimary, { color: primaryColor }]}>{item.quantitySold || 0}</DefaultText>
+              </DefaultView>
             </TouchableOpacity>
           )}
-        </View>
+        </DefaultView>
       ))}
       
       {status === 'pendente' && (
         <TouchableOpacity 
-          style={styles.saveBtn}
+          style={[styles.saveBtn, { backgroundColor: primaryColor }]}
           onPress={onSaveSettlement}
           disabled={saveLoading}
         >
           {saveLoading ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.saveBtnText}>SALVAR ACERTO</Text>
-              <CheckCircle2 size={20} color="#000" />
+              <DefaultText style={[styles.saveBtnText, { color: '#fff' }]}>SALVAR ACERTO</DefaultText>
+              <CheckCircle2 size={20} color="#fff" />
             </>
           )}
         </TouchableOpacity>
       )}
 
       {status === 'nova' && (
-        <View style={{ height: 100 }} />
+        <DefaultView style={{ height: 100 }} />
       )}
-    </View>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { gap: 12, paddingBottom: 100 },
   emptyContainer: { alignItems: 'center', marginTop: 100, opacity: 0.3 },
-  emptyText: { color: '#FFF', fontSize: 16, fontWeight: '800', marginTop: 16 },
+  emptyText: { fontSize: 16, fontWeight: '800', marginTop: 16 },
   itemCard: { 
     flexDirection: 'row', 
-    backgroundColor: 'rgba(255,255,255,0.03)', 
     borderRadius: 16, 
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center'
   },
-  itemName: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  itemName: { fontSize: 15, fontWeight: '700' },
   itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   itemType: { fontSize: 10, fontWeight: '900' },
-  itemPrice: { color: '#6B7280', fontSize: 12 },
+  itemPrice: { fontSize: 12 },
   itemQuantities: { flexDirection: 'row', gap: 16 },
   qtyBox: { alignItems: 'center', minWidth: 60 },
-  qtyLabel: { color: '#4B5563', fontSize: 8, fontWeight: '900' },
-  qtyVal: { color: '#9CA3AF', fontSize: 16, fontWeight: '700' },
-  qtyValPrimary: { color: '#A78BFA', fontSize: 18, fontWeight: '900' },
-  itemSubtotal: { color: '#FFF', fontSize: 16, fontWeight: '900' },
+  qtyLabel: { fontSize: 8, fontWeight: '900' },
+  qtyVal: { fontSize: 16, fontWeight: '700' },
+  qtyValPrimary: { fontSize: 18, fontWeight: '900' },
+  itemSubtotal: { fontSize: 16, fontWeight: '900' },
   saveBtn: { 
     marginTop: 20,
-    backgroundColor: '#FFF', 
     height: 56, 
     borderRadius: 16, 
     flexDirection: 'row', 
@@ -156,5 +163,5 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     gap: 12 
   },
-  saveBtnText: { color: '#000', fontSize: 14, fontWeight: '900' },
+  saveBtnText: { fontSize: 14, fontWeight: '900' },
 });

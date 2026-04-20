@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
@@ -14,6 +14,8 @@ import { useRouter } from 'expo-router';
 import { useTenant } from '../lib/TenantContext';
 import { User, Lock, ArrowRight, RefreshCw } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColor } from '../components/Themed';
+import { useColorScheme } from 'react-native';
 
 const SERVER_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -25,6 +27,16 @@ export default function LoginScreen() {
   
   const { tenantSlug, clearTenant, loginSeller } = useTenant();
   const router = useRouter();
+  const colorScheme = useColorScheme();
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
 
   useEffect(() => {
     async function fetchCompanyInfo() {
@@ -64,9 +76,8 @@ export default function LoginScreen() {
       const data = await res.json();
 
       if (res.ok) {
-        // Success! Persistence handled by context
         await loginSeller(data.user, data.token);
-        router.replace('/(tabs)');
+        router.replace('/(main)');
       } else {
         Alert.alert('Falha no Login', data.error || 'Credenciais inválidas.');
       }
@@ -81,47 +92,47 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor }]}
     >
-      <StatusBar style="light" />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.welcome}>Bem-vindo,</Text>
-          <Text style={styles.companyName}>{companyName || tenantSlug}</Text>
+      <DefaultView style={styles.content}>
+        <DefaultView style={styles.header}>
+          <DefaultText style={[styles.welcome, { color: secondaryColor }]}>Bem-vindo,</DefaultText>
+          <DefaultText style={[styles.companyName, { color: textColor }]}>{companyName || tenantSlug}</DefaultText>
           <TouchableOpacity onPress={clearTenant} style={styles.changeCompany}>
-            <RefreshCw size={14} color="#7c3aed" />
-            <Text style={styles.changeCompanyText}>Mudar empresa</Text>
+            <RefreshCw size={14} color={primaryColor} />
+            <DefaultText style={[styles.changeCompanyText, { color: primaryColor }]}>Mudar empresa</DefaultText>
           </TouchableOpacity>
-        </View>
+        </DefaultView>
 
-        <View style={styles.form}>
-          <View style={styles.inputWrapper}>
-            <User size={20} color="#666" style={styles.inputIcon} />
+        <DefaultView style={styles.form}>
+          <DefaultView style={[styles.inputWrapper, { backgroundColor: surfaceColor, borderColor }]}>
+            <User size={20} color={placeholderColor} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: textColor }]}
               placeholder="Código do Vendedor"
-              placeholderTextColor="#666"
+              placeholderTextColor={placeholderColor}
               value={appCode}
               onChangeText={setAppCode}
               keyboardType="number-pad"
             />
-          </View>
+          </DefaultView>
 
-          <View style={styles.inputWrapper}>
-            <Lock size={20} color="#666" style={styles.inputIcon} />
+          <DefaultView style={[styles.inputWrapper, { backgroundColor: surfaceColor, borderColor }]}>
+            <Lock size={20} color={placeholderColor} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: textColor }]}
               placeholder="Senha"
-              placeholderTextColor="#666"
+              placeholderTextColor={placeholderColor}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
             />
-          </View>
+          </DefaultView>
 
           <TouchableOpacity 
-            style={[styles.button, loading && styles.buttonDisabled]} 
+            style={[styles.button, { backgroundColor: primaryColor, shadowColor: primaryColor }, loading && styles.buttonDisabled]} 
             onPress={handleLogin}
             disabled={loading}
           >
@@ -129,15 +140,15 @@ export default function LoginScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.buttonText}>Acessar Painel</Text>
+                <DefaultText style={styles.buttonText}>Acessar Painel</DefaultText>
                 <ArrowRight size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </DefaultView>
 
-        <Text style={styles.help}>Esqueceu sua senha? Contate o gerente.</Text>
-      </View>
+        <DefaultText style={[styles.help, { color: secondaryColor }]}>Esqueceu sua senha? Contate o gerente.</DefaultText>
+      </DefaultView>
     </KeyboardAvoidingView>
   );
 }
@@ -145,7 +156,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   content: {
     flex: 1,
@@ -157,12 +167,10 @@ const styles = StyleSheet.create({
   },
   welcome: {
     fontSize: 24,
-    color: '#999',
   },
   companyName: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#fff',
     marginTop: 4,
   },
   changeCompany: {
@@ -172,7 +180,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   changeCompanyText: {
-    color: '#7c3aed',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -182,10 +189,8 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111', 
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 16,
   },
   inputIcon: {
@@ -194,19 +199,16 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 64,
-    color: '#fff',
     fontSize: 18,
   },
   button: {
     height: 64,
-    backgroundColor: '#7c3aed',
     borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
-    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -223,7 +225,6 @@ const styles = StyleSheet.create({
   help: {
     marginTop: 32,
     textAlign: 'center',
-    color: '#444',
     fontSize: 14,
   }
 });

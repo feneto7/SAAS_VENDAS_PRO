@@ -2,31 +2,35 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema/index.js";
 
-// Cache of pools per database name
+// Cache of pools and drizzle instances per database name
 const pools: Map<string, Pool> = new Map();
+const drizzleInstances: Map<string, any> = new Map();
 
 /**
  * Gets or creates a connection pool for a specific tenant database.
  */
 export function getTenantDb(dbName: string) {
   let pool = pools.get(dbName);
+  let db = drizzleInstances.get(dbName);
+
+  if (db) return db;
 
   if (!pool) {
     const masterUrl = process.env.DATABASE_URL!;
-    // Build the connection string for the specific tenant database
-    // We assume the URL ends with /default_db
     const urlParts = masterUrl.split("/");
     urlParts[urlParts.length - 1] = dbName;
     const tenantUrl = urlParts.join("/");
 
     pool = new Pool({
       connectionString: tenantUrl,
-      max: 10, // Limit connections per tenant
+      max: 10,
       idleTimeoutMillis: 30000,
     });
 
     pools.set(dbName, pool);
   }
 
-  return drizzle(pool, { schema });
+  db = drizzle(pool, { schema });
+  drizzleInstances.set(dbName, db);
+  return db;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   TouchableOpacity, 
   FlatList, 
@@ -22,6 +22,9 @@ import {
   Phone
 } from 'lucide-react-native';
 import { NewClientModal } from '../../components/modals/NewClientModal';
+import { useThemeColor } from '../../components/Themed';
+import { queryAll } from '../../lib/db';
+import { SyncService } from '../../lib/sync/syncService';
 
 interface Client {
   id: string;
@@ -33,13 +36,23 @@ interface Client {
 }
 
 export default function ClientsScreen() {
-  const { tenantSlug, activeTrip } = useTenant();
+  const { tenantSlug, activeTrip, seller } = useTenant();
   const { routeName } = useLocalSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+  const iconColor = useThemeColor({}, 'icon');
 
   useEffect(() => {
     if (activeTrip?.routeId) {
@@ -54,20 +67,30 @@ export default function ClientsScreen() {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      const res = await fetch(`${apiURL}/api/clients?routeId=${activeTrip?.routeId}&limit=500`, {
-        headers: { 'x-tenant-slug': tenantSlug || '' }
-      });
-      const data = await res.json();
+      // 1. Read from Local DB first
+      const localData = await queryAll<any>(
+        'SELECT * FROM clients WHERE route_id = ? AND active = 1 ORDER BY name ASC',
+        [activeTrip?.routeId]
+      );
       
-      if (Array.isArray(data.items)) {
-        setClients(data.items);
-      } else {
-        setClients([]);
+      if (localData.length > 0) {
+        setClients(localData);
+        setLoading(false);
+      }
+
+      // 2. Try to sync with server in background if possible
+      try {
+        await SyncService.downloadMasterData(tenantSlug || '', seller?.id);
+        const updatedData = await queryAll<any>(
+          'SELECT * FROM clients WHERE route_id = ? AND active = 1 ORDER BY name ASC',
+          [activeTrip?.routeId]
+        );
+        setClients(updatedData);
+      } catch (err) {
+        console.log('Background sync failed, using local data');
       }
     } catch (err) {
       console.error('Failed to fetch clients:', err);
-      setClients([]);
     } finally {
       setLoading(false);
     }
@@ -79,35 +102,35 @@ export default function ClientsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.pageTitle}>Clientes</Text>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
+      <DefaultView style={styles.content}>
+        <DefaultText style={[styles.pageTitle, { color: textColor }]}>Clientes</DefaultText>
         
         {/* Search Bar + Add Button */}
-        <View style={styles.headerActions}>
-          <View style={styles.searchContainer}>
-            <Search size={18} color="rgba(255,255,255,0.3)" style={styles.searchIcon} />
+        <DefaultView style={styles.headerActions}>
+          <DefaultView style={[styles.searchContainer, { backgroundColor: surfaceColor, borderColor }]}>
+            <Search size={18} color={placeholderColor} style={styles.searchIcon} />
             <TextInput
               placeholder="Buscar cliente..."
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              style={styles.searchInput}
+              placeholderTextColor={placeholderColor}
+              style={[styles.searchInput, { color: textColor }]}
               value={search}
               onChangeText={setSearch}
             />
-          </View>
+          </DefaultView>
           <TouchableOpacity 
-            style={styles.addButton}
+            style={[styles.addButton, { backgroundColor: primaryColor, shadowColor: primaryColor }]}
             onPress={() => setIsModalOpen(true)}
             activeOpacity={0.7}
           >
-            <Plus size={24} color="#000" strokeWidth={3} />
+            <Plus size={24} color="#fff" strokeWidth={3} />
           </TouchableOpacity>
-        </View>
+        </DefaultView>
 
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
+          <DefaultView style={styles.center}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </DefaultView>
         ) : (
           <FlatList
             data={filteredClients}
@@ -116,64 +139,63 @@ export default function ClientsScreen() {
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity 
-                style={styles.clientCard}
+                style={[styles.clientCard, { backgroundColor: cardColor, borderColor }]}
                 onPress={() => router.push({
-                  pathname: `/(main)/client-detail/${item.id}`,
-                  params: { clientName: item.name, routeName }
+                  pathname: `/(main)/client-detail/[id]`,
+                  params: { id: item.id, clientName: item.name, routeName }
                 } as any)}
                 activeOpacity={0.7}
               >
-                <View style={styles.clientIconBox}>
-                  <User size={20} color="#3b82f6" />
-                </View>
-                <View style={styles.clientInfo}>
-                  <View style={styles.clientHeader}>
-                    <Text style={styles.clientName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.clientCode}>#{String(item.code).padStart(4, '0')}</Text>
-                  </View>
-                  <View style={styles.clientDetails}>
-                    <View style={styles.detailRow}>
-                      <MapPin size={12} color="rgba(255,255,255,0.3)" style={{marginRight: 4}} />
-                      <Text style={styles.detailText} numberOfLines={1}>
+                <DefaultView style={[styles.clientIconBox, { backgroundColor: primaryColor + '10', borderColor: primaryColor + '20' }]}>
+                  <User size={20} color={primaryColor} />
+                </DefaultView>
+                <DefaultView style={styles.clientInfo}>
+                  <DefaultView style={styles.clientHeader}>
+                    <DefaultText style={[styles.clientName, { color: textColor }]} numberOfLines={1}>{item.name}</DefaultText>
+                    <DefaultText style={[styles.clientCode, { color: placeholderColor }]}>#{String(item.code).padStart(4, '0')}</DefaultText>
+                  </DefaultView>
+                  <DefaultView style={styles.clientDetails}>
+                    <DefaultView style={styles.detailRow}>
+                      <MapPin size={12} color={placeholderColor} style={{marginRight: 4}} />
+                      <DefaultText style={[styles.detailText, { color: secondaryColor }]} numberOfLines={1}>
                         {item.neighborhood ? `${item.neighborhood}, ` : ''}{item.city}
-                      </Text>
-                    </View>
+                      </DefaultText>
+                    </DefaultView>
                     {item.phone && (
-                      <View style={[styles.detailRow, {marginTop: 2}]}>
-                        <Phone size={12} color="rgba(255,255,255,0.3)" style={{marginRight: 4}} />
-                        <Text style={styles.detailText}>{item.phone}</Text>
-                      </View>
+                      <DefaultView style={[styles.detailRow, {marginTop: 2}]}>
+                        <Phone size={12} color={placeholderColor} style={{marginRight: 4}} />
+                        <DefaultText style={[styles.detailText, { color: secondaryColor }]}>{item.phone}</DefaultText>
+                      </DefaultView>
                     )}
-                  </View>
-                </View>
-                <ChevronRight size={18} color="rgba(255,255,255,0.1)" />
+                  </DefaultView>
+                </DefaultView>
+                <ChevronRight size={18} color={borderColor} />
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Users size={48} color="rgba(255,255,255,0.05)" />
-                <Text style={styles.emptyText}>
+              <DefaultView style={styles.emptyContainer}>
+                <Users size={48} color={borderColor} />
+                <DefaultText style={[styles.emptyText, { color: secondaryColor }]}>
                   {search ? 'Nenhum cliente encontrado para sua busca.' : 'Nenhum cliente cadastrado nesta rota.'}
-                </Text>
-              </View>
+                </DefaultText>
+              </DefaultView>
             }
           />
         )}
-      </View>
+      </DefaultView>
 
       <NewClientModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSuccess={fetchClients} 
       />
-    </View>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   content: {
     flex: 1,
@@ -182,7 +204,6 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 24,
     textTransform: 'uppercase',
@@ -198,30 +219,25 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 52,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
   },
   searchIcon: {
     marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    color: '#fff',
     fontSize: 15,
     fontWeight: '500',
   },
   addButton: {
     width: 52,
     height: 52,
-    backgroundColor: '#fff',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#fff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -238,23 +254,19 @@ const styles = StyleSheet.create({
   clientCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.04)',
   },
   clientIconBox: {
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: 'rgba(59,130,246,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
     borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.1)',
   },
   clientInfo: {
     flex: 1,
@@ -266,14 +278,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   clientName: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
     flex: 1,
     marginRight: 8,
   },
   clientCode: {
-    color: 'rgba(255,255,255,0.2)',
     fontSize: 10,
     fontWeight: '900',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
@@ -286,7 +296,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailText: {
-    color: 'rgba(255,255,255,0.4)',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -296,7 +305,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.3)',
     marginTop: 16,
     fontSize: 14,
     textAlign: 'center',

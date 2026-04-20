@@ -5,18 +5,15 @@ import { join } from "path";
 // Garante o carregamento do .env da pasta server
 dotenv.config({ path: join(process.cwd(), ".env") });
 
-console.log("DEBUG: DATABASE_URL is", process.env.DATABASE_URL ? "Defined" : "UNDEFINED");
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not defined in .env");
+}
 
 export default defineConfig({
   schema: "./src/db/schema/master.ts",
   out: "./drizzle/master",
   dialect: "postgresql",
   dbCredentials: {
-    host: "localhost",
-    port: 5432,
-    user: "postgres",
-    password: "2011ThaylaLunaMel2013",
-    database: "vendas_master",
-    ssl: false,
+    url: process.env.DATABASE_URL,
   },
 });

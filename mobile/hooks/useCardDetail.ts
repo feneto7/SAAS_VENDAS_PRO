@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useTenant } from '@/lib/TenantContext';
 import { parseBRLToCents } from '@/lib/utils/money';
+import { queryAll, queryFirst, execute } from '@/lib/db';
+import { SyncService } from '@/lib/sync/syncService';
 
 export type Tab = 'produtos' | 'fechamento';
 
@@ -36,25 +38,66 @@ export function useCardDetail(id: string) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      const res = await fetch(`${apiURL}/api/fichas/${id}`, {
-        headers: { 'x-tenant-slug': tenantSlug || '' }
-      });
-      const data = await res.json();
-      setCard(data || null);
-      setItems(data?.items || []);
+      
+      // 1. Read from Local DB first
+      const localCard = await queryFirst<any>('SELECT * FROM fichas WHERE id = ?', [id]);
+      if (localCard) {
+        const localItems = await queryAll<any>('SELECT * FROM ficha_items WHERE ficha_id = ?', [id]);
+        const localPayments = await queryAll<any>(
+          `SELECT p.*, pm.name as methodName 
+           FROM payments p 
+           LEFT JOIN payment_methods pm ON p.method_id = pm.id 
+           WHERE p.ficha_id = ?`, 
+          [id]
+        );
 
-      // Fetch Payment Methods
-      const resPm = await fetch(`${apiURL}/api/settings/payments`, {
-        headers: { 'x-tenant-slug': tenantSlug || '' }
-      });
-      const dataPm = await resPm.json();
-      setPaymentMethods(dataPm || []);
-      if (dataPm.length > 0 && !selectedMethodId) setSelectedMethodId(dataPm[0].id);
+        // Map snake_case to camelCase
+        setCard({
+          ...localCard,
+          commissionPercent: localCard.commission_percent,
+          saleDate: localCard.sale_date,
+          payments: localPayments.map(p => ({ ...p, methodName: p.methodName, amount: p.amount }))
+        });
+        setItems(localItems.map(i => ({ 
+          ...i, 
+          productId: i.product_id, 
+          unitPrice: i.unit_price,
+          commissionType: i.commission_type
+        })));
+        
+        setLoading(false);
+      }
 
+      // 2. Refresh from server in background if possible
+      try {
+        const apiURL = process.env.EXPO_PUBLIC_API_URL;
+        const [res, resPm] = await Promise.all([
+          fetch(`${apiURL}/api/fichas/${id}`, {
+            headers: { 'x-tenant-slug': tenantSlug || '' }
+          }),
+          fetch(`${apiURL}/api/settings/payments`, {
+            headers: { 'x-tenant-slug': tenantSlug || '' }
+          })
+        ]);
+
+        if (res.ok) {
+          const data = await res.json();
+          setCard(data || null);
+          setItems(data?.items || []);
+        }
+        
+        if (resPm.ok) {
+          const dataPm = await resPm.json();
+          setPaymentMethods(dataPm || []);
+          if (dataPm && dataPm.length > 0 && !selectedMethodId) {
+            setSelectedMethodId(dataPm[0].id);
+          }
+        }
+      } catch (err) {
+        console.log('Background fetch failed, offline mode');
+      }
     } catch (err) {
       console.error('Fetch card failed:', err);
-      Alert.alert("Erro", "Falha ao carregar dados");
     } finally {
       setLoading(false);
     }
@@ -70,13 +113,14 @@ export function useCardDetail(id: string) {
     setItemModalVisible(true);
   };
 
-  const handleSaveItemQty = () => {
+  const handleSaveItemQty = async () => {
     const sold = parseInt(soldQty) || 0;
     if (sold > selectedItem.quantity) {
       Alert.alert("Erro", "Quantidade vendida não pode ser maior que a deixada");
       return;
     }
     
+    // Update locally
     const updatedItems = items.map(i => {
       if (i.id === selectedItem.id) {
         return {
@@ -93,41 +137,51 @@ export function useCardDetail(id: string) {
     setSelectedItem(null);
   };
 
-  const handleAppendItem = async (item: any) => {
+  const handleAppendItem = async (productData: any) => {
     try {
       setIsAppending(true);
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
+      const itemId = editingItem ? editingItem.id : SyncService.generateUUID();
       
-      const method = editingItem ? 'PATCH' : 'POST';
-      const endpoint = editingItem 
-        ? `${apiURL}/api/fichas/${id}/items/${editingItem.id}`
-        : `${apiURL}/api/fichas/${id}/items`;
+      const payload = {
+        productId: productData.productId,
+        quantity: productData.quantity,
+        unitPrice: productData.unitPrice,
+        commissionType: productData.type
+      };
 
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-tenant-slug': tenantSlug || ''
-        },
-        body: JSON.stringify({
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          commissionType: item.type
-        })
-      });
+      // 1. Local Update
+      if (editingItem) {
+        // Calculate difference for stock adjustment
+        const diff = productData.quantity - editingItem.quantity;
+        if (diff !== 0) {
+          console.log(`[Sync] Adjusting local stock for product ${productData.productId} by ${diff} (Edit Item)`);
+          await execute('UPDATE products SET stock = stock - ? WHERE id = ?', [diff, productData.productId]);
+        }
 
-      if (res.ok) {
-        Alert.alert("Sucesso", editingItem ? "Item atualizado!" : "Produto adicionado!");
-        setAddProductModalVisible(false);
-        setEditingItem(null);
-        fetchData(); // Refresh list
+        await execute(
+          `UPDATE ficha_items SET product_id = ?, quantity = ?, unit_price = ?, subtotal = ?, commission_type = ? WHERE id = ?`,
+          [productData.productId, productData.quantity, productData.unitPrice, productData.subtotal, productData.type, editingItem.id]
+        );
       } else {
-        const err = await res.json();
-        Alert.alert("Erro", err.error || "Erro ao processar item");
+        await execute(
+          `INSERT INTO ficha_items (id, ficha_id, product_id, quantity, unit_price, subtotal, commission_type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [itemId, id, productData.productId, productData.quantity, productData.unitPrice, productData.subtotal, productData.type]
+        );
+        // Decrease stock for new item
+        console.log(`[Sync] Lowering local stock for product ${productData.productId} by ${productData.quantity} (Append)`);
+        await execute('UPDATE products SET stock = stock - ? WHERE id = ?', [productData.quantity, productData.productId]);
       }
+
+      // 2. Sync Queue
+      const endpoint = editingItem ? `/api/fichas/${id}/items/${editingItem.id}` : `/api/fichas/${id}/items`;
+      const method = editingItem ? 'PATCH' : 'POST';
+      await SyncService.enqueue(editingItem ? 'UPDATE_ITEM' : 'ADD_ITEM', endpoint, method, payload);
+
+      setAddProductModalVisible(false);
+      setEditingItem(null);
+      fetchData(); // Refresh UI from DB
     } catch (err) {
-       Alert.alert("Erro", "Falha na conexão");
+       Alert.alert("Erro", "Falha ao salvar item localmente");
     } finally {
       setIsAppending(false);
     }
@@ -144,19 +198,16 @@ export function useCardDetail(id: string) {
           style: "destructive",
           onPress: async () => {
             try {
-              const apiURL = process.env.EXPO_PUBLIC_API_URL;
-              const res = await fetch(`${apiURL}/api/fichas/${id}/items/${itemId}`, {
-                method: 'DELETE',
-                headers: { 'x-tenant-slug': tenantSlug || '' }
-              });
-              if (res.ok) {
-                fetchData();
-              } else {
-                const err = await res.json();
-                Alert.alert("Erro", err.error || "Erro ao excluir");
+              const item = items.find(i => i.id === itemId);
+              if (item) {
+                console.log(`[Sync] Restoring local stock for product ${item.product_id || item.productId} by ${item.quantity} (Delete Item)`);
+                await execute('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id || item.productId]);
               }
+              await execute('DELETE FROM ficha_items WHERE id = ?', [itemId]);
+              await SyncService.enqueue('DELETE_ITEM', `/api/fichas/${id}/items/${itemId}`, 'DELETE', {});
+              fetchData();
             } catch (err) {
-              Alert.alert("Erro", "Falha na conexão");
+              Alert.alert("Erro", "Falha ao excluir item localmente");
             }
           }
         }
@@ -175,19 +226,11 @@ export function useCardDetail(id: string) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const apiURL = process.env.EXPO_PUBLIC_API_URL;
-              const res = await fetch(`${apiURL}/api/payments/${paymentId}/cancel`, {
-                method: 'PATCH',
-                headers: { 'x-tenant-slug': tenantSlug || '' }
-              });
-              if (res.ok) {
-                fetchData();
-              } else {
-                const err = await res.json();
-                Alert.alert('Erro', err.error || 'Não foi possível cancelar o pagamento');
-              }
+              await execute('UPDATE payments SET cancelled = 1 WHERE id = ?', [paymentId]);
+              await SyncService.enqueue('CANCEL_PAYMENT', `/api/payments/${paymentId}/cancel`, 'PATCH', {});
+              fetchData();
             } catch (err) {
-              Alert.alert('Erro', 'Falha na conexão');
+              Alert.alert('Erro', 'Falha ao cancelar localmente');
             }
           }
         }
@@ -198,31 +241,29 @@ export function useCardDetail(id: string) {
   const handleSaveSettlement = async () => {
     try {
       setSaveLoading(true);
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      
-      const res = await fetch(`${apiURL}/api/fichas/${id}/settle`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-tenant-slug': tenantSlug || ''
-        },
-        body: JSON.stringify({ 
-          items,
-          discount: Number(card?.discount || 0),
-          commissionPercent: Number(card?.commissionPercent || 30)
-        })
-      });
+      const payload = { 
+        items,
+        discount: Number(card?.discount || 0),
+        commissionPercent: Number(card?.commissionPercent || 30)
+      };
 
-      if (res.ok) {
-        Alert.alert("Sucesso", "Acerto salvo com sucesso!");
-        fetchData(); // Refresh data
-      } else {
-        const errData = await res.json();
-        Alert.alert("Erro", errData.error || "Erro ao salvar acerto");
+      // 1. Local Update (Simplified: assuming background sync will handle full reconciliation)
+      await execute('UPDATE fichas SET status = ?, discount = ?, commission_percent = ? WHERE id = ?', 
+        ['acerto_pendente', payload.discount, payload.commissionPercent, id]);
+      
+      for (const item of items) {
+        await execute('UPDATE ficha_items SET quantity_sold = ?, quantity_returned = ? WHERE id = ?',
+          [item.quantitySold, item.quantityReturned, item.id]);
       }
+
+      // 2. Sync Queue
+      await SyncService.enqueue('SETTLE_FICHA', `/api/fichas/${id}/settle`, 'PATCH', payload);
+
+      Alert.alert("Sucesso", "Acerto salvo localmente!");
+      fetchData();
     } catch (err) {
       console.error('Save settlement failed:', err);
-      Alert.alert("Erro", "Falha de conexão");
+      Alert.alert("Erro", "Falha ao salvar");
     } finally {
       setSaveLoading(false);
     }
@@ -232,7 +273,6 @@ export function useCardDetail(id: string) {
     const amountCents = parseBRLToCents(payAmount);
     if (amountCents <= 0 || !selectedMethodId) return;
 
-    // RULE 1: For 'nova' status, limit payment to total SC
     if (card?.status === 'nova') {
        if (totals.totalPaid + amountCents > totals.totalSoldSC) {
           Alert.alert("Limite Excedido", `Cartões NOVOS só aceitam pagamento até o total de produtos sem comissão`);
@@ -242,31 +282,28 @@ export function useCardDetail(id: string) {
 
     try {
       setPaymentLoading(true);
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
+      const paymentId = SyncService.generateUUID();
       
-      const res = await fetch(`${apiURL}/api/fichas/${id}/payments`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-tenant-slug': tenantSlug || ''
-        },
-        body: JSON.stringify({ 
-          amount: amountCents,
-          methodId: selectedMethodId 
-        })
+      // 1. Local Update
+      await execute(
+        'INSERT INTO payments (id, ficha_id, method_id, amount, payment_date, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [paymentId, id, selectedMethodId, amountCents, new Date().toISOString(), new Date().toISOString()]
+      );
+
+      // 2. Sync Queue
+      await SyncService.enqueue('ADD_PAYMENT', `/api/fichas/${id}/payments`, 'POST', {
+        id: paymentId,
+        amount: amountCents,
+        methodId: selectedMethodId
       });
 
-      if (res.ok) {
-        Alert.alert("Sucesso", "Pagamento registrado!");
-        setPaymentModalVisible(false);
-        setPayAmount('');
-        fetchData(); // Refresh data
-      } else {
-        Alert.alert("Erro", "Falha ao lançar pagamento");
-      }
+      Alert.alert("Sucesso", "Pagamento registrado localmente!");
+      setPaymentModalVisible(false);
+      setPayAmount('');
+      fetchData();
     } catch (err) {
       console.error('Add payment failed:', err);
-      Alert.alert("Erro", "Falha de conexão");
+      Alert.alert("Erro", "Falha ao registrar");
     } finally {
       setPaymentLoading(false);
     }

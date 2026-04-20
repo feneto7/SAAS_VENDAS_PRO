@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
@@ -22,46 +22,59 @@ import { ItemSettlementModal } from '@/components/modals/ItemSettlementModal';
 import { AddPaymentModal } from '@/components/modals/AddPaymentModal';
 import { CardProductsTab } from '@/components/features/card/CardProductsTab';
 import { CardSettlementTab } from '@/components/features/card/CardSettlementTab';
+import { useThemeColor } from '@/components/Themed';
 
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams();
   const hook = useCardDetail(id as string);
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const warningColor = useThemeColor({}, 'warning');
+  const infoColor = useThemeColor({}, 'primary');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+
   if (hook.loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#A78BFA" />
-      </View>
+      <DefaultView style={[styles.container, styles.center, { backgroundColor }]}>
+        <ActivityIndicator size="large" color={primaryColor} />
+      </DefaultView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
       {/* HEADER */}
-      <View style={styles.header}>
-        <View style={styles.headerInfo}>
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.headerLabel}> FICHA</Text>
+      <DefaultView style={[styles.header, { backgroundColor: cardColor }]}>
+        <DefaultView style={styles.headerInfo}>
+          <DefaultView>
+            <DefaultView style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <DefaultText style={[styles.headerLabel, { color: placeholderColor }]}> FICHA</DefaultText>
               {hook.card?.status && (
-                <View style={[
+                <DefaultView style={[
                   styles.statusBadge, 
-                  hook.card.status === 'paga' && { backgroundColor: '#059669' },
-                  hook.card.status === 'pendente' && { backgroundColor: '#D97706' },
-                  hook.card.status === 'nova' && { backgroundColor: '#2563EB' }
+                  hook.card.status === 'paga' && { backgroundColor: successColor },
+                  hook.card.status === 'pendente' && { backgroundColor: warningColor },
+                  hook.card.status === 'nova' && { backgroundColor: infoColor }
                 ]}>
-                  <Text style={styles.statusBadgeText}>{hook.card.status.toUpperCase()}</Text>
-                </View>
+                  <DefaultText style={styles.statusBadgeText}>{hook.card.status.toUpperCase()}</DefaultText>
+                </DefaultView>
               )}
-            </View>
-            <Text style={styles.fichaCode}>{hook.card?.code}</Text>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.headerLabel}>CLIENTE</Text>
-            <Text style={styles.clientName}>{hook.card?.clientName || hook.card?.client?.name}</Text>
-          </View>
-        </View>
-      </View>
+            </DefaultView>
+            <DefaultText style={[styles.fichaCode, { color: textColor }]}>{hook.card?.code}</DefaultText>
+          </DefaultView>
+          <DefaultView style={{ alignItems: 'flex-end' }}>
+            <DefaultText style={[styles.headerLabel, { color: placeholderColor }]}>CLIENTE</DefaultText>
+            <DefaultText style={[styles.clientName, { color: primaryColor }]}>{hook.card?.clientName || hook.card?.client?.name}</DefaultText>
+          </DefaultView>
+        </DefaultView>
+      </DefaultView>
 
       <ScrollView style={styles.content}>
         {hook.activeTab === 'produtos' ? (
@@ -92,20 +105,20 @@ export default function CardDetailScreen() {
       </ScrollView>
 
       {/* TABS AT BOTTOM */}
-      <View style={styles.tabBar}>
+      <DefaultView style={[styles.tabBar, { backgroundColor: cardColor, borderTopColor: borderColor }]}>
         <TabButton 
           label="Produtos"
-          icon={<Package size={18} color={hook.activeTab === 'produtos' ? '#A78BFA' : '#6B7280'} />}
+          icon={<Package size={18} color={hook.activeTab === 'produtos' ? primaryColor : secondaryColor} />}
           active={hook.activeTab === 'produtos'}
           onPress={() => hook.setActiveTab('produtos')}
         />
         <TabButton 
           label="Fechamento"
-          icon={<Calculator size={18} color={hook.activeTab === 'fechamento' ? '#A78BFA' : '#6B7280'} />}
+          icon={<Calculator size={18} color={hook.activeTab === 'fechamento' ? primaryColor : secondaryColor} />}
           active={hook.activeTab === 'fechamento'}
           onPress={() => hook.setActiveTab('fechamento')}
         />
-      </View>
+      </DefaultView>
 
       {/* MODALS */}
       <ItemSettlementModal 
@@ -145,31 +158,32 @@ export default function CardDetailScreen() {
       {/* FAB for Add Product (Nova status only) */}
       {hook.card?.status === 'nova' && hook.activeTab === 'produtos' && (
         <TouchableOpacity 
-          style={styles.fab} 
+          style={[styles.fab, { backgroundColor: primaryColor, shadowColor: primaryColor }]} 
           activeOpacity={0.8}
           onPress={() => hook.setAddProductModalVisible(true)}
         >
-          <Plus size={32} color="#000" />
+          <Plus size={32} color="#fff" />
         </TouchableOpacity>
       )}
-    </View>
+    </DefaultView>
   );
 }
 
 function TabButton({ label, icon, active, onPress }: any) {
+  const primaryColor = useThemeColor({}, 'primary');
   return (
     <TouchableOpacity 
-      style={[styles.tab, active && styles.activeTab]}
+      style={[styles.tab, active && { borderTopColor: primaryColor, borderTopWidth: 2 }]}
       onPress={onPress}
     >
       {icon}
-      <Text style={[styles.tabLabel, active && styles.activeTabLabel]}>{label}</Text>
+      <DefaultText style={[styles.tabLabel, { color: active ? primaryColor : '#6B7280' }]}>{label}</DefaultText>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
   header: {
     paddingTop: 48,
@@ -177,26 +191,21 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0A0A0A',
   },
   headerInfo: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerLabel: { color: '#4B5563', fontSize: 10, fontWeight: '900', marginBottom: 2 },
-  fichaCode: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-  clientName: { color: '#A78BFA', fontSize: 16, fontWeight: '700' },
+  headerLabel: { fontSize: 10, fontWeight: '900', marginBottom: 2 },
+  fichaCode: { fontSize: 18, fontWeight: '900' },
+  clientName: { fontSize: 16, fontWeight: '700' },
   statusBadge: { marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   statusBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '900' },
   content: { flex: 1, padding: 24 },
   tabBar: { 
     flexDirection: 'row', 
-    backgroundColor: '#0F1117',
     borderTopWidth: 1, 
-    borderTopColor: '#1F2937',
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   tab: { flex: 1, paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  activeTab: { borderTopWidth: 2, borderTopColor: '#A78BFA' },
-  tabLabel: { color: '#6B7280', fontSize: 14, fontWeight: '700' },
-  activeTabLabel: { color: '#A78BFA' },
+  tabLabel: { fontSize: 14, fontWeight: '700' },
   fab: {
     position: 'absolute',
     right: 30,
@@ -204,10 +213,8 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,

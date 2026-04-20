@@ -155,12 +155,13 @@ export async function provisionTenant(
 
     // ─── Register in master ─────────────────────────────────────────────────
     console.log(`📝 Registering tenant in master database...`);
-    const [newTenant] = await masterDb.insert(tenants).values({
+    const insertedTenants = (await masterDb.insert(tenants).values({
       name, slug, dbName, ownerId,
       ownerName, ownerCpf,
       ...addressData, contact,
       status: "active",
-    }).returning();
+    }).returning()) as any[];
+    const newTenant = insertedTenants[0];
 
     // Link user to tenant in master database for login discovery
     await masterDb.update(masterUsers)
