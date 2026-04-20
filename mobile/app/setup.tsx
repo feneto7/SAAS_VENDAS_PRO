@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
@@ -14,6 +14,8 @@ import { useRouter } from 'expo-router';
 import { useTenant } from '../lib/TenantContext';
 import { Zap, Building2, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColor } from '../components/Themed';
+import { useColorScheme } from 'react-native';
 
 const SERVER_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -22,6 +24,16 @@ export default function SetupScreen() {
   const [loading, setLoading] = useState(false);
   const { setTenant } = useTenant();
   const router = useRouter();
+  const colorScheme = useColorScheme();
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
 
   const handleIdentify = async () => {
     if (!slug) {
@@ -31,7 +43,6 @@ export default function SetupScreen() {
 
     setLoading(true);
     try {
-      // Validate slug with backend
       const res = await fetch(`${SERVER_URL}/tenant/info`, {
         headers: { 'x-tenant-slug': slug.toLowerCase().trim() }
       });
@@ -54,42 +65,42 @@ export default function SetupScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor }]}
     >
-      <StatusBar style="light" />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       
       {/* Background Glow */}
-      <View style={styles.glow} />
+      <DefaultView style={[styles.glow, { backgroundColor: primaryColor + '20' }]} />
 
-      <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <View style={styles.logoBox}>
+      <DefaultView style={styles.content}>
+        <DefaultView style={styles.logoContainer}>
+          <DefaultView style={[styles.logoBox, { backgroundColor: primaryColor, shadowColor: primaryColor }]}>
             <Zap color="#fff" size={32} />
-          </View>
-        </View>
+          </DefaultView>
+        </DefaultView>
 
-        <Text style={styles.title}>Vendas PRO</Text>
-        <Text style={styles.subtitle}>Gestão e Logística</Text>
+        <DefaultText style={[styles.title, { color: textColor }]}>Vendas PRO</DefaultText>
+        <DefaultText style={[styles.subtitle, { color: secondaryColor }]}>Gestão e Logística</DefaultText>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Identifique sua Empresa</Text>
-          <Text style={styles.cardDesc}>Digite o código fornecido pelo seu administrador.</Text>
+        <DefaultView style={[styles.card, { backgroundColor: cardColor, borderColor }]}>
+          <DefaultText style={[styles.cardTitle, { color: textColor }]}>Identifique sua Empresa</DefaultText>
+          <DefaultText style={[styles.cardDesc, { color: secondaryColor }]}>Digite o código fornecido pelo seu administrador.</DefaultText>
 
-          <View style={styles.inputWrapper}>
-            <Building2 size={20} color="#666" style={styles.inputIcon} />
+          <DefaultView style={[styles.inputWrapper, { backgroundColor: surfaceColor, borderColor }]}>
+            <Building2 size={20} color={placeholderColor} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: textColor }]}
               placeholder="Código da Empresa"
-              placeholderTextColor="#666"
+              placeholderTextColor={placeholderColor}
               value={slug}
               onChangeText={setSlug}
               autoCapitalize="none"
               autoCorrect={false}
             />
-          </View>
+          </DefaultView>
 
           <TouchableOpacity 
-            style={[styles.button, loading && styles.buttonDisabled]} 
+            style={[styles.button, { backgroundColor: primaryColor }, loading && styles.buttonDisabled]} 
             onPress={handleIdentify}
             disabled={loading}
           >
@@ -97,15 +108,15 @@ export default function SetupScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.buttonText}>Continuar</Text>
+                <DefaultText style={styles.buttonText}>Continuar</DefaultText>
                 <ChevronRight size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </DefaultView>
 
-        <Text style={styles.footer}>© 2026 Vendas PRO. Todos os direitos reservados.</Text>
-      </View>
+        <DefaultText style={[styles.footer, { color: placeholderColor }]}>© 2026 Vendas PRO. Todos os direitos reservados.</DefaultText>
+      </DefaultView>
     </KeyboardAvoidingView>
   );
 }
@@ -113,7 +124,6 @@ export default function SetupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   glow: {
     position: 'absolute',
@@ -122,8 +132,6 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
-    filter: 'blur(80px)',
   },
   content: {
     flex: 1,
@@ -137,11 +145,9 @@ const styles = StyleSheet.create({
   logoBox: {
     width: 64,
     height: 64,
-    backgroundColor: '#7c3aed',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -150,42 +156,34 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#fff',
     letterSpacing: -1,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
     textTransform: 'uppercase',
     letterSpacing: 4,
     marginBottom: 48,
   },
   card: {
     width: '100%',
-    backgroundColor: '#0a0a0a', 
     borderRadius: 32,
     padding: 32,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   cardDesc: {
     fontSize: 14,
-    color: '#999',
     marginBottom: 32,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111', 
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     marginBottom: 24,
     paddingHorizontal: 16,
   },
@@ -195,12 +193,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 56,
-    color: '#fff',
     fontSize: 16,
   },
   button: {
     height: 56,
-    backgroundColor: '#7c3aed',
     borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -219,6 +215,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 40,
     fontSize: 12,
-    color: '#333',
   }
 });

@@ -1,79 +1,137 @@
 import React from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
+  ActivityIndicator,
   Platform
 } from 'react-native';
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useTenant } from '../../lib/TenantContext';
+import { SyncService } from '../../lib/sync/syncService';
 import { 
   Map, 
   Package, 
   ChevronRight
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColor } from '../../components/Themed';
 
 export default function DashboardScreen() {
+  const { tenantSlug, seller } = useTenant();
   const router = useRouter();
+  const [syncing, setSyncing] = React.useState(false);
+
+  useEffect(() => {
+    if (tenantSlug) {
+      // Background sync on start
+      SyncService.downloadMasterData(tenantSlug, seller?.id).catch(e => console.log('Initial sync failed'));
+      SyncService.processQueue().catch(e => console.log('Initial queue processing failed'));
+    }
+  }, [tenantSlug]);
+
+  const handleManualSync = async () => {
+    if (!tenantSlug || syncing) return;
+    try {
+      setSyncing(true);
+      await SyncService.downloadMasterData(tenantSlug, seller?.id);
+      await SyncService.processQueue();
+    } finally {
+      setSyncing(false);
+    }
+  };
+  
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const infoColor = useThemeColor({}, 'primary');
 
   return (
-    <View style={styles.container}>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Action Menu */}
-        <View style={styles.menuGrid}>
+        <DefaultView style={styles.menuGrid}>
           
           <TouchableOpacity 
-            style={styles.mainButton}
+            style={[styles.mainButton, { backgroundColor: cardColor, borderColor }]}
             onPress={() => router.push('/routes')}
           >
             <LinearGradient
-              colors={['rgba(124, 58, 237, 0.1)', 'rgba(124, 58, 237, 0.05)']}
+              colors={[primaryColor + '15', primaryColor + '05']}
               style={styles.buttonGradient}
             >
-              <View style={styles.buttonIconBox}>
-                <Map size={24} color="#7c3aed" />
-              </View>
-              <View style={styles.buttonContent}>
-                <Text style={styles.buttonTitle}>Minhas Rotas</Text>
-                <Text style={styles.buttonDesc}>Cidades e jornadas de hoje</Text>
-              </View>
-              <ChevronRight size={20} color="#333" />
+              <DefaultView style={[styles.buttonIconBox, { backgroundColor: primaryColor + '15' }]}>
+                <Map size={24} color={primaryColor} />
+              </DefaultView>
+              <DefaultView style={styles.buttonContent}>
+                <DefaultText style={[styles.buttonTitle, { color: textColor }]}>Minhas Rotas</DefaultText>
+                <DefaultText style={[styles.buttonDesc, { color: secondaryColor }]}>Cidades e jornadas de hoje</DefaultText>
+              </DefaultView>
+              <ChevronRight size={20} color={secondaryColor} />
+            </LinearGradient>
+          </TouchableOpacity>
+ 
+          <TouchableOpacity 
+            style={[styles.mainButton, { backgroundColor: cardColor, borderColor }]}
+            onPress={() => router.push('/products')}
+          >
+            <LinearGradient
+              colors={[successColor + '15', successColor + '05']}
+              style={styles.buttonGradient}
+            >
+              <DefaultView style={[styles.buttonIconBox, { backgroundColor: successColor + '15' }]}>
+                <Package size={24} color={successColor} />
+              </DefaultView>
+              <DefaultView style={styles.buttonContent}>
+                <DefaultText style={[styles.buttonTitle, { color: textColor }]}>Produtos</DefaultText>
+                <DefaultText style={[styles.buttonDesc, { color: secondaryColor }]}>Estoque e Catálogo</DefaultText>
+              </DefaultView>
+              <ChevronRight size={20} color={secondaryColor} />
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.mainButton}
-            onPress={() => router.push('/products')}
+            style={[styles.mainButton, { backgroundColor: cardColor, borderColor }]}
+            onPress={handleManualSync}
+            disabled={syncing}
           >
             <LinearGradient
-              colors={['rgba(16, 185, 129, 0.1)', 'rgba(16, 185, 129, 0.05)']}
+              colors={[infoColor + '15', infoColor + '05']}
               style={styles.buttonGradient}
             >
-              <View style={[styles.buttonIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                <Package size={24} color="#10b981" />
-              </View>
-              <View style={styles.buttonContent}>
-                <Text style={styles.buttonTitle}>Produtos</Text>
-                <Text style={styles.buttonDesc}>Estoque e Catálogo</Text>
-              </View>
-              <ChevronRight size={20} color="#333" />
+              <DefaultView style={[styles.buttonIconBox, { backgroundColor: infoColor + '15' }]}>
+                {syncing ? (
+                  <ActivityIndicator color={infoColor} />
+                ) : (
+                  <Package size={24} color={infoColor} /> // Or RefreshCw but Package looks consistent
+                )}
+              </DefaultView>
+              <DefaultView style={styles.buttonContent}>
+                <DefaultText style={[styles.buttonTitle, { color: textColor }]}>Sincronizar Agora</DefaultText>
+                <DefaultText style={[styles.buttonDesc, { color: secondaryColor }]}>Atualizar saldos e cobranças</DefaultText>
+              </DefaultView>
+              <ChevronRight size={20} color={secondaryColor} />
             </LinearGradient>
           </TouchableOpacity>
-        </View>
+        </DefaultView>
       </ScrollView>
-    </View>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   scrollContent: {
     padding: 24,
@@ -89,8 +147,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: '#111',
   },
   buttonGradient: {
     flex: 1,
@@ -102,7 +158,6 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -111,12 +166,10 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   buttonTitle: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
   buttonDesc: {
-    color: '#666',
     fontSize: 12,
   }
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
@@ -18,94 +18,106 @@ import {
 import { formatCurrencyBRL } from '@/lib/utils/money';
 import { ProductSelectionModal } from '@/components/ProductSelectionModal';
 import { useNewCard } from '@/hooks/useNewCard';
+import { useThemeColor } from '@/components/Themed';
 
 export default function NewCardScreen() {
   const { clientName } = useLocalSearchParams();
   const hook = useNewCard();
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const successColor = useThemeColor({}, 'success');
+  const errorColor = useThemeColor({}, 'error');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+
   return (
-    <View style={styles.container}>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
       {/* HEADER */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Nova Ficha</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>{clientName || 'Cliente'}</Text>
-        </View>
-        <View style={styles.cartBadge}>
-          <ShoppingCart size={20} color="#A78BFA" />
+      <DefaultView style={[styles.header, { borderBottomColor: borderColor }]}>
+        <DefaultView style={{ flex: 1 }}>
+          <DefaultText style={[styles.title, { color: textColor }]}>Nova Ficha</DefaultText>
+          <DefaultText style={[styles.subtitle, { color: primaryColor }]} numberOfLines={1}>{clientName || 'Cliente'}</DefaultText>
+        </DefaultView>
+        <DefaultView style={[styles.cartBadge, { backgroundColor: primaryColor + '10' }]}>
+          <ShoppingCart size={20} color={primaryColor} />
           {hook.items.length > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{hook.items.length}</Text>
-            </View>
+            <DefaultView style={[styles.badge, { backgroundColor: errorColor, borderColor: backgroundColor }]}>
+              <DefaultText style={styles.badgeText}>{hook.items.length}</DefaultText>
+            </DefaultView>
           )}
-        </View>
-      </View>
+        </DefaultView>
+      </DefaultView>
 
       {/* ITEMS LIST */}
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         {hook.items.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Package size={64} color="#1F2937" />
-            <Text style={styles.emptyText}>Nenhum produto adicionado</Text>
-            <Text style={styles.emptySubtext}>Clique no (+) para começar</Text>
-          </View>
+          <DefaultView style={styles.emptyContainer}>
+            <Package size={64} color={borderColor} />
+            <DefaultText style={[styles.emptyText, { color: textColor }]}>Nenhum produto adicionado</DefaultText>
+            <DefaultText style={[styles.emptySubtext, { color: secondaryColor }]}>Clique no (+) para começar</DefaultText>
+          </DefaultView>
         ) : (
           hook.items.map(item => (
-            <View key={item.id} style={styles.itemCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <View style={styles.itemMeta}>
-                  <Text style={[styles.itemType, { color: item.type === 'BRINDE' ? '#EF4444' : '#60A5FA' }]}>
+            <DefaultView key={item.id} style={[styles.itemCard, { backgroundColor: cardColor, borderColor }]}>
+              <DefaultView style={{ flex: 1 }}>
+                <DefaultText style={[styles.itemName, { color: textColor }]}>{item.name}</DefaultText>
+                <DefaultView style={styles.itemMeta}>
+                  <DefaultText style={[styles.itemType, { color: item.type === 'BRINDE' ? errorColor : primaryColor }]}>
                     {item.type}
-                  </Text>
-                  <Text style={styles.itemDetails}>
+                  </DefaultText>
+                  <DefaultText style={[styles.itemDetails, { color: secondaryColor }]}>
                     {formatCurrencyBRL(item.unitPrice)} x {item.quantity}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.itemRight}>
-                <Text style={styles.itemSubtotal}>{formatCurrencyBRL(item.subtotal)}</Text>
+                  </DefaultText>
+                </DefaultView>
+              </DefaultView>
+              <DefaultView style={styles.itemRight}>
+                <DefaultText style={[styles.itemSubtotal, { color: textColor }]}>{formatCurrencyBRL(item.subtotal)}</DefaultText>
                 <TouchableOpacity onPress={() => hook.removeItem(item.id)}>
-                  <Trash2 size={18} color="#4B5563" />
+                  <Trash2 size={18} color={secondaryColor} />
                 </TouchableOpacity>
-              </View>
-            </View>
+              </DefaultView>
+            </DefaultView>
           ))
         )}
       </ScrollView>
 
       {/* FOOTER */}
       {hook.items.length > 0 && (
-        <View style={styles.footer}>
-          <View style={styles.totalInfo}>
-            <Text style={styles.totalLabel}>TOTAL</Text>
-            <Text style={styles.totalValue}>{formatCurrencyBRL(hook.totalCard)}</Text>
-          </View>
+        <DefaultView style={[styles.footer, { backgroundColor: cardColor, borderTopColor: borderColor }]}>
+          <DefaultView style={styles.totalInfo}>
+            <DefaultText style={[styles.totalLabel, { color: secondaryColor }]}>TOTAL</DefaultText>
+            <DefaultText style={[styles.totalValue, { color: textColor }]}>{formatCurrencyBRL(hook.totalCard)}</DefaultText>
+          </DefaultView>
           <TouchableOpacity 
-            style={styles.finalizeBtn} 
+            style={[styles.finalizeBtn, { backgroundColor: primaryColor }]} 
             activeOpacity={0.8}
             onPress={hook.handleFinalize}
             disabled={hook.loading}
           >
             {hook.loading ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.finalizeText}>FINALIZAR</Text>
-                <CheckCircle2 size={20} color="#000" />
+                <DefaultText style={[styles.finalizeText, { color: '#fff' }]}>FINALIZAR</DefaultText>
+                <CheckCircle2 size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </DefaultView>
       )}
 
       {/* FAB */}
       <TouchableOpacity 
-        style={[styles.fab, { bottom: hook.items.length > 0 ? 115 : 30 }]} 
+        style={[styles.fab, { backgroundColor: primaryColor, shadowColor: primaryColor, bottom: hook.items.length > 0 ? 115 : 30 }]} 
         activeOpacity={0.8}
         onPress={() => hook.setModalVisible(true)}
       >
-        <Plus size={32} color="#000" />
+        <Plus size={32} color="#fff" />
       </TouchableOpacity>
 
       <ProductSelectionModal 
@@ -113,13 +125,14 @@ export default function NewCardScreen() {
         onClose={() => hook.setModalVisible(false)}
         onAdd={hook.addItem}
         sellerId={hook.seller?.id}
+        currentCartItems={hook.items}
       />
-    </View>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 24,
     paddingTop: 24,
@@ -128,15 +141,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
   },
-  title: { color: '#FFF', fontSize: 20, fontWeight: '900', textTransform: 'uppercase' },
-  subtitle: { color: '#A78BFA', fontSize: 14, fontWeight: '700', marginTop: 2 },
+  title: { fontSize: 20, fontWeight: '900', textTransform: 'uppercase' },
+  subtitle: { fontSize: 14, fontWeight: '700', marginTop: 2 },
   cartBadge: {
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: 'rgba(167, 139, 250, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -144,47 +155,41 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: '#EF4444',
     borderRadius: 10,
     minWidth: 18,
     height: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#000',
   },
   badgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
   list: { flex: 1 },
   listContent: { padding: 24, paddingBottom: 120 },
   emptyContainer: { alignItems: 'center', marginTop: 100, opacity: 0.3 },
-  emptyText: { color: '#FFF', fontSize: 16, fontWeight: '800', marginTop: 16 },
-  emptySubtext: { color: '#9CA3AF', fontSize: 14, marginTop: 4 },
+  emptyText: { fontSize: 16, fontWeight: '800', marginTop: 16 },
+  emptySubtext: { fontSize: 14, marginTop: 4 },
   itemCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
   },
-  itemName: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  itemName: { fontSize: 15, fontWeight: '700' },
   itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   itemType: { fontSize: 10, fontWeight: '900' },
-  itemDetails: { color: '#6B7280', fontSize: 12 },
+  itemDetails: { fontSize: 12 },
   itemRight: { alignItems: 'flex-end', gap: 8 },
-  itemSubtotal: { color: '#FFF', fontSize: 16, fontWeight: '900', fontStyle: 'italic' },
+  itemSubtotal: { fontSize: 16, fontWeight: '900', fontStyle: 'italic' },
   fab: {
     position: 'absolute',
     right: 30,
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -196,20 +201,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0A0A0A',
     padding: 24,
     paddingBottom: 32,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(167, 139, 250, 0.2)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   totalInfo: { flex: 1 },
-  totalLabel: { color: '#6B7280', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  totalValue: { color: '#FFF', fontSize: 22, fontWeight: '900', fontStyle: 'italic' },
+  totalLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  totalValue: { fontSize: 22, fontWeight: '900', fontStyle: 'italic' },
   finalizeBtn: {
-    backgroundColor: '#FFF',
     paddingHorizontal: 24,
     height: 52,
     borderRadius: 16,
@@ -217,5 +219,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  finalizeText: { color: '#000', fontSize: 14, fontWeight: '900' },
+  finalizeText: { fontSize: 14, fontWeight: '900' },
 });

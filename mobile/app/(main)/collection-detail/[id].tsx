@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   TouchableOpacity, 
   ActivityIndicator,
@@ -19,6 +19,9 @@ import {
   LogOut,
   Power
 } from 'lucide-react-native';
+import { useThemeColor } from '../../../components/Themed';
+import { queryAll, queryFirst } from '../../../lib/db';
+import { SyncService } from '../../../lib/sync/syncService';
 
 export default function CollectionDetailScreen() {
   const { id: tripId, routeName: initialRouteName, code: initialCode } = useLocalSearchParams();
@@ -29,17 +32,44 @@ export default function CollectionDetailScreen() {
   const [tripData, setTripData] = useState<any>(initialCode ? { code: initialCode } : null);
   const [routeName, setRouteName] = useState((initialRouteName as string) || 'Carregando...');
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const errorColor = useThemeColor({}, 'error');
+  const successColor = useThemeColor({}, 'success');
+  const warningColor = useThemeColor({}, 'warning');
+  const infoColor = useThemeColor({}, 'primary');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+
   useEffect(() => {
     fetchTripDetails();
   }, [tripId]);
 
   const fetchTripDetails = async () => {
     try {
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
+      setLoading(true);
       
-      // Fetch data in parallel
+      // 1. Local
+      const localTrip = await queryFirst<any>('SELECT * FROM cobrancas WHERE id = ?', [tripId]);
+      if (localTrip) {
+        setTripData({
+          ...localTrip,
+          routeId: localTrip.route_id
+        });
+        
+        const localRoute = await queryFirst<any>('SELECT name FROM routes WHERE id = ?', [localTrip.route_id]);
+        if (localRoute) setRouteName(localRoute.name);
+        
+        setLoading(false);
+      }
+
+      // 2. Remote fallback/refresh
+      const apiURL = process.env.EXPO_PUBLIC_API_URL;
       const [tripsRes, routesRes] = await Promise.all([
-        fetch(`${apiURL}/api/routes/${activeTrip?.routeId}/cobrancas`, {
+        fetch(`${apiURL}/api/routes/${localTrip?.route_id || activeTrip?.routeId}/cobrancas`, {
           headers: { 'x-tenant-slug': tenantSlug || '' }
         }),
         initialRouteName ? Promise.resolve(null) : fetch(`${apiURL}/api/routes?limit=100`, {
@@ -47,22 +77,21 @@ export default function CollectionDetailScreen() {
         })
       ]);
 
-      const data = await tripsRes.json();
-      const tripsArray = Array.isArray(data) ? data : [];
-      const current = tripsArray.find((t: any) => t.id === tripId);
+      if (tripsRes.ok) {
+        const data = await tripsRes.json();
+        const tripsArray = Array.isArray(data) ? data : [];
+        const current = tripsArray.find((t: any) => t.id === tripId);
+        if (current) setTripData(current);
+      }
       
-      if (current) {
-        setTripData(current);
-        
-        // If we don't have route name from params, update it from routes API
-        if (!initialRouteName && routesRes) {
-          const routeData = await routesRes.json();
-          const route = routeData.items?.find((r: any) => r.id === current.routeId);
-          if (route) setRouteName(route.name);
-        }
+      if (routesRes && routesRes.ok) {
+        const routeData = await routesRes.json();
+        const tripRouteId = localTrip?.route_id || activeTrip?.routeId;
+        const route = routeData.items?.find((r: any) => r.id === tripRouteId);
+        if (route) setRouteName(route.name);
       }
     } catch (err) {
-      console.error('Failed to fetch trip details:', err);
+      console.warn('[CollectionDetail] Failed to fetch trip details in background:', err);
     } finally {
       setLoading(false);
     }
@@ -122,35 +151,35 @@ export default function CollectionDetailScreen() {
     }
   };
 
-  const ActionButton = ({ icon: Icon, label, onPress, color = '#10b981' }: any) => (
+  const ActionButton = ({ icon: Icon, label, onPress, color = primaryColor }: any) => (
     <TouchableOpacity 
-      style={styles.actionButton} 
+      style={[styles.actionButton, { backgroundColor: cardColor, borderColor }]} 
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+      <DefaultView style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
         <Icon size={24} color={color} />
-      </View>
-      <Text style={styles.actionLabel}>{label}</Text>
+      </DefaultView>
+      <DefaultText style={[styles.actionLabel, { color: textColor }]}>{label}</DefaultText>
     </TouchableOpacity>
   );
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10b981" />
-      </View>
+      <DefaultView style={[styles.loadingContainer, { backgroundColor }]}>
+        <ActivityIndicator size="large" color={primaryColor} />
+      </DefaultView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.pageTitle}>
+        <DefaultText style={[styles.pageTitle, { color: textColor }]}>
           {routeName} - VIAGEM - {tripData?.code}
-        </Text>
+        </DefaultText>
 
-        <View style={styles.grid}>
+        <DefaultView style={styles.grid}>
           <ActionButton 
             icon={Users} 
             label="Clientes" 
@@ -164,13 +193,13 @@ export default function CollectionDetailScreen() {
           <ActionButton icon={Container} label="Depósitos" color="#8b5cf6" onPress={() => {}} />
           <ActionButton icon={Package} label="Produtos" color="#ec4899" onPress={() => {}} />
           <ActionButton icon={FileSearch} label="Relatórios" color="#10b981" onPress={() => {}} />
-        </View>
+        </DefaultView>
       </ScrollView>
 
       {/* FOOTER */}
-      <View style={styles.footer}>
+      <DefaultView style={[styles.footer, { backgroundColor }]}>
         <TouchableOpacity 
-          style={styles.endTripButton} 
+          style={[styles.endTripButton, { backgroundColor: errorColor, shadowColor: errorColor }]} 
           onPress={handleEndTrip}
           disabled={ending}
         >
@@ -179,19 +208,18 @@ export default function CollectionDetailScreen() {
           ) : (
             <>
               <Power size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.endTripText}>ENCERRAR VIAGEM</Text>
+              <DefaultText style={styles.endTripText}>ENCERRAR VIAGEM</DefaultText>
             </>
           )}
         </TouchableOpacity>
-      </View>
-    </View>
+      </DefaultView>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   scrollContent: {
     padding: 24,
@@ -199,14 +227,12 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#050505',
     justifyContent: 'center',
     alignItems: 'center',
   },
   pageTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 32,
     textTransform: 'uppercase',
@@ -219,13 +245,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     width: '48%',
-    backgroundColor: '#111',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
   iconContainer: {
     width: 56,
@@ -236,7 +260,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   actionLabel: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -248,16 +271,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
-    backgroundColor: '#050505',
   },
   endTripButton: {
-    backgroundColor: '#ef4444',
     height: 56,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

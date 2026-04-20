@@ -31,3 +31,12 @@ A visão detalhada consolida a saúde financeira do cliente:
 - **Valor Lançado**: Soma de todos os pagamentos vinculados às fichas do cliente.
 - **Saldo em Aberto**: Valor das fichas que ainda não foram migradas para `paga` (Novas + Pendentes).
 - **Restante Devedor**: `Total Vendido` - `Valor Lançado`. Representa o quanto o cliente ainda deve na vida útil.
+
+## 🔄 Sincronização Offline (Offline-First)
+
+Para garantir operação contínua em locais sem internet, o app utiliza um motor de sincronização automática:
+
+1. **Persistência Local**: Toda ação (criar cliente, ficha, pagamento) é gravada imediatamente no SQLite local. A interface atualiza instantaneamente.
+2. **Fila de Mutação**: O sistema enfileira o comando de API correspondente na `sync_queue`.
+3. **Sincronização em Background**: O `useSync` monitora a conexão. Ao detectar internet, o `SyncService` processa a fila sequencialmente (FIFO), garantindo a integridade dos dados no servidor.
+4. **Master Data Cache**: O app mantém uma cópia local de Clientes e Produtos, atualizada periodicamente para evitar dependência de rede durante a navegação.

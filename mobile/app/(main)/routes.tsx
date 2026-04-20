@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
+  View as DefaultView, 
+  Text as DefaultText, 
   StyleSheet, 
   TouchableOpacity, 
   FlatList, 
@@ -19,6 +19,9 @@ import {
   MapPin
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColor } from '../../components/Themed';
+import { queryAll } from '../../lib/db';
+import { SyncService } from '../../lib/sync/syncService';
 
 interface Route {
   id: string;
@@ -32,25 +35,50 @@ export default function RoutesScreen() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [search, setSearch] = useState('');
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const primaryColor = useThemeColor({}, 'primary');
+  const secondaryColor = useThemeColor({}, 'secondary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const placeholderColor = useThemeColor({}, 'placeholder');
+  const surfaceColor = useThemeColor({}, 'surface');
+
   useEffect(() => {
     fetchRoutes();
   }, []);
 
   const fetchRoutes = async () => {
     try {
-      const apiURL = process.env.EXPO_PUBLIC_API_URL;
-      const res = await fetch(`${apiURL}/api/routes?limit=100`, {
-        headers: { 'x-tenant-slug': tenantSlug || '' }
-      });
-      const data = await res.json();
+      setLoading(true);
       
-      let filtered = data.items || [];
+      // 1. Try local data first
+      const localData = await queryAll<any>('SELECT * FROM routes WHERE active = 1 ORDER BY name ASC');
+      let filtered = localData;
       const sRouteIds = seller?.routeIds;
       if (sRouteIds && Array.isArray(sRouteIds)) {
-        filtered = filtered.filter((r: Route) => sRouteIds.includes(r.id));
+        filtered = localData.filter((r: Route) => sRouteIds.includes(r.id));
       }
       
-      setRoutes(filtered);
+      if (filtered.length > 0) {
+        setRoutes(filtered);
+        setLoading(false);
+      }
+
+      // 2. Background sync
+      try {
+        const apiURL = process.env.EXPO_PUBLIC_API_URL;
+        await SyncService.downloadMasterData(tenantSlug || '', seller?.id);
+        
+        const updatedData = await queryAll<any>('SELECT * FROM routes WHERE active = 1 ORDER BY name ASC');
+        let updatedFiltered = updatedData;
+        if (sRouteIds && Array.isArray(sRouteIds)) {
+          updatedFiltered = updatedData.filter((r: Route) => sRouteIds.includes(r.id));
+        }
+        setRoutes(updatedFiltered);
+      } catch (err) {
+        console.log('[RoutesScreen] Background sync failed');
+      }
     } catch (err) {
       console.error('Failed to fetch routes:', err);
     } finally {
@@ -63,25 +91,25 @@ export default function RoutesScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.pageTitle}>Minhas Rotas</Text>
+    <DefaultView style={[styles.container, { backgroundColor }]}>
+      <DefaultView style={styles.content}>
+        <DefaultText style={[styles.pageTitle, { color: textColor }]}>Minhas Rotas</DefaultText>
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Search size={20} color="#666" style={styles.searchIcon} />
+        <DefaultView style={[styles.searchContainer, { backgroundColor: surfaceColor, borderColor }]}>
+          <Search size={20} color={placeholderColor} style={styles.searchIcon} />
           <TextInput
             placeholder="Buscar rota..."
-            placeholderTextColor="#666"
-            style={styles.searchInput}
+            placeholderTextColor={placeholderColor}
+            style={[styles.searchInput, { color: textColor }]}
             value={search}
             onChangeText={setSearch}
           />
-        </View>
+        </DefaultView>
 
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#7c3aed" />
-          </View>
+          <DefaultView style={styles.center}>
+            <ActivityIndicator size="large" color={primaryColor} />
+          </DefaultView>
         ) : (
           <FlatList
             data={filteredRoutes}
@@ -89,41 +117,40 @@ export default function RoutesScreen() {
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <TouchableOpacity 
-                style={styles.routeItem}
+                style={[styles.routeItem, { backgroundColor: cardColor, borderColor }]}
                 onPress={() => router.push({ pathname: '/(main)/collections/[id]', params: { id: item.id } })}
               >
                 <LinearGradient
-                  colors={['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.01)']}
+                  colors={[primaryColor + '08', primaryColor + '02']}
                   style={styles.routeGradient}
                 >
-                  <View style={styles.routeIconBox}>
-                    <MapPin size={22} color="#7c3aed" />
-                  </View>
-                  <View style={styles.routeInfo}>
-                    <Text style={styles.routeName}>{item.name}</Text>
-                    <Text style={styles.routeDesc}>Toque para ver clientes</Text>
-                  </View>
-                  <ArrowRight size={18} color="#444" />
+                  <DefaultView style={[styles.routeIconBox, { backgroundColor: primaryColor + '10' }]}>
+                    <MapPin size={22} color={primaryColor} />
+                  </DefaultView>
+                  <DefaultView style={styles.routeInfo}>
+                    <DefaultText style={[styles.routeName, { color: textColor }]}>{item.name}</DefaultText>
+                    <DefaultText style={[styles.routeDesc, { color: secondaryColor }]}>Toque para ver clientes</DefaultText>
+                  </DefaultView>
+                  <ArrowRight size={18} color={borderColor} />
                 </LinearGradient>
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Map size={48} color="#222" />
-                <Text style={styles.emptyText}>Nenhuma rota encontrada.</Text>
-              </View>
+              <DefaultView style={styles.emptyContainer}>
+                <Map size={48} color={borderColor} />
+                <DefaultText style={[styles.emptyText, { color: secondaryColor }]}>Nenhuma rota encontrada.</DefaultText>
+              </DefaultView>
             }
           />
         )}
-      </View>
-    </View>
+      </DefaultView>
+    </DefaultView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
   },
   content: {
     flex: 1,
@@ -132,7 +159,6 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 20,
     textTransform: 'uppercase',
@@ -141,18 +167,17 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 52,
     marginBottom: 20,
+    borderWidth: 1,
   },
   searchIcon: {
     marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    color: '#fff',
     fontSize: 16,
   },
   center: {
@@ -168,8 +193,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: '#111', 
   },
   routeGradient: {
     flexDirection: 'row',
@@ -180,7 +203,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -189,12 +211,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   routeName: {
-    color: '#fff',
     fontSize: 17,
     fontWeight: '700',
   },
   routeDesc: {
-    color: '#666',
     fontSize: 12,
     marginTop: 2,
   },
@@ -204,7 +224,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   emptyText: {
-    color: '#666',
     marginTop: 16,
     fontSize: 14,
     textAlign: 'center',
