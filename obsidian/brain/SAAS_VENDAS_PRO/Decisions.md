@@ -57,3 +57,11 @@
 ### Sincronização de Schema (Post-Clerk)
 
 - **Remoção de Constraints Antigas**: Sempre que migrar um sistema legado de auth, verifique as constraints `NOT NULL`. A coluna `owner_clerk_id` em `tenants` foi removida por causar falhas de inserção no novo fluxo.
+
+### Criação de Fichas Offline (Offline-First)
+
+- **Geração de Código Determinística**: Para permitir criação offline com IDs legíveis e amigáveis ao servidor, as fichas usam o padrão: `Vendedor(4) + DDMMHHmmSS + Rota(4)`. A inclusão de segundos (SS) é mandatória para evitar colisões em caso de cliques repetidos no mesmo minuto.
+- **Conformidade UUID**: Como o servidor usa Postgres com colunas `uuid`, o app mobile DEVE gerar UUIDs oficiais (`expo-crypto`) para as colunas de ID primário (`cards.id`, `card_items.id`). O uso de strings customizadas (ex: `local-timestamp`) causa erro 400 no servidor.
+- **Migração de IDs Automática**: Implementado mecanismo no `setupDatabase` que detecta e converte IDs curtos antigos para UUIDs válidos no startup, garantindo que fichas legadas paradas na fila de sincronismo possam ser processadas.
+- **Resiliência de Rede**: Timeouts de sincronismo aumentados para 30s para acomodar respostas lentas do servidor e processamentos pesados de transação no backend.
+- **Ambiente de Desenvolvimento (LAN)**: Para testes em dispositivos físicos sem túnel, o Metro deve rodar em `--lan` e o `EXPO_PUBLIC_API_URL` no `.env` deve obrigatoriamente bater com o IP da interface Wi-Fi do computador.

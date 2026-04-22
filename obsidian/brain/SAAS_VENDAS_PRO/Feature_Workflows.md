@@ -40,3 +40,13 @@ Para garantir operação contínua em locais sem internet, o app utiliza um moto
 2. **Fila de Mutação**: O sistema enfileira o comando de API correspondente na `sync_queue`.
 3. **Sincronização em Background**: O `useSync` monitora a conexão. Ao detectar internet, o `SyncService` processa a fila sequencialmente (FIFO), garantindo a integridade dos dados no servidor.
 4. **Master Data Cache**: O app mantém uma cópia local de Clientes e Produtos, atualizada periodicamente para evitar dependência de rede durante a navegação.
+
+## ➕ Fluxo de Criação de Ficha (Novo Pedido)
+
+O botão de ação flutuante (FAB) na aba de "Novas" de um cliente dispara o seguinte processo:
+
+1. **Geração de Identidade**: O app gera um `id` tipo UUID e um `code` sequencial baseado no vendedor, data e rota.
+2. **Registro Local**: A ficha é inserida na tabela `cards` do SQLite local com status `nova` e total `0`.
+3. **Enfileiramento**: Uma ação `POST_FICHA` é adicionada na `sync_queue`.
+4. **Adição de Itens**: Ao navegar para o detalhe da ficha e adicionar produtos, cada item gera uma ação `POST_ITEM` na fila, vinculada ao UUID da ficha.
+5. **Efeito Cascata**: O motor de sincronismo garante que a ficha seja criada no servidor ANTES dos itens (ordem cronológica da fila).

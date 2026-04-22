@@ -49,3 +49,25 @@
 - **Controle Total do Usuário**: O Agente NUNCA deve realizar `git commit` ou `git push` automaticamente sem o comando explícito do usuário.
 - **Mobile Theming (Light/Dark Mode)**: O aplicativo DEVE suportar troca automática entre temas claro e escuro. Use obrigatoriamente o hook `useThemeColor` em conjunto com a paleta semântica definida em `constants/Colors.ts`. NUNCA use cores hexadecimais (hardcoded) diretamente nos estilos dos componentes. Prefira sempre encapsular `View` e `Text` nos wrappers `DefaultView` e `DefaultText` (importados de `theme/Themed`) para garantir a consistência do sistema de temas em todo o app.
 - **Sincronização de Aprendizado**: Sempre que uma nova regra de negócio, decisão técnica ou padrão de código for estabelecido, o vault `brain` deve ser atualizado IMEDIATAMENTE antes de encerrar o turno.
+
+## 🔄 Estabilização e Manutenção
+
+- **Reconstrução de Ambiente**: Caso o ambiente mobile apresente erros de transformação ou Metro Bundler persistentes que não cedem após limpeza de cache (`--clear`), a recomendação é a reconstrução da pasta `src` em um novo projeto Expo limpo, preservando apenas a lógica de negócio e serviços validados. Este processo garante a eliminação de "lixo" de configuração de versões anteriores.
+
+## 🛠️ TypeScript & Tooling
+
+- **Fastify Request Typing**: Em rotas sem schema JSON definido, o `request.body` é inferido como `{}` por padrão. Para acessar propriedades dinâmicas com segurança e evitar erros TS (ex: `Property 'id' does not exist on type '{}'`), DEVE-SE capturar o body em uma variável castada para `any` ou realizar o cast na desestruturação: `const { id, ... } = request.body as any;`.
+- **Modern tsconfig.json**: O uso de `baseUrl` em `tsconfig.json` é desencorajado em versões modernas do TypeScript quando usado apenas para resolver caminhos relativos em `paths`. Prefira omiti-lo para evitar avisos de depreciação (TS5101).
+- **React Imports**: Prefira o uso de _named imports_ (ex: `import { useState } from 'react'`) em vez de misturar com o _default import_ (ex: `import React, { useState } from 'react'`), especialmente ao trabalhar com React 19 em ambientes Expo. Isso evita erros de resolução de membros exportados no TypeScript Language Server no IDE.
+
+## 📱 Nova Arquitetura Mobile (mobile2)
+
+- **Estrutura de Pastas**:
+  - `src/app`: Rotas (Expo Router).
+  - `src/components/ui`: Componentes atômicos.
+  - `src/components/features`: Lógica de negócio.
+  - `src/services`: API, SQLite, Sync.
+  - `src/stores`: Zustand (Estado persistente).
+  - `src/theme`: global.css, cores, tokens.
+- **Styling (NativeWind v4)**: Utilizar `metro.config.js` com `withNativeWind` e `src/theme/global.css` como entry point para tailwind.
+- **Offline-First**: Implementação obrigatória de `sync_queue` no SQLite para mutações realizadas offline. O `SyncEngine` deve processar a fila assim que a conectividade for detectada.
