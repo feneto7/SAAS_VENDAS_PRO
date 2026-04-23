@@ -44,7 +44,10 @@ export const useCardItemsData = (cardId: string | undefined) => {
     try {
       // 1. CARREGAMENTO LOCAL (SQlite)
       const localItems = await db.getAllAsync<CardItem>(
-        `SELECT * FROM card_items WHERE card_id = ?`,
+        `SELECT ci.*, p.name as product_name 
+         FROM card_items ci 
+         JOIN products p ON ci.product_id = p.id 
+         WHERE ci.card_id = ?`,
         [cardId]
       );
       setItems(localItems);
@@ -109,7 +112,7 @@ export const useCardItemsData = (cardId: string | undefined) => {
                 id: i.id,
                 card_id: cardId,
                 product_id: i.productId || i.product_id,
-                product_name: i.productName || i.product?.name || 'Produto',
+                product_name: i.productName || i.product?.name || i.name || 'Produto',
                 quantity: i.quantity || 0,
                 price: i.unitPrice || i.price || 0,
                 type: (i.commissionType || i.type) === 'com_comissao' ? 'CC' : ((i.commissionType || i.type) === 'sem_comissao' ? 'SC' : (i.commissionType || i.type || 'CC')),

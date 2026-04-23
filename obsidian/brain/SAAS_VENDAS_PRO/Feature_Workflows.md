@@ -50,3 +50,20 @@ O botão de ação flutuante (FAB) na aba de "Novas" de um cliente dispara o seg
 3. **Enfileiramento**: Uma ação `POST_FICHA` é adicionada na `sync_queue`.
 4. **Adição de Itens**: Ao navegar para o detalhe da ficha e adicionar produtos, cada item gera uma ação `POST_ITEM` na fila, vinculada ao UUID da ficha.
 5. **Efeito Cascata**: O motor de sincronismo garante que a ficha seja criada no servidor ANTES dos itens (ordem cronológica da fila).
+
+## 🐛 Correção: Product Name em Sincronização (23/04/2026)
+
+**Problema**: Ao adicionar um produto a uma ficha, o nome do produto aparecia corretamente no modal de seleção, mas após sincronizar com o servidor, o nome era substituído por "Produto" (padrão genérico).
+
+**Causa**: A normalização de itens vindos da API esperava `productName` ou `product.name`, mas o servidor retornava apenas `name` no objeto do item. Logo, caía no fallback 'Produto'.
+
+**Solução**: Atualizar `useCardItemsData.ts` para incluir `i.name` na cadeia de fallbacks:
+```typescript
+product_name: i.productName || i.product?.name || i.name || 'Produto'
+```
+
+**Arquivos afetados**:
+- `mobilev2/src/Screens/CardDetail/hooks/useCardItemsData.ts` - Normalização de itens da API
+- `mobilev2/src/Screens/CardDetail/hooks/useCardItemsData.ts` - Query local com JOIN de produtos (corrigida previamente)
+
+**Status**: ✅ Resolvido. Produtos agora exibem nomes corretos após sincronização.
