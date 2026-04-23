@@ -289,6 +289,10 @@ async function bootstrap() {
           city:         clients.city,
           state:        clients.state,
           zipCode:      clients.zipCode,
+          nickname:     clients.nickname,
+          referencePoint: clients.referencePoint,
+          phone2:       clients.phone2,
+          comment:      clients.comment,
           routeId:      clients.routeId,
           routeName:    routes.name,
           active:       clients.active,
@@ -297,7 +301,7 @@ async function bootstrap() {
         .from(clients)
         .leftJoin(routes, eq(clients.routeId, routes.id))
         .where(whereClause)
-        .orderBy(clients.code)
+        .orderBy(clients.name)
         .limit(limit)
         .offset(offset);
 
@@ -327,7 +331,11 @@ async function bootstrap() {
           city:         body.city || null,
           state:        body.state || null,
           zipCode:      body.zipCode || null,
-          routeId:      body.routeId || null,
+          nickname:     body.nickname || null,
+          referencePoint: body.referencePoint || body.reference_point || null,
+          phone2:       body.phone2 || null,
+          comment:      body.comment || null,
+          routeId:      body.routeId || body.route_id || null,
         }).returning()) as any[];
         return newClient;
       } catch (error) {
@@ -353,7 +361,11 @@ async function bootstrap() {
             city:         body.city,
             state:        body.state,
             zipCode:      body.zipCode,
-            routeId:      body.routeId,
+            nickname:     body.nickname,
+            referencePoint: body.referencePoint || body.reference_point,
+            phone2:       body.phone2,
+            comment:      body.comment,
+            routeId:      body.routeId || body.route_id,
           })
           .where(eq(clients.id, id))
           .returning()) as any[];
@@ -411,7 +423,8 @@ async function bootstrap() {
             id: user.id,
             name: user.name,
             role: user.role,
-            appCode: user.appCode
+            appCode: user.appCode,
+            code: user.code
           }
         };
       } catch (err) {
@@ -609,6 +622,98 @@ async function bootstrap() {
       }
     });
 
+    instance.patch('/ficha-items/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const { quantity, unitPrice, subtotal, commissionType } = request.body as any;
+
+      try {
+        const result = await db.transaction(async (tx: any) => {
+          // 1. Get old item data
+          const [oldItem] = await tx.select().from(fichaItems).where(eq(fichaItems.id, id)).limit(1);
+          if (!oldItem) throw new Error("Item não encontrado");
+
+          // 2. Update item
+          const [updated] = await tx.update(fichaItems)
+            .set({
+              quantity: quantity ?? oldItem.quantity,
+              unitPrice: unitPrice ?? oldItem.unitPrice,
+              subtotal: subtotal ?? oldItem.subtotal,
+              commissionType: commissionType ?? oldItem.commissionType,
+            })
+            .where(eq(fichaItems.id, id))
+            .returning();
+
+          // 3. Update Seller Stock
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, oldItem.fichaId)).limit(1);
+          if (ficha) {
+            const qtyDiff = oldItem.quantity - (quantity ?? oldItem.quantity);
+            if (qtyDiff !== 0) {
+              await tx.execute(sql`
+                UPDATE seller_inventory 
+                SET stock = stock + ${qtyDiff}, updated_at = now()
+                WHERE seller_id = ${ficha.sellerId} AND product_id = ${oldItem.productId}
+              `);
+            }
+          }
+
+          // 4. Update Ficha Total
+          const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, oldItem.fichaId));
+          const newTotal = allItems.reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
+          await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, oldItem.fichaId));
+
+          return updated;
+        });
+        return result;
+      } catch (err: any) {
+        console.error('Update item failed:', err);
+        return reply.status(400).send({ error: err.message || "Erro ao atualizar item" });
+      }
+    });
+
+    instance.post('/fichas/:id/items', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id: fichaId } = request.params as { id: string };
+      const { productId, quantity, unitPrice, subtotal, commissionType, id: itemId } = request.body as any;
+
+      try {
+        const result = await db.transaction(async (tx: any) => {
+          // 1. Get ficha
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, fichaId)).limit(1);
+          if (!ficha) throw new Error("Ficha não encontrada");
+
+          // 2. Insert item
+          const [newItem] = await tx.insert(fichaItems).values({
+            id: itemId || undefined, // Use provided ID from mobile for sync consistency
+            fichaId,
+            productId,
+            quantity,
+            unitPrice,
+            subtotal,
+            commissionType
+          }).returning();
+
+          // 3. Update Seller Stock
+          await tx.execute(sql`
+            UPDATE seller_inventory 
+            SET stock = stock - ${quantity}, updated_at = now()
+            WHERE seller_id = ${ficha.sellerId} AND product_id = ${productId}
+          `);
+
+          // 4. Update Ficha Total
+          const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, fichaId));
+          const newTotal = allItems.reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
+          await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, fichaId));
+
+          return newItem;
+        });
+        return result;
+      } catch (err: any) {
+        console.error('Add item failed:', err);
+        return reply.status(400).send({ error: err.message || "Erro ao adicionar item" });
+      }
+    });
+
     instance.patch('/fichas/:id/convert-order', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
@@ -769,6 +874,7 @@ async function bootstrap() {
       if (q.status) conditions.push(eq(fichas.status, q.status as any));
       if (q.routeId) conditions.push(eq(fichas.routeId, q.routeId));
       if (q.cliente) conditions.push(ilike(clients.name, `%${q.cliente}%`));
+      if (q.clientId) conditions.push(eq(fichas.clientId, q.clientId));
       if (q.sellerId) conditions.push(eq(fichas.sellerId, q.sellerId));
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -878,11 +984,11 @@ async function bootstrap() {
         const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
 
         const totalValueCC = items
-          .filter((i: any) => i.commissionType === 'CC')
+          .filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao')
           .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
         
         const totalValueSC = items
-          .filter((i: any) => i.commissionType !== 'CC')
+          .filter((i: any) => i.commissionType === 'SC' || i.commissionType === 'sem_comissao')
           .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
 
         const totalPaid = fichaPayments.filter((p: any) => !p.cancelled).reduce((acc: number, p: any) => acc + Number(p.amount), 0);
@@ -925,8 +1031,7 @@ async function bootstrap() {
 
     instance.post('/fichas', async (request, reply) => {
       const db = (request as any).tenantDb;
-      const body = request.body as any;
-      const { clientId, sellerId, routeId, items, total, notes, cobrancaId } = body;
+      const { id, clientId, sellerId, routeId, items, total, notes, cobrancaId, saleDate } = request.body as any;
 
       try {
         const result = await db.transaction(async (tx: any) => {
@@ -934,19 +1039,20 @@ async function bootstrap() {
           const [seller] = await tx.select({ code: users.code }).from(users).where(eq(users.id, sellerId)).limit(1);
           const [route]  = await tx.select({ code: routes.code }).from(routes).where(eq(routes.id, routeId)).limit(1);
           const now = new Date();
-          const datestr = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+          const datestr = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
           const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
-          const [newFicha] = (await tx.insert(fichas).values({
-            id: body.id || require('crypto').randomUUID(),
-            code: finalCode, 
-            clientId, 
-            sellerId, 
-            routeId, 
-            total, 
-            notes, 
-            status: 'nova', 
-            cobrancaId
-          }).returning()) as any[];
+          const [newFicha] = await tx.insert(fichas).values({
+            id: id || undefined,
+            clientId,
+            sellerId,
+            routeId,
+            cobrancaId: cobrancaId || null,
+            total: total || 0,
+            status: 'nova',
+            code: finalCode,
+            saleDate: saleDate ? new Date(saleDate) : now,
+            notes
+          }).returning();
 
           for (const item of items) {
             // Validate Stock
@@ -972,9 +1078,13 @@ async function bootstrap() {
           return newFicha;
         });
         return result;
-      } catch (error: any) {
-        console.error("Create ficha error:", error);
-        return reply.status(400).send({ error: error.message || "Erro ao criar ficha" });
+      } catch (err: any) {
+        console.error('[SERVER ERROR] /api/fichas POST:', err);
+        return reply.status(400).send({ 
+          error: "Failed to create ficha", 
+          detail: err.message,
+          stack: err.stack 
+        });
       }
     });
 
@@ -1045,47 +1155,6 @@ async function bootstrap() {
       } catch (err: any) {
         console.error('Settle ficha failed:', err);
         return reply.status(400).send({ error: err.message || "Erro ao salvar acerto" });
-      }
-    });
-
-    // Add item to existing ficha
-    instance.post('/fichas/:id/items', async (request, reply) => {
-      const db = (request as any).tenantDb;
-      const { id } = request.params as { id: string };
-      const { productId, quantity, unitPrice, commissionType } = request.body as any;
-
-      try {
-        await db.transaction(async (tx: any) => {
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id)).limit(1);
-          if (!ficha) throw new Error("Ficha não encontrada");
-          if (ficha.status !== 'nova') throw new Error("Apenas fichas com status NOVA podem receber novos produtos");
-
-          // Insert item
-          await tx.insert(fichaItems).values({
-            id: request.body?.id || require('crypto').randomUUID(),
-            fichaId: id,
-            productId,
-            quantity,
-            unitPrice,
-            subtotal: Number(quantity) * Number(unitPrice),
-            commissionType: commissionType || 'CC'
-          });
-
-          // Recalculate ficha total
-          const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
-          const newTotal = allItems.reduce((acc: number, curr: any) => acc + Number(curr.subtotal), 0);
-
-          await tx.update(fichas)
-            .set({ total: newTotal, updatedAt: new Date() })
-            .where(eq(fichas.id, id));
-
-          await updateFichaStatusIfPaid(tx, id);
-        });
-
-        return { message: "Produto adicionado com sucesso" };
-      } catch (err: any) {
-        console.error('Add item failed:', err);
-        return reply.status(400).send({ error: err.message || "Erro ao adicionar item" });
       }
     });
 
@@ -1161,8 +1230,8 @@ async function bootstrap() {
 
       const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
 
-      const totalValueCC = itemsList.filter((i: any) => i.commissionType === 'CC').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
-      const totalValueSC = itemsList.filter((i: any) => i.commissionType !== 'CC').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      const totalValueCC = itemsList.filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      const totalValueSC = itemsList.filter((i: any) => i.commissionType === 'SC' || i.commissionType === 'sem_comissao').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
       
       const commissionVal = totalValueCC * (Number(ficha.commissionPercent || 30) / 100);
       const netCC = totalValueCC - commissionVal;
@@ -1188,7 +1257,7 @@ async function bootstrap() {
     instance.post('/fichas/:id/payments', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      const { amount, methodId } = request.body as any;
+      const { id: bodyId, amount, methodId } = request.body as any;
 
       try {
         const newPayment = await db.transaction(async (tx: any) => {
@@ -1215,7 +1284,7 @@ async function bootstrap() {
           }
 
           const [inserted] = (await tx.insert(payments).values({
-            id: request.body?.id || require('crypto').randomUUID(),
+            id: bodyId || require('crypto').randomUUID(),
             fichaId: id,
             amount,
             methodId,
@@ -1704,7 +1773,25 @@ async function bootstrap() {
       const limit = Number(q.limit) || 10;
       const offset = (page - 1) * limit;
 
-      const [{ count }] = await db.select({ count: sql`count(*)` }).from(routes);
+      const conditions: any[] = [];
+      if (q.active !== undefined) {
+        conditions.push(eq(routes.active, q.active === 'true' || q.active === '1'));
+      }
+
+      if (q.sellerId) {
+        // Subquery ou InnerJoin para pegar rotas desse seller
+        const subquery = db
+          .select({ routeId: userRoutes.routeId })
+          .from(userRoutes)
+          .where(eq(userRoutes.userId, q.sellerId));
+        conditions.push(inArray(routes.id, subquery));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [{ count }] = await db.select({ count: sql`count(*)` })
+        .from(routes)
+        .where(whereClause);
 
       const items = await db.select({ 
         id: routes.id, 
@@ -1717,6 +1804,7 @@ async function bootstrap() {
       })
         .from(routes)
         .leftJoin(clients, eq(routes.id, clients.routeId))
+        .where(whereClause)
         .groupBy(routes.id)
         .orderBy(routes.code)
         .limit(limit)

@@ -7,7 +7,7 @@ export const tenants = pgTable("tenants", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(), // Will be used for DB name: companyname
   dbName: text("db_name").notNull().unique(), // Literal DB name in Postgres
-  ownerId: uuid("owner_id").references(() => masterUsers.id),
+  ownerId: uuid("owner_id").references((): any => masterUsers.id),
   ownerName: text("owner_name"),
   ownerCpf: text("owner_cpf"),
   street: text("street"),
@@ -27,7 +27,7 @@ export const masterUsers = pgTable("master_users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  tenantId: uuid("tenant_id").references(() => tenants.id),
+  tenantId: uuid("tenant_id").references((): any => tenants.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

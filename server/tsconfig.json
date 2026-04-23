@@ -10,10 +10,11 @@
     "module": "nodenext",
     "target": "esnext",
     "types": [],
-    "baseUrl": ".",
+
     "paths": {
       "drizzle-orm": ["./node_modules/drizzle-orm"],
-      "drizzle-orm/*": ["./node_modules/drizzle-orm/*"]
+      "drizzle-orm/*": ["./node_modules/drizzle-orm/*"],
+      "shared/*": ["../shared/*"]
     },
     // For nodejs:
     // "lib": ["esnext"],
