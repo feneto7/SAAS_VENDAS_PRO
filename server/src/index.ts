@@ -289,6 +289,10 @@ async function bootstrap() {
           city:         clients.city,
           state:        clients.state,
           zipCode:      clients.zipCode,
+          nickname:     clients.nickname,
+          referencePoint: clients.referencePoint,
+          phone2:       clients.phone2,
+          comment:      clients.comment,
           routeId:      clients.routeId,
           routeName:    routes.name,
           active:       clients.active,
@@ -327,7 +331,11 @@ async function bootstrap() {
           city:         body.city || null,
           state:        body.state || null,
           zipCode:      body.zipCode || null,
-          routeId:      body.routeId || null,
+          nickname:     body.nickname || null,
+          referencePoint: body.referencePoint || body.reference_point || null,
+          phone2:       body.phone2 || null,
+          comment:      body.comment || null,
+          routeId:      body.routeId || body.route_id || null,
         }).returning()) as any[];
         return newClient;
       } catch (error) {
@@ -353,7 +361,11 @@ async function bootstrap() {
             city:         body.city,
             state:        body.state,
             zipCode:      body.zipCode,
-            routeId:      body.routeId,
+            nickname:     body.nickname,
+            referencePoint: body.referencePoint || body.reference_point,
+            phone2:       body.phone2,
+            comment:      body.comment,
+            routeId:      body.routeId || body.route_id,
           })
           .where(eq(clients.id, id))
           .returning()) as any[];
@@ -972,11 +984,11 @@ async function bootstrap() {
         const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
 
         const totalValueCC = items
-          .filter((i: any) => i.commissionType === 'CC')
+          .filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao')
           .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
         
         const totalValueSC = items
-          .filter((i: any) => i.commissionType !== 'CC')
+          .filter((i: any) => i.commissionType === 'SC' || i.commissionType === 'sem_comissao')
           .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
 
         const totalPaid = fichaPayments.filter((p: any) => !p.cancelled).reduce((acc: number, p: any) => acc + Number(p.amount), 0);
@@ -1218,8 +1230,8 @@ async function bootstrap() {
 
       const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
 
-      const totalValueCC = itemsList.filter((i: any) => i.commissionType === 'CC').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
-      const totalValueSC = itemsList.filter((i: any) => i.commissionType !== 'CC').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      const totalValueCC = itemsList.filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      const totalValueSC = itemsList.filter((i: any) => i.commissionType === 'SC' || i.commissionType === 'sem_comissao').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
       
       const commissionVal = totalValueCC * (Number(ficha.commissionPercent || 30) / 100);
       const netCC = totalValueCC - commissionVal;

@@ -17,6 +17,14 @@ Sempre que um novo projeto for iniciado ou uma decisão complexa for tomada, est
 
 - [[Coding_Standards_Decisions]]: Padrões de código, UI/UX e decisões técnicas transversais.
 
+### 🧰 Arsenal de Skills
+
+- [[skills/production-code-audit]]: Auditoria profunda e transformação para nível corporativo.
+- [[skills/react-native-architecture]]: Padrões para mobile Expo/React Native.
+- [[skills/vibe-code-auditor]]: Detecção de falhas estruturais e fragilidades.
+- [[skills/nerdzao-elite]]: Workflow sênior de arquitetura, TDD e UX.
+- [[skills/drizzle-orm-expert]]: Especialista em ORM type-safe (Drizzle).
+
 ### 📂 Projetos Ativos
 
 - [[SAAS_VENDAS_PRO]]: Sistema de gestão de vendas SaaS Multi-tenant.

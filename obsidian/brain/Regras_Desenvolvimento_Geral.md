@@ -16,6 +16,8 @@
 - Projetos DEVEM ser **100% modularizados e componentizados**.
 - Pastas DEVEM ser **autodescritivas**, organizadas por funcionalidade.
 - Arquivos DEVEM ter nomes **autodescritivos** que expliquem claramente seu propósito (ex: `SelectTenant/SelectTenant.tsx`).
+- **Design Consistente**: Toda nova UI mobile deve obrigatoriamente seguir os [Padrões de UI Mobile](Mobile_UI_Patterns.md). Estilos hardcoded ou componentes "básicos" fora do padrão Elite não são aceitáveis.
+- **Componentização**: Reutilize sempre os componentes de `src/components/ui`.
 - **NUNCA** criar nomes de arquivos ou identificadores de código (funções, variáveis, componentes) em Português. O padrão do projeto é **INGLÊS** para toda a estrutura técnica.
 - Evitar arquivos gigantes; quebrar em sub-componentes e hooks sempre que a complexidade aumentar.
 

@@ -3,14 +3,15 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, 
   TextInput, ActivityIndicator, SafeAreaView, StatusBar 
 } from 'react-native';
-import { Colors, GlobalStyles, UI } from '../../theme/theme';
+import { Colors, GlobalStyles, UI, Shadows } from '../../theme/theme';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { 
   ChevronLeft, Search, User, MapPin, 
-  Phone, Hash, FilterX 
+  Phone, Hash, FilterX, Plus 
 } from 'lucide-react-native';
 import { db } from '../../services/database';
+import { AddCustomerModal } from './components/AddCustomerModal';
 
 const PAGE_SIZE = 20;
 
@@ -24,6 +25,7 @@ export const CustomersScreen = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
   // Carregar inicial ao montar ou trocar rota
   useEffect(() => {
@@ -121,7 +123,7 @@ export const CustomersScreen = () => {
             }
           }
         } catch (fetchErr) {
-           console.log('[DEBUG] Background sync failed (clients):', fetchErr);
+
            // Suprimimos o erro se já temos dados locais
            if (isInitial && localData.length === 0) {
              // Opcional: mostrar mensagem amigável de offline no futuro
@@ -129,7 +131,7 @@ export const CustomersScreen = () => {
         }
       }
     } catch (e) {
-      console.log('[DEBUG] Critical error in loadCustomers:', e);
+
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -252,6 +254,23 @@ export const CustomersScreen = () => {
           />
         )}
       </View>
+
+      {/* FAB - Adicionar Cliente */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        activeOpacity={0.8}
+        onPress={() => setIsAddModalVisible(true)}
+      >
+        <Plus color={Colors.white} size={32} />
+      </TouchableOpacity>
+
+      <AddCustomerModal 
+        visible={isAddModalVisible}
+        onClose={() => setIsAddModalVisible(false)}
+        routeId={routeId}
+        onSuccess={() => loadCustomers(1, true)}
+      />
+
       <View style={GlobalStyles.glowBottom} />
     </SafeAreaView>
   );
@@ -330,5 +349,20 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', marginTop: 80, opacity: 0.7 },
   emptyText: { color: Colors.white, fontSize: 16, fontWeight: '600', marginTop: 24 },
   emptySub: { color: Colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 20, paddingHorizontal: 40 },
-  footerLoader: { paddingVertical: 20, alignItems: 'center' }
+  footerLoader: { paddingVertical: 20, alignItems: 'center' },
+  
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.black,
+    elevation: 8,
+    zIndex: 99,
+  }
 });

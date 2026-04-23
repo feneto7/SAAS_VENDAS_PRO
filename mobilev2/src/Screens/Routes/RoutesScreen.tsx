@@ -60,15 +60,15 @@ export const RoutesScreen = () => {
               setRoutes(updatedLocalData);
             }
           } else {
-            console.log('[DEBUG] API error:', res.status);
+
           }
         } catch (fetchErr) {
           clearTimeout(timeoutId);
-          console.log('[DEBUG] Error fetching routes:', fetchErr);
+
         }
       }
     } catch (e) {
-      console.log('[DEBUG] Error in fetchRoutes:', e);
+
       setLoading(false);
     }
   };

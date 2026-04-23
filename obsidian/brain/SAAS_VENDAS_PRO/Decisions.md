@@ -63,5 +63,19 @@
 - **Geração de Código Determinística**: Para permitir criação offline com IDs legíveis e amigáveis ao servidor, as fichas usam o padrão: `Vendedor(4) + DDMMHHmmSS + Rota(4)`. A inclusão de segundos (SS) é mandatória para evitar colisões em caso de cliques repetidos no mesmo minuto.
 - **Conformidade UUID**: Como o servidor usa Postgres com colunas `uuid`, o app mobile DEVE gerar UUIDs oficiais (`expo-crypto`) para as colunas de ID primário (`cards.id`, `card_items.id`). O uso de strings customizadas (ex: `local-timestamp`) causa erro 400 no servidor.
 - **Migração de IDs Automática**: Implementado mecanismo no `setupDatabase` que detecta e converte IDs curtos antigos para UUIDs válidos no startup, garantindo que fichas legadas paradas na fila de sincronismo possam ser processadas.
-- **Resiliência de Rede**: Timeouts de sincronismo aumentados para 30s para acomodar respostas lentas do servidor e processamentos pesados de transação no backend.
-- **Ambiente de Desenvolvimento (LAN)**: Para testes em dispositivos físicos sem túnel, o Metro deve rodar em `--lan` e o `EXPO_PUBLIC_API_URL` no `.env` deve obrigatoriamente bater com o IP da interface Wi-Fi do computador.
+- [x] **Ambiente de Desenvolvimento (LAN)**: Para testes em dispositivos físicos sem túnel, o Metro deve rodar em `--lan` e o `EXPO_PUBLIC_API_URL` no `.env` deve obrigatoriamente bater com o IP da interface Wi-Fi do computador.
+- [x] **Resiliência de Rede**: Timeouts de sincronismo aumentados para 30s para acomodar respostas lentas do servidor e processamentos pesados de transação no backend.
+
+### Sistema de Acerto & Fechamento Financeiro (CardDetail)
+
+- **Interface em Abas**: A tela de detalhe da ficha foi dividida em `Produtos` (edição de itens) e `Fechamento` (resumo financeiro e pagamentos). O botão de adicionar (+) deve aparecer apenas na aba de produtos.
+- **Cálculo de Comissão Dinâmico**: A margem de comissão (default 30%) incide apenas sobre produtos "CC". O valor da comissão é subtraído do total CC para gerar o "Saldo CC a Pagar".
+- **Total a Pagar Consolidado**: Calculado como: `(Total Produtos CC - Valor Comissão) + Total Produtos SC`.
+- **Ajuste Bidirecional**: Implementado modal `EditCommissionModal` que permite ajustar a margem por porcentagem ou valor fixo em real, com conversão automática instantânea.
+- **Formatador de Moeda Nativo**: Todos os inputs financeiros DEVEM usar `applyCurrencyMask` e `parseBRLToCents` (@/utils/money.ts) para garantir formatação brasileira (R$) e precisão em centavos.
+
+### Regras de Validação de Pagamentos
+
+1. **Trava p/ Fichas NOVAS**: Enquanto o status da ficha for "nova", o vendedor só pode lançar pagamentos que somados não ultrapassem o **Total de Produtos SC** (Sem Comissão).
+2. **Limite de Saldo Restante**: Nenhum pagamento pode ser superior ao saldo "Restante" atual da ficha, prevenindo erros de caixa.
+3. **Persistência de Métodos**: Formas de pagamento (Dinheiro, Pix, etc.) são sincronizadas do servidor e cacheadas localmente na tabela `payment_methods` para uso offline.

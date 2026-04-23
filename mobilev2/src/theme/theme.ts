@@ -32,17 +32,52 @@ export const Colors = {
   // Icon Tokens
   iconPrimary: '#FFFFFF',
   
-  // Feedback
+  // feedback
   success: '#10B981',
   danger: '#EF4444',
   warning: '#F59E0B',
   info: '#3B82F6',
+
+  // Gray scale / Placeholders
+  gray100: '#F3F4F6',
+  gray200: '#E5E7EB',
+  gray300: '#D1D5DB',
+  gray400: '#9CA3AF',
+  gray500: '#6B7280',
+  gray600: '#4B5563',
+  gray700: '#374151',
+  gray800: '#1F2937',
+  gray900: '#111827',
 
   // Interactive / Form
   inputBg: 'rgba(255,255,255,0.06)',
   inputBorder: 'rgba(108, 71, 255, 0.25)',
   iconBg: 'rgba(108, 71, 255, 0.15)',
   iconBorder: 'rgba(108, 71, 255, 0.3)',
+};
+
+export const Shadows = {
+  black: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  primary: {
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  soft: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 2,
+  }
 };
 
 export const GlobalStyles = StyleSheet.create({

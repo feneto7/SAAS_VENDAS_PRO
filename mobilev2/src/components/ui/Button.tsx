@@ -1,14 +1,16 @@
 import React from 'react';
 import { Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { Colors } from '../../theme/theme';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
   loading?: boolean;
   variant?: 'primary' | 'secondary' | 'outline';
+  style?: any;
 }
 
-export const Button = ({ title, onPress, loading, variant = 'primary' }: ButtonProps) => {
+export const Button = ({ title, onPress, loading, variant = 'primary', style }: ButtonProps) => {
   const buttonStyle = variant === 'outline' ? styles.buttonOutline : styles.buttonPrimary;
   const textStyle = variant === 'outline' ? styles.textOutline : styles.textPrimary;
 
@@ -16,11 +18,11 @@ export const Button = ({ title, onPress, loading, variant = 'primary' }: ButtonP
     <TouchableOpacity
       onPress={onPress}
       disabled={loading}
-      style={[styles.base, buttonStyle]}
+      style={[styles.base, buttonStyle, style]}
       activeOpacity={0.75}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? '#007AFF' : '#FFF'} />
+        <ActivityIndicator color={variant === 'outline' ? Colors.primary : Colors.white} />
       ) : (
         <Text style={[styles.text, textStyle]}>{title}</Text>
       )}
@@ -37,7 +39,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   buttonPrimary: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.buttonBg,
   },
   buttonOutline: {
     backgroundColor: 'transparent',
@@ -47,9 +49,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   textPrimary: {
-    color: '#FFFFFF',
+    color: Colors.white,
   },
   textOutline: {
-    color: '#007AFF',
+    color: Colors.primary,
   },
 });

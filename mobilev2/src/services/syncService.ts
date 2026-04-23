@@ -27,7 +27,7 @@ export const SyncService = {
         [id, action, tableName, dataStr, 'pending']
       );
       // Attempt background sync but don't await it
-      this.processQueue().catch(e => console.log('[SYNC] Background error:', e));
+      this.processQueue().catch(() => {});
     } catch (err: any) {
       console.error('[SERVER ERROR] /api/fichas POST:', err);
       return { 
@@ -45,15 +45,15 @@ export const SyncService = {
     if (isInitialized) return;
     isInitialized = true;
 
-    console.log('[SYNC] Service initialized');
+
 
     // Retry every 30 seconds
     setInterval(() => {
-      this.processQueue().catch(e => console.log('[SYNC] Periodic error:', e));
+      this.processQueue().catch(() => {});
     }, 30000);
     
     // Initial process
-    this.processQueue().catch(e => console.log('[SYNC] Initial error:', e));
+    this.processQueue().catch(() => {});
   },
 
   /**
@@ -126,7 +126,7 @@ export const SyncService = {
                   quantity: data.quantity,
                   unitPrice: data.price,
                   subtotal: data.subtotal,
-                  commissionType: data.type === 'CC' ? 'com_comissao' : (data.type === 'SC' ? 'sem_comissao' : 'brinde')
+                  commissionType: data.type || 'CC' // Send 'CC', 'SC' or 'brinde' directly
                 }),
                 signal: controller.signal
               });
@@ -139,7 +139,7 @@ export const SyncService = {
             const timeoutId = setTimeout(() => controller.abort(), 15000);
 
             try {
-              console.log('[SYNC] Trying POST_FICHA:', data.id);
+
               const res = await fetch(`${API_URL}/api/fichas`, {
                 method: 'POST',
                 headers: {
@@ -167,7 +167,86 @@ export const SyncService = {
                    const errJson = JSON.parse(errText);
                    errDetail = JSON.stringify(errJson, null, 2);
                 } catch(e) {}
-                console.log(`[SYNC] POST_FICHA failed: ${res.status}`, errDetail);
+                console.error(`[SYNC] POST_FICHA failed: ${res.status}`, errDetail);
+              }
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          } else if (item.action === 'POST_PAYMENT') {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            try {
+              const res = await fetch(`${API_URL}/api/fichas/${data.card_id}/payments`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'x-tenant-slug': tenantSlug
+                },
+                body: JSON.stringify({
+                  id: data.id,
+                  methodId: data.method_id,
+                  amount: data.amount,
+                }),
+                signal: controller.signal
+              });
+              success = res.ok;
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          } else if (item.action === 'PATCH_FICHA_SETTLE' && item.table_name === 'cards') {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            try {
+              const res = await fetch(`${API_URL}/api/fichas/${data.id}/settle`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'x-tenant-slug': tenantSlug
+                },
+                body: JSON.stringify({
+                   commissionPercent: data.commissionPercent,
+                   discount: data.discount,
+                   items: data.items || []
+                }),
+                signal: controller.signal
+              });
+              success = res.ok;
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          }
+
+          if (item.action === 'POST_CLIENT') {
+            const data = JSON.parse(item.data);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            try {
+              const res = await fetch(`${API_URL}/api/clients`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'x-tenant-slug': tenantSlug
+                },
+                body: JSON.stringify(data),
+                signal: controller.signal
+              });
+
+              if (res.ok) {
+                success = true;
+              } else {
+                let errDetail = '';
+                try {
+                   const errText = await res.text();
+                   const errJson = JSON.parse(errText);
+                   errDetail = JSON.stringify(errJson, null, 2);
+                } catch(e) {}
+                console.error(`[SYNC] POST_CLIENT failed: ${res.status}`, errDetail);
               }
             } finally {
               clearTimeout(timeoutId);
@@ -176,7 +255,7 @@ export const SyncService = {
 
           if (success) {
             await db.runSync(`DELETE FROM sync_queue WHERE id = ?`, [item.id]);
-            console.log(`[SYNC] Item ${item.id} synced successfully`);
+
           } else {
             await db.runSync(`UPDATE sync_queue SET status = 'failed' WHERE id = ?`, [item.id]);
           }

@@ -89,11 +89,27 @@ export const setupDatabase = async () => {
         city TEXT,
         state TEXT,
         zip_code TEXT,
+        nickname TEXT,
+        reference_point TEXT,
+        phone2 TEXT,
+        comment TEXT,
         route_id TEXT,
         active INTEGER DEFAULT 1,
         FOREIGN KEY(route_id) REFERENCES routes(id)
       );
     `);
+
+    // Migração de colunas faltantes em clients
+    try {
+      const info = db.getAllSync<{name: string, type: string}>(`PRAGMA table_info(clients);`);
+      const columns = info.map(c => c.name);
+      if (!columns.includes('nickname')) db.execSync(`ALTER TABLE clients ADD COLUMN nickname TEXT;`);
+      if (!columns.includes('reference_point')) db.execSync(`ALTER TABLE clients ADD COLUMN reference_point TEXT;`);
+      if (!columns.includes('phone2')) db.execSync(`ALTER TABLE clients ADD COLUMN phone2 TEXT;`);
+      if (!columns.includes('comment')) db.execSync(`ALTER TABLE clients ADD COLUMN comment TEXT;`);
+    } catch (e) {
+      console.log('Clients table migration check:', e);
+    }
 
     // Cards (inclui Pedidos via status 'pedido')
     // Nota: Mudamos code para TEXT para preservar zeros à esquerda.
@@ -103,6 +119,8 @@ export const setupDatabase = async () => {
         code TEXT, 
         status TEXT NOT NULL,
         total REAL DEFAULT 0,
+        commission_percent REAL DEFAULT 30,
+        discount REAL DEFAULT 0,
         sale_date TEXT,
         client_id TEXT,
         seller_id TEXT,
@@ -128,6 +146,16 @@ export const setupDatabase = async () => {
       );
     `);
 
+    // Migração de colunas faltantes em cards
+    try {
+      const info = db.getAllSync<{name: string, type: string}>(`PRAGMA table_info(cards);`);
+      const columns = info.map(c => c.name);
+      if (!columns.includes('commission_percent')) db.execSync(`ALTER TABLE cards ADD COLUMN commission_percent REAL DEFAULT 30;`);
+      if (!columns.includes('discount')) db.execSync(`ALTER TABLE cards ADD COLUMN discount REAL DEFAULT 0;`);
+    } catch (e) {
+      console.log('Cards table migration check:', e);
+    }
+
     // Produtos (Cache local para preços padrão)
     db.execSync(`
       CREATE TABLE IF NOT EXISTS products (
@@ -148,6 +176,28 @@ export const setupDatabase = async () => {
         product_id TEXT NOT NULL,
         stock INTEGER DEFAULT 0,
         UNIQUE(seller_id, product_id)
+      );
+    `);
+
+    // Formas de Pagamento (Sync do Servidor)
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS payment_methods (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        active INTEGER DEFAULT 1
+      );
+    `);
+
+    // Pagamentos da Ficha
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS card_payments (
+        id TEXT PRIMARY KEY,
+        card_id TEXT NOT NULL,
+        method_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        payment_date TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(card_id) REFERENCES cards(id),
+        FOREIGN KEY(method_id) REFERENCES payment_methods(id)
       );
     `);
 
@@ -185,7 +235,7 @@ export const setupDatabase = async () => {
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_products_name ON products (name);`);
     db.execSync(`CREATE INDEX IF NOT EXISTS idx_sync_queue_status_date ON sync_queue (status, created_at);`);
 
-    console.log('Database tables initialized successfully');
+
     
     // Migração de IDs Legados (Não-UUID -> UUID)
     await fixLegacyIds();
@@ -209,7 +259,7 @@ async function fixLegacyIds() {
 
     if (legacyCards.length === 0) return;
 
-    console.log(`[MIGRATION] Found ${legacyCards.length} legacy cards to fix`);
+
 
     for (const card of legacyCards) {
       const oldId = card.id;
@@ -251,7 +301,7 @@ async function fixLegacyIds() {
         await db.runAsync('UPDATE cards SET id = ? WHERE id = ?', [newId, oldId]);
       });
 
-      console.log(`[MIGRATION] Card ${oldId} migrated to ${newId}`);
+
     }
   } catch (err) {
     console.error('[MIGRATION] Error fixing legacy IDs:', err);
