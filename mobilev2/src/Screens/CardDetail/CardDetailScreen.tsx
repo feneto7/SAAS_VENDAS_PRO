@@ -12,6 +12,7 @@ import { Colors, GlobalStyles, Shadows } from '../../theme/theme';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useCardItemsData, CardItem } from './hooks/useCardItemsData';
 import { formatCentsToBRL } from '../../utils/money';
+import { formatStatus } from '../../utils/status';
 
 export const CardDetailScreen = () => {
   const { goBack, currentParams } = useNavigationStore();
@@ -93,7 +94,7 @@ export const CardDetailScreen = () => {
           <View style={styles.headerTitleBox}>
             <Text style={styles.title}>Ficha #{displayCode || '---'}</Text>
             <View style={[styles.statusBadge, { backgroundColor: displayStatus === 'nova' ? Colors.info : Colors.cardBg }]}>
-              <Text style={styles.statusText}>{(displayStatus || '').toUpperCase()}</Text>
+              <Text style={styles.statusText}>{formatStatus(displayStatus)}</Text>
             </View>
           </View>
           <View style={{ width: 44 }} />

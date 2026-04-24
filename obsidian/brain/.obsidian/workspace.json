@@ -11,10 +11,14 @@
             "id": "17503c707f008e1a",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Visualização em gráfico"
+              "type": "markdown",
+              "state": {
+                "file": "PADRAO.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "PADRAO"
             }
           }
         ]
@@ -178,6 +182,14 @@
   },
   "active": "17503c707f008e1a",
   "lastOpenFiles": [
+    "Workspace/SAAS_VENDAS_PRO/Feature_Workflows.md",
+    "Workspace/SAAS_VENDAS_PRO/Decisions.md",
+    "Workspace/SAAS_VENDAS_PRO/Overview.md",
+    "Workspace/SAAS_VENDAS_PRO/UI_Patterns.md",
+    "Workspace/SAAS_VENDAS_PRO/Database_Schema.md",
+    "Workspace/SAAS_VENDAS_PRO",
+    "Workspace",
+    "PADRAO.md",
     "SAAS_VENDAS_PRO/Patterns/Mobile_Patterns.md",
     "SAAS_VENDAS_PRO/Patterns",
     "Naming Conventions.md",

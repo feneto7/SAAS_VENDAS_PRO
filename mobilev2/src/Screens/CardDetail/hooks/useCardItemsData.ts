@@ -143,24 +143,56 @@ export const useCardItemsData = (cardId: string | undefined) => {
                   ]
                 );
                 
-                // Sincronizar Itens
-                await db.runAsync(`DELETE FROM card_items WHERE card_id = ?`, [cardId]);
-                for (const i of normalizedItems) {
-                  await db.runAsync(
-                    `INSERT INTO card_items (id, card_id, product_id, product_name, quantity, price, type, subtotal)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [i.id, i.card_id, i.product_id, i.product_name, i.quantity, i.price, i.type, i.subtotal]
-                  );
-                }
+                // Sincronizar Itens - APENAS SE NÃO HOUVER PENDÊNCIAS NA FILA PARA ESTA FICHA
+                // Isso evita que um produto recém adicionado (offline) seja apagado pelo sync 
+                // antes mesmo de ser enviado ao servidor.
+                const pendingSync = await db.getAllAsync<any>(
+                  `SELECT id, data FROM sync_queue WHERE table_name = 'card_items' AND action IN ('POST_ITEM', 'PATCH_ITEM', 'DELETE_ITEM')`
+                );
+                
+                const hasPendingThisCard = pendingSync.some(s => {
+                  try {
+                    const d = JSON.parse(s.data);
+                    return d.card_id === cardId || d.cardId === cardId || (d.payload && d.payload.cardId === cardId);
+                  } catch (e) { return false; }
+                });
 
-                // Sincronizar Pagamentos
-                await db.runAsync(`DELETE FROM card_payments WHERE card_id = ?`, [cardId]);
-                for (const p of serverPayments) {
-                  await db.runAsync(
-                    `INSERT INTO card_payments (id, card_id, method_id, amount, payment_date)
-                     VALUES (?, ?, ?, ?, ?)`,
-                    [p.id, p.card_id, p.method_id, p.amount, p.payment_date]
-                  );
+                if (!hasPendingThisCard) {
+                  await db.runAsync(`DELETE FROM card_items WHERE card_id = ?`, [cardId]);
+                  for (const i of normalizedItems) {
+                    await db.runAsync(
+                      `INSERT INTO card_items (id, card_id, product_id, product_name, quantity, price, type, subtotal)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                      [i.id, i.card_id, i.product_id, i.product_name, i.quantity, i.price, i.type, i.subtotal]
+                    );
+                  }
+                  setItems(normalizedItems);
+                } else {
+                  console.log(`[SYNC] Pula overwrite de itens pois existem alterações pendentes para card ${cardId}`);
+                }
+                // Sincronizar Pagamentos - MESMA LÓGICA DE PROTEÇÃO
+                const pendingPayments = await db.getAllAsync<any>(
+                  `SELECT id, data FROM sync_queue WHERE action = 'POST_PAYMENT'`
+                );
+                
+                const hasPendingPaymentsThisCard = pendingPayments.some(s => {
+                  try {
+                    const d = JSON.parse(s.data);
+                    return d.card_id === cardId || d.cardId === cardId;
+                  } catch (e) { return false; }
+                });
+
+                if (!hasPendingPaymentsThisCard) {
+                  await db.runAsync(`DELETE FROM card_payments WHERE card_id = ?`, [cardId]);
+                  for (const p of serverPayments) {
+                    await db.runAsync(
+                      `INSERT INTO card_payments (id, card_id, method_id, amount, payment_date)
+                       VALUES (?, ?, ?, ?, ?)`,
+                      [p.id, p.card_id, p.method_id, p.amount, p.payment_date]
+                    );
+                  }
+                } else {
+                  console.log(`[SYNC] Pula overwrite de pagamentos pois existem alterações pendentes para card ${cardId}`);
                 }
 
                 // Sincronizar Métodos se recebemos 200
