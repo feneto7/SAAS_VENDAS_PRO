@@ -47,6 +47,7 @@ export const CustomerDetailScreen = () => {
     <SafeAreaView style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
       <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
 
       <View style={styles.content}>
         {/* Header */}
@@ -86,7 +87,6 @@ export const CustomerDetailScreen = () => {
 
         {renderActiveTab()}
       </View>
-      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
     </SafeAreaView>
   );
 };

@@ -102,6 +102,7 @@ export const GlobalStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 80,
+    zIndex: -1,
   },
   glowBottom: {
     position: 'absolute',
@@ -112,6 +113,7 @@ export const GlobalStyles = StyleSheet.create({
     borderRadius: 100,
     backgroundColor: Colors.secondary,
     opacity: 0.1,
+    zIndex: -1,
   },
 });
 

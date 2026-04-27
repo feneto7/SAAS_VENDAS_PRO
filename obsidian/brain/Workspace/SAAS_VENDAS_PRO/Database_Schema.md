@@ -175,6 +175,8 @@ Tabelas geradas dentro de cada banco de tenant específico para isolamento total
 - `linkToken`: Token único para compartilhamento e visualização externa.
 - `discount`: Valor de desconto monetário aplicado na ficha.
 - `commissionPercent`: Percentual de comissão definido para produtos "CC" nesta ficha.
+- `itemsLocked`: Booleano indicando se a conferência de produtos foi encerrada.
+- `lastManualUpdate`: Timestamp da última alteração local (usado para Guard de Sync).
 
 #### `ficha_items` (Itens da Venda)
 
@@ -184,6 +186,7 @@ Tabelas geradas dentro de cada banco de tenant específico para isolamento total
 - `quantity`: Quantidade de produtos deixada originalmente com o cliente.
 - `quantitySold`: Quantidade confirmada como vendida no momento do acerto.
 - `quantityReturned`: Quantidade de itens devolvidos ao vendedor.
+- `informed`: Booleano indicando se o item já foi conferido no acerto.
 - `unitPrice`: Preço unitário praticado para este item na venda.
 - `subtotal`: Valor total calculado do item (em centavos).
 - `commissionType`: Tipo de comissão do item [CC (Com Comissão), SC (Sem Comissão)].

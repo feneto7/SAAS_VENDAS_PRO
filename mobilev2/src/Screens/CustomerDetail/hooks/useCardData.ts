@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { db } from '../../../services/database';
+import { CONFIG } from '../../../services/config';
 
 export interface Card {
   id: string;
@@ -38,7 +39,7 @@ export const useCardData = (clientId: string | undefined, status: string) => {
       // 2. SINCRONISMO BACKGROUND
       const token = useAuthStore.getState().token;
       const tenantSlug = useAuthStore.getState().tenant?.slug;
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
+      const API_URL = CONFIG.API_URL;
 
       if (token && tenantSlug && clientId) {
         (async () => {
@@ -70,23 +71,42 @@ export const useCardData = (clientId: string | undefined, status: string) => {
                 created_at: f.createdAt || f.created_at || new Date().toISOString()
               }));
 
-              // Salvar localmente
-              await db.withTransactionAsync(async () => {
-                for (const f of normalizedItems) {
-                  await db.runAsync(
-                    `INSERT INTO cards (id, code, status, total, sale_date, client_id, seller_id, route_id, charge_id, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                     ON CONFLICT(id) DO UPDATE SET 
-                     code=excluded.code,
-                     status=excluded.status, 
-                     total=excluded.total, 
-                     sale_date=excluded.sale_date`,
-                    [f.id, f.code, f.status, f.total, f.sale_date, f.client_id, f.seller_id, f.route_id, f.charge_id, f.created_at]
-                  );
-                }
+              // --- SYNC GUARD: Proteger total local recalculado ---
+              const pendingSync = await db.getAllAsync<any>(
+                `SELECT data FROM sync_queue WHERE status = 'pending'`
+              );
+              
+              // Se houver qualquer alteração pendente (ficha, item ou pagamento) 
+              // que mencione as fichas deste cliente, bloqueamos o overwrite do servidor.
+              const hasPending = pendingSync.some(s => {
+                try {
+                  const d = JSON.parse(s.data);
+                  const cid = d.card_id || d.id;
+                  return cid && normalizedItems.some((ni: any) => ni.id === cid);
+                } catch (e) { return false; }
               });
 
-              setItems(normalizedItems);
+              if (!hasPending) {
+                // Salvar localmente
+                await db.withTransactionAsync(async () => {
+                  for (const f of normalizedItems) {
+                    await db.runAsync(
+                      `INSERT INTO cards (id, code, status, total, sale_date, client_id, seller_id, route_id, charge_id, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(id) DO UPDATE SET 
+                       code=excluded.code,
+                       status=excluded.status, 
+                       total=excluded.total, 
+                       sale_date=excluded.sale_date`,
+                      [f.id, f.code, f.status, f.total, f.sale_date, f.client_id, f.seller_id, f.route_id, f.charge_id, f.created_at]
+                    );
+                  }
+                });
+
+                setItems(normalizedItems);
+              } else {
+                console.log(`[SYNC] Guard active for client ${clientId}: skipping server update due to pending sync`);
+              }
             }
           } catch (syncErr) {
             console.log('[DEBUG] Background sync failed (cards):', syncErr);

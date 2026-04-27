@@ -121,11 +121,13 @@ export const setupDatabase = async () => {
         total REAL DEFAULT 0,
         commission_percent REAL DEFAULT 30,
         discount REAL DEFAULT 0,
+        items_locked INTEGER DEFAULT 0,
         sale_date TEXT,
         client_id TEXT,
         seller_id TEXT,
         route_id TEXT,
         charge_id TEXT,
+        last_manual_update TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(client_id) REFERENCES clients(id)
       );
@@ -139,12 +141,34 @@ export const setupDatabase = async () => {
         product_id TEXT NOT NULL,
         product_name TEXT NOT NULL,
         quantity INTEGER DEFAULT 0,
+        sold_quantity INTEGER DEFAULT 0,
+        returned_quantity INTEGER DEFAULT 0,
+        is_informed INTEGER DEFAULT 0,
         price REAL DEFAULT 0,
         type TEXT NOT NULL, -- com_comissao, sem_comissao, brinde
         subtotal REAL DEFAULT 0,
         FOREIGN KEY(card_id) REFERENCES cards(id)
       );
     `);
+
+    // Migração de colunas faltantes em card_items e cards
+    try {
+      const info = db.getAllSync<{name: string, type: string}>(`PRAGMA table_info(card_items);`);
+      const columns = info.map(c => c.name);
+      if (!columns.includes('sold_quantity')) db.execSync(`ALTER TABLE card_items ADD COLUMN sold_quantity INTEGER DEFAULT 0;`);
+      if (!columns.includes('returned_quantity')) db.execSync(`ALTER TABLE card_items ADD COLUMN returned_quantity INTEGER DEFAULT 0;`);
+      if (!columns.includes('is_informed')) db.execSync(`ALTER TABLE card_items ADD COLUMN is_informed INTEGER DEFAULT 0;`);
+      
+      const cardCols = db.getAllSync<any>(`PRAGMA table_info(cards);`).map(c => c.name);
+      if (!cardCols.includes('last_manual_update')) {
+        db.execSync(`ALTER TABLE cards ADD COLUMN last_manual_update TEXT;`);
+      }
+      if (!cardCols.includes('items_locked')) {
+        db.execSync(`ALTER TABLE cards ADD COLUMN items_locked INTEGER DEFAULT 0;`);
+      }
+    } catch (e) {
+      console.log('Migration check error:', e);
+    }
 
     // Migração de colunas faltantes em cards
     try {
@@ -196,6 +220,7 @@ export const setupDatabase = async () => {
         method_id TEXT NOT NULL,
         amount REAL NOT NULL,
         payment_date TEXT DEFAULT CURRENT_TIMESTAMP,
+        cancelled INTEGER DEFAULT 0,
         FOREIGN KEY(card_id) REFERENCES cards(id),
         FOREIGN KEY(method_id) REFERENCES payment_methods(id)
       );
@@ -225,6 +250,16 @@ export const setupDatabase = async () => {
       }
     } catch (e) {
       console.log('Cards table setup check:', e);
+    }
+
+    // Migração de card_payments (coluna cancelled)
+    try {
+      const info = db.getAllSync<any>(`PRAGMA table_info(card_payments);`).map(c => c.name);
+      if (!info.includes('cancelled')) {
+        db.execSync(`ALTER TABLE card_payments ADD COLUMN cancelled INTEGER DEFAULT 0;`);
+      }
+    } catch (e) {
+      console.log('card_payments migration check:', e);
     }
 
     // Índices de performance

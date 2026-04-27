@@ -47,7 +47,8 @@ export const SelectTenant = ({ onNext }: { onNext: () => void }) => {
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
       {/* Glow decorativo top */}
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -115,7 +116,6 @@ export const SelectTenant = ({ onNext }: { onNext: () => void }) => {
       </KeyboardAvoidingView>
 
       {/* Glow decorativo bottom */}
-      <View style={GlobalStyles.glowBottom} />
     </View>
   );
 };

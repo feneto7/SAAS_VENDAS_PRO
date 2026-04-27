@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity, 
-  SafeAreaView, StatusBar, FlatList 
+  SafeAreaView, StatusBar, FlatList, Alert, ActivityIndicator 
 } from 'react-native';
 import { Colors, GlobalStyles, UI } from '../../theme/theme';
 import { useNavigationStore } from '../../stores/useNavigationStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { 
   ChevronLeft, Users, Package, TrendingDown, 
-  Wallet, FileBarChart2 
+  Wallet, FileBarChart2, Power 
 } from 'lucide-react-native';
+import { db } from '../../services/database';
 
 export const ChargeDetailScreen = () => {
   const { navigate, goBack, currentParams } = useNavigationStore();
   const { chargeId, chargeCode, routeName, routeId } = currentParams || {};
+
+  const [ending, setEnding] = useState(false);
 
   const modules = [
     { 
@@ -47,10 +51,73 @@ export const ChargeDetailScreen = () => {
     },
   ];
 
+  const handleCloseCharge = async () => {
+    Alert.alert(
+      'Encerrar Cobrança',
+      'Deseja realmente encerrar esta cobrança? Todas as fichas novas serão marcadas como pendentes.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Encerrar', 
+          style: 'destructive',
+          onPress: performClose
+        }
+      ]
+    );
+  };
+
+  const performClose = async () => {
+    setEnding(true);
+    try {
+      const token = useAuthStore.getState().token;
+      const tenantSlug = useAuthStore.getState().tenant?.slug;
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
+
+      // 1. API Call
+      const res = await fetch(`${API_URL}/api/cobrancas/${chargeId}/close`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-tenant-slug': tenantSlug || '' 
+        }
+      });
+
+      if (!res.ok) throw new Error('Falha ao encerrar no servidor');
+
+      // 2. Local Update
+      await db.withTransactionAsync(async () => {
+        // Atualizar cobrança
+        await db.runAsync(
+          "UPDATE charges SET status = 'encerrada' WHERE id = ?",
+          [chargeId]
+        );
+
+        // Atualizar fichas (Verification Logic)
+        // 1. Fichas vinculadas a esta cobrança
+        // 2. Fichas da mesma rota sem cobrança vinculada (web)
+        await db.runAsync(
+          `UPDATE cards SET status = 'pendente' 
+           WHERE status = 'nova' 
+           AND (charge_id = ? OR (charge_id IS NULL AND route_id = ?))`,
+          [chargeId, routeId]
+        );
+      });
+
+      Alert.alert('Sucesso', 'Cobrança encerrada com sucesso!');
+      goBack();
+    } catch (err) {
+      console.error('Close charge error:', err);
+      Alert.alert('Erro', 'Não foi possível encerrar a cobrança. Verifique sua conexão.');
+    } finally {
+      setEnding(false);
+    }
+  };
+
   return (
     <SafeAreaView style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
 
       <View style={styles.content}>
         {/* Header */}
@@ -94,8 +161,24 @@ export const ChargeDetailScreen = () => {
             </TouchableOpacity>
           )}
         />
+
+        {/* Footer Action */}
+        <TouchableOpacity 
+          style={[UI.button, styles.closeBtn, ending && { opacity: 0.7 }]} 
+          onPress={handleCloseCharge}
+          disabled={ending}
+          activeOpacity={0.8}
+        >
+          {ending ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <>
+              <Power size={20} color={Colors.white} strokeWidth={2.5} />
+              <Text style={styles.closeBtnText}>ENCERRAR COBRANÇA</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
-      <View style={GlobalStyles.glowBottom} />
     </SafeAreaView>
   );
 };
@@ -138,5 +221,17 @@ const styles = StyleSheet.create({
     fontWeight: '800', 
     color: Colors.white,
     letterSpacing: 0.3
+  },
+  closeBtn: {
+    marginTop: 'auto',
+    backgroundColor: Colors.danger,
+    shadowColor: Colors.danger,
+    marginBottom: 20,
+  },
+  closeBtnText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 1,
   }
 });

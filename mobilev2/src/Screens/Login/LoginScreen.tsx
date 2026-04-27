@@ -56,7 +56,8 @@ export const LoginScreen = ({ onBack }: { onBack: () => void }) => {
   return (
     <View style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -120,7 +121,6 @@ export const LoginScreen = ({ onBack }: { onBack: () => void }) => {
 
         </ScrollView>
       </KeyboardAvoidingView>
-      <View style={GlobalStyles.glowBottom} />
     </View>
   );
 };

@@ -1,68 +1,105 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { 
   CreditCard, DollarSign, Percent, TrendingUp, Wallet, 
   ArrowRight, Plus, Calendar, Edit3, Info 
 } from 'lucide-react-native';
 import { Colors, Shadows, UI } from '../../../theme/theme';
 import { CardItem, CardPayment, PaymentMethod } from '../hooks/useCardItemsData';
-import { formatCentsToBRL } from '../../../utils/money';
+import { formatCentsToBRL, roundCents } from '../../../utils/money';
 import { AddPaymentModal } from './AddPaymentModal';
 import { EditCommissionModal } from './EditCommissionModal';
-
+import { db } from '../../../services/database';
+import { SyncService } from '../../../services/syncService';
 interface Props {
   items: CardItem[];
   payments: CardPayment[];
   methods: PaymentMethod[];
   ficha: any;
+  stats: any;
+  isLocked?: boolean;
   onRefresh: () => void;
 }
 
-export const SettlementTab = ({ items, payments, methods, ficha, onRefresh }: Props) => {
+const SummaryCard = ({ label, value, icon: Icon, color, isSmall = false, onPress, subLabel, subLabelColor }: any) => (
+  <TouchableOpacity 
+    disabled={!onPress} 
+    onPress={onPress}
+    activeOpacity={0.7}
+    style={[styles.card, isSmall && styles.cardSmall, { borderLeftColor: color }, onPress && styles.cardClickable]}
+  >
+    <View style={styles.cardHeader}>
+      <View style={[styles.iconBox, { backgroundColor: color + '15' }]}>
+        <Icon size={isSmall ? 16 : 20} color={color} />
+      </View>
+      <Text style={styles.cardLabel}>{label}</Text>
+      {onPress && <Edit3 size={14} color={Colors.textMuted} style={{ marginLeft: 'auto' }} />}
+    </View>
+    <View style={styles.cardContent}>
+      <Text style={[styles.cardValue, isSmall && styles.cardValueSmall, { color }]}>{formatCentsToBRL(value)}</Text>
+      {subLabel && (
+         <Text style={[styles.cardSubLabel, { color: subLabelColor || Colors.textMuted }]}>{subLabel}</Text>
+      )}
+    </View>
+  </TouchableOpacity>
+);
+
+export const SettlementTab = ({ items, payments, methods, ficha, stats, isLocked, onRefresh }: Props) => {
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isCommissionModalVisible, setIsCommissionModalVisible] = useState(false);
 
+  // Rename to avoid property collision
+  const isFichaLocked = !!isLocked;
+
   // Calculations
-  const totalCC = items
-    .filter(i => i.type === 'CC')
-    .reduce((acc, curr) => acc + (curr.subtotal || 0), 0);
-  
-  const totalSC = items
-    .filter(i => i.type !== 'CC')
-    .reduce((acc, curr) => acc + (curr.subtotal || 0), 0);
-  
+  const isPendente = ficha?.status === 'pendente' || ficha?.status === 'paga';
+
+  const handleCancelPayment = (payment: CardPayment) => {
+    if (payment.cancelled) return;
+
+    Alert.alert(
+      'Cancelar Pagamento',
+      `Deseja realmente cancelar o pagamento de ${formatCentsToBRL(payment.amount)}?`,
+      [
+        { text: 'Não', style: 'cancel' },
+        { 
+          text: 'Sim, Cancelar', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // 1. Local DB
+              await db.runAsync(
+                "UPDATE card_payments SET cancelled = 1 WHERE id = ?",
+                [payment.id]
+              );
+
+              // 1.1 Local Auto-Pendente (Se estava paga, volta ao acerto)
+              await db.runAsync(
+                "UPDATE cards SET status = 'pendente' WHERE id = ? AND status = 'paga'",
+                [ficha.id]
+              );
+              
+              // 2. Sync
+              await SyncService.enqueue('PATCH_CANCEL_PAYMENT', 'card_payments', {
+                id: payment.id,
+                card_id: ficha.id
+              });
+
+              onRefresh();
+            } catch (e) {
+              console.error('Cancel payment failed:', e);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const { totalCCRaw: totalCC, totalSC, totalToPay, totalPaid, balance: remaining } = stats;
   const commissionPercent = Number(ficha?.commissionPercent || 30);
-  const commissionVal = totalCC * (commissionPercent / 100);
+  const commissionVal = roundCents(totalCC * (commissionPercent / 100));
   const netCCToPay = totalCC - commissionVal;
   
-  const totalToPay = netCCToPay + totalSC;
-
-  const totalPaid = payments.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-  const remaining = Math.max(0, totalToPay - totalPaid);
-
-  const SummaryCard = ({ label, value, icon: Icon, color, isSmall = false, onPress, subLabel, subLabelColor }: any) => (
-    <TouchableOpacity 
-      disabled={!onPress} 
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={[styles.card, isSmall && styles.cardSmall, { borderLeftColor: color }, onPress && styles.cardClickable]}
-    >
-      <View style={styles.cardHeader}>
-        <View style={[styles.iconBox, { backgroundColor: color + '15' }]}>
-          <Icon size={isSmall ? 16 : 20} color={color} />
-        </View>
-        <Text style={styles.cardLabel}>{label}</Text>
-        {onPress && <Edit3 size={14} color={Colors.textMuted} style={{ marginLeft: 'auto' }} />}
-      </View>
-      <View style={styles.cardContent}>
-        <Text style={[styles.cardValue, isSmall && styles.cardValueSmall, { color }]}>{formatCentsToBRL(value)}</Text>
-        {subLabel && (
-           <Text style={[styles.cardSubLabel, { color: subLabelColor || Colors.textMuted }]}>{subLabel}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.sectionHeader}>
@@ -85,7 +122,7 @@ export const SettlementTab = ({ items, payments, methods, ficha, onRefresh }: Pr
         color={Colors.warning}
         subLabel={`Margem de ${commissionPercent}% aplicada. Cliente paga ${formatCentsToBRL(netCCToPay)} neste grupo.`}
         subLabelColor={Colors.textSecondary}
-        onPress={() => setIsCommissionModalVisible(true)}
+        onPress={ficha?.status === 'paga' ? null : () => setIsCommissionModalVisible(true)}
       />
 
       <SummaryCard 
@@ -126,19 +163,34 @@ export const SettlementTab = ({ items, payments, methods, ficha, onRefresh }: Pr
           </View>
         ) : (
           payments.map((p) => (
-            <View key={p.id} style={styles.paymentItem}>
-              <View style={styles.paymentIcon}>
-                <CreditCard size={16} color={Colors.success} />
+            <TouchableOpacity 
+              key={p.id} 
+              style={[styles.paymentItem, p.cancelled && styles.paymentItemCancelled]}
+              onPress={() => handleCancelPayment(p)}
+              disabled={p.cancelled}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.paymentIcon, p.cancelled && { backgroundColor: Colors.danger + '15' }]}>
+                <CreditCard size={16} color={p.cancelled ? Colors.danger : Colors.success} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.paymentMethod}>{p.method_name || 'Pagamento'}</Text>
+                <Text style={[styles.paymentMethod, p.cancelled && styles.paymentTextCancelled]}>
+                  {p.method_name || 'Pagamento'}
+                </Text>
                 <View style={styles.paymentDateRow}>
                    <Calendar size={12} color={Colors.textMuted} />
                    <Text style={styles.paymentDate}>{new Date(p.payment_date).toLocaleDateString('pt-BR')}</Text>
                 </View>
               </View>
-              <Text style={styles.paymentAmount}>{formatCentsToBRL(p.amount)}</Text>
-            </View>
+              <Text style={[styles.paymentAmount, p.cancelled ? styles.paymentTextCancelled : { color: Colors.success }]}>
+                {formatCentsToBRL(p.amount)}
+              </Text>
+              {p.cancelled && (
+                <View style={styles.cancelledBadge}>
+                   <Text style={styles.cancelledBadgeText}>CANCELADO</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           ))
         )}
       </View>
@@ -220,5 +272,26 @@ const styles = StyleSheet.create({
   paymentDate: { fontSize: 11, color: Colors.textMuted },
   paymentAmount: { fontSize: 15, fontWeight: '800', color: Colors.success },
   emptyPayments: { alignItems: 'center', padding: 20, opacity: 0.5 },
-  emptyText: { color: Colors.textMuted, fontSize: 13 }
+  emptyText: { color: Colors.textMuted, fontSize: 13 },
+  
+  paymentItemCancelled: {
+    borderColor: Colors.danger + '20',
+    opacity: 0.8,
+  },
+  paymentTextCancelled: {
+    textDecorationLine: 'line-through',
+    color: Colors.danger,
+  },
+  cancelledBadge: {
+    backgroundColor: Colors.danger + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  cancelledBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: Colors.danger,
+  }
 });

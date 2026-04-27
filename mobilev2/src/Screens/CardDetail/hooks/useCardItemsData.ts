@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { db } from '../../../services/database';
+import { CardService } from '../../../services/cardService';
+import { roundCents } from '../../../utils/money';
+import { SyncService } from '../../../services/syncService';
+import { CONFIG } from '../../../services/config';
+import { calculateFichaTotals } from '../../../utils/calculations';
 
 export interface CardItem {
   id: string;
@@ -8,6 +13,9 @@ export interface CardItem {
   product_id: string;
   product_name: string;
   quantity: number;
+  sold_quantity: number;
+  returned_quantity: number;
+  is_informed: boolean;
   price: number;
   type: 'CC' | 'SC' | 'brinde';
   subtotal: number;
@@ -21,6 +29,7 @@ export interface CardPayment {
   method_name?: string;
   amount: number;
   payment_date: string;
+  cancelled?: boolean;
 }
 
 export interface PaymentMethod {
@@ -36,9 +45,28 @@ export const useCardItemsData = (cardId: string | undefined) => {
   const [ficha, setFicha] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // --- DERIVED STATS (Instant UI) ---
+  const stats = useMemo(() => {
+    return calculateFichaTotals(ficha, items, payments);
+  }, [items, payments, ficha]);
+
+  const normalizeFicha = (f: any) => {
+    if (!f) return null;
+    const norm = {
+      ...f,
+      id: f.id ?? f.card_id,
+      code: f.code,
+      status: f.status,
+      total: f.total || 0,
+      commissionPercent: f.commissionPercent ?? f.commission_percent ?? 30,
+      discount: f.discount ?? f.discount ?? 0,
+      items_locked: !!(f.itemsLocked || f.items_locked)
+    };
+    return norm;
+  };
+
   const loadItems = async () => {
     if (!cardId) return;
-    
     if (items.length === 0) setLoading(true);
     
     try {
@@ -50,7 +78,11 @@ export const useCardItemsData = (cardId: string | undefined) => {
          WHERE ci.card_id = ?`,
         [cardId]
       );
-      setItems(localItems);
+      const itemsMapped = localItems.map(i => ({
+        ...i,
+        is_informed: !!i.is_informed
+      }));
+      setItems(itemsMapped);
 
       const localPayments = await db.getAllAsync<CardPayment>(
         `SELECT p.*, m.name as method_name 
@@ -60,27 +92,37 @@ export const useCardItemsData = (cardId: string | undefined) => {
          ORDER BY p.payment_date DESC`,
         [cardId]
       );
-      setPayments(localPayments);
+      const paymentsMapped = localPayments.map(p => ({
+        ...p,
+        cancelled: !!p.cancelled
+      }));
+      setPayments(paymentsMapped);
 
       const localMethods = await db.getAllAsync<PaymentMethod>(
         `SELECT * FROM payment_methods WHERE active = 1 ORDER BY name ASC`
       );
       setMethods(localMethods);
 
-      const localFicha = await db.getFirstAsync<any>(
-        `SELECT id, code, status, total, commission_percent as commissionPercent, discount FROM cards WHERE id = ?`,
+      const localFichaRaw = await db.getFirstAsync<any>(
+        `SELECT id, code, status, total, commission_percent, discount, items_locked FROM cards WHERE id = ?`,
         [cardId]
       );
-      setFicha(localFicha);
+      
+      const normalizedFicha = normalizeFicha(localFichaRaw);
+      setFicha(normalizedFicha);
+      setItems(itemsMapped);
+      setPayments(paymentsMapped);
+      setMethods(localMethods);
 
-      if (localItems.length > 0 || localFicha) {
-        setLoading(false);
-      }
+      // NOVO: Desativa o loading logo após o carregamento local
+      // Assim o usuário vê os itens instantaneamente enquanto o sync corre em background
+      setLoading(false);
+      console.log(`[Sync] Dados locais carregados para ficha ${cardId}`);
 
       // 2. SINCRONISMO (API)
       const token = useAuthStore.getState().token;
       const tenantSlug = useAuthStore.getState().tenant?.slug;
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
+      const API_URL = CONFIG.API_URL;
 
       if (token && tenantSlug) {
         (async () => {
@@ -114,9 +156,12 @@ export const useCardItemsData = (cardId: string | undefined) => {
                 product_id: i.productId || i.product_id,
                 product_name: i.productName || i.product?.name || i.name || 'Produto',
                 quantity: i.quantity || 0,
+                sold_quantity: i.quantitySold || i.quantity_sold || 0,
+                returned_quantity: i.quantityReturned || i.quantity_returned || 0,
+                is_informed: !!(i.informed || i.is_informed),
                 price: i.unitPrice || i.price || 0,
                 type: (i.commissionType || i.type) === 'com_comissao' ? 'CC' : ((i.commissionType || i.type) === 'sem_comissao' ? 'SC' : (i.commissionType || i.type || 'CC')),
-                subtotal: i.subtotal || 0
+                subtotal: roundCents(i.subtotal || 0)
               }));
 
               const serverPayments = (serverFicha.payments || []).map((p: any) => ({
@@ -125,107 +170,116 @@ export const useCardItemsData = (cardId: string | undefined) => {
                 method_id: p.methodId || p.method_id,
                 method_name: p.methodName || p.method?.name || 'Método',
                 amount: p.amount,
-                payment_date: p.paymentDate || p.payment_date || p.createdAt || p.created_at
+                payment_date: p.paymentDate || p.payment_date || p.createdAt || p.created_at,
+                cancelled: !!p.cancelled
               }));
 
-              // Persistir localmente
+              // Persistir localmente com Sync Guard (Robusto)
               await db.withTransactionAsync(async () => {
-                // Sincronizar Ficha
-                await db.runAsync(
-                  `UPDATE cards SET total = ?, status = ?, code = ?, commission_percent = ?, discount = ? WHERE id = ?`,
-                  [
-                    serverFicha.total || 0, 
-                    serverFicha.status, 
-                    serverFicha.code, 
-                    serverFicha.commissionPercent ?? serverFicha.commission_percent ?? 30,
-                    serverFicha.discount ?? 0,
-                    cardId
-                  ]
+                const pendingSyncItems = await db.getAllAsync<any>(
+                  `SELECT data FROM sync_queue WHERE status = 'pending'`
                 );
                 
-                // Sincronizar Itens - APENAS SE NÃO HOUVER PENDÊNCIAS NA FILA PARA ESTA FICHA
-                // Isso evita que um produto recém adicionado (offline) seja apagado pelo sync 
-                // antes mesmo de ser enviado ao servidor.
-                const pendingSync = await db.getAllAsync<any>(
-                  `SELECT id, data FROM sync_queue WHERE table_name = 'card_items' AND action IN ('POST_ITEM', 'PATCH_ITEM', 'DELETE_ITEM')`
-                );
-                
-                const hasPendingThisCard = pendingSync.some(s => {
+                const hasPendingThisFicha = pendingSyncItems.some(s => {
                   try {
                     const d = JSON.parse(s.data);
-                    return d.card_id === cardId || d.cardId === cardId || (d.payload && d.payload.cardId === cardId);
+                    return d.card_id === cardId || d.cardId === cardId || d.id === cardId;
                   } catch (e) { return false; }
                 });
 
-                if (!hasPendingThisCard) {
+                const lastManualRecord = await db.getFirstAsync<any>(
+                    `SELECT last_manual_update FROM cards WHERE id = ?`,
+                    [cardId]
+                );
+                const lastUpdate = lastManualRecord?.last_manual_update ? new Date(lastManualRecord.last_manual_update).getTime() : 0;
+                const now = Date.now();
+                const isRecentlyUpdatedLocally = (now - lastUpdate) < 30000; 
+
+                if (!hasPendingThisFicha && !isRecentlyUpdatedLocally) {
+                  // 1. Atualizar Itens
                   await db.runAsync(`DELETE FROM card_items WHERE card_id = ?`, [cardId]);
                   for (const i of normalizedItems) {
                     await db.runAsync(
-                      `INSERT INTO card_items (id, card_id, product_id, product_name, quantity, price, type, subtotal)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                      [i.id, i.card_id, i.product_id, i.product_name, i.quantity, i.price, i.type, i.subtotal]
+                      `INSERT INTO card_items (id, card_id, product_id, product_name, quantity, sold_quantity, returned_quantity, is_informed, price, type, subtotal)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                      [i.id, i.card_id, i.product_id, i.product_name, i.quantity, i.sold_quantity, i.returned_quantity, i.is_informed ? 1 : 0, i.price, i.type, i.subtotal]
                     );
                   }
+
+                  // 2. Atualizar Outros Campos da Ficha (menos total/status que o CardService resolve)
+                  await db.runAsync(
+                    `UPDATE cards SET code = ?, commission_percent = ?, discount = ?, items_locked = ? WHERE id = ?`,
+                    [
+                      serverFicha.code, 
+                      serverFicha.commissionPercent ?? serverFicha.commission_percent ?? 30,
+                      serverFicha.discount ?? 0,
+                      (serverFicha.itemsLocked ?? serverFicha.items_locked) ? 1 : 0,
+                      cardId
+                    ]
+                  );
+
+                  // 3. Sincronizar Total e Status Localmente (Aplica a Regra de Ouro)
+                  await CardService.syncLocalTotal(cardId);
+                  
+                  // 4. Recarregar Ficha Final do DB (Garante que o estado no React é o que salvamos no DB)
+                  const [finalFicha] = await db.getAllAsync<any>(
+                    `SELECT c.*, cl.name as clientName, cl.neighborhood as clientNeighborhood 
+                     FROM cards c 
+                     LEFT JOIN clients cl ON c.client_id = cl.id 
+                     WHERE c.id = ?`,
+                    [cardId]
+                  );
+
                   setItems(normalizedItems);
-                } else {
-                  console.log(`[SYNC] Pula overwrite de itens pois existem alterações pendentes para card ${cardId}`);
+                  setFicha(normalizeFicha(finalFicha));
                 }
-                // Sincronizar Pagamentos - MESMA LÓGICA DE PROTEÇÃO
-                const pendingPayments = await db.getAllAsync<any>(
-                  `SELECT id, data FROM sync_queue WHERE action = 'POST_PAYMENT'`
-                );
                 
-                const hasPendingPaymentsThisCard = pendingPayments.some(s => {
+                // 2. Sincronizar Pagamentos
+                const pendingPaymentIds = new Set<string>();
+                const hasPendingPaymentsForThisCard = pendingSyncItems.some(s => {
                   try {
                     const d = JSON.parse(s.data);
-                    return d.card_id === cardId || d.cardId === cardId;
+                    if (d.card_id === cardId || d.cardId === cardId) {
+                      // Se for cancelamento, guardamos o ID pra marcar no UI
+                      const action = s.action || '';
+                      if (action === 'PATCH_CANCEL_PAYMENT' && d.id) pendingPaymentIds.add(d.id);
+                      return true;
+                    }
+                    return false;
                   } catch (e) { return false; }
                 });
 
-                if (!hasPendingPaymentsThisCard) {
+                if (!hasPendingPaymentsForThisCard) {
                   await db.runAsync(`DELETE FROM card_payments WHERE card_id = ?`, [cardId]);
                   for (const p of serverPayments) {
+                    const isCancelledLocally = pendingPaymentIds.has(p.id);
                     await db.runAsync(
-                      `INSERT INTO card_payments (id, card_id, method_id, amount, payment_date)
-                       VALUES (?, ?, ?, ?, ?)`,
-                      [p.id, p.card_id, p.method_id, p.amount, p.payment_date]
+                      `INSERT INTO card_payments (id, card_id, method_id, amount, payment_date, cancelled)
+                       VALUES (?, ?, ?, ?, ?, ?)`,
+                      [p.id, p.card_id, p.method_id, p.amount, p.payment_date, (p.cancelled || isCancelledLocally) ? 1 : 0]
                     );
                   }
-                } else {
-                  console.log(`[SYNC] Pula overwrite de pagamentos pois existem alterações pendentes para card ${cardId}`);
+                  const finalPayments = serverPayments.map((p: CardPayment) => ({
+                    ...p,
+                    cancelled: p.cancelled || pendingPaymentIds.has(p.id)
+                  }));
+                  setPayments(finalPayments);
                 }
 
-                // Sincronizar Métodos se recebemos 200
                 if (resMethods.ok) {
                     const methodsList = await resMethods.json();
                     for (const m of methodsList) {
-                        await db.runAsync(
-                            `INSERT OR REPLACE INTO payment_methods (id, name, active) VALUES (?, ?, ?)`,
-                            [m.id, m.name, m.active ? 1 : 0]
-                        );
+                        await db.runAsync(`INSERT OR REPLACE INTO payment_methods (id, name, active) VALUES (?, ?, ?)`, [m.id, m.name, m.active ? 1 : 0]);
                     }
                     setMethods(methodsList.filter((m: any) => m.active));
                 }
               });
-              
-              setItems(normalizedItems);
-              setPayments(serverPayments);
-              setFicha(serverFicha);
               fetchGlobalProducts(token, tenantSlug, API_URL);
             }
-          } catch (syncErr) {
-            console.log('[DEBUG] Sync failed:', syncErr);
-          } finally {
-            setLoading(false);
-          }
+          } catch (syncErr) {} finally { setLoading(false); }
         })();
-      } else {
-        setLoading(false);
-      }
-    } catch (e) {
-      console.log(`[DEBUG] Critical failure in loadItems:`, e);
-      setLoading(false);
-    }
+      } else { setLoading(false); }
+    } catch (e) { setLoading(false); }
   };
 
   const fetchGlobalProducts = async (token: string, slug: string, baseUrl: string) => {
@@ -238,16 +292,8 @@ export const useCardItemsData = (cardId: string | undefined) => {
         await db.withTransactionAsync(async () => {
           for (const p of pList) {
             if (p.stock > 0) {
-              await db.runAsync(
-                `INSERT OR REPLACE INTO products (id, sku, name, price_cc, price_sc, active) VALUES (?, ?, ?, ?, ?, ?)`,
-                [p.id, p.sku, p.name, p.priceCC, p.priceSC, p.active ? 1 : 0]
-              );
-              if (sellerId) {
-                await db.runAsync(
-                  `INSERT OR REPLACE INTO seller_inventory (id, seller_id, product_id, stock) VALUES (?, ?, ?, ?)`,
-                  [`${sellerId}-${p.id}`, sellerId, p.id, p.stock]
-                );
-              }
+              await db.runAsync(`INSERT OR REPLACE INTO products (id, sku, name, price_cc, price_sc, active) VALUES (?, ?, ?, ?, ?, ?)`, [p.id, p.sku, p.name, p.priceCC, p.priceSC, p.active ? 1 : 0]);
+              if (sellerId) { await db.runAsync(`INSERT OR REPLACE INTO seller_inventory (id, seller_id, product_id, stock) VALUES (?, ?, ?, ?)`, [`${sellerId}-${p.id}`, sellerId, p.id, p.stock]); }
             }
           }
         });
@@ -257,5 +303,5 @@ export const useCardItemsData = (cardId: string | undefined) => {
 
   useEffect(() => { loadItems(); }, [cardId]);
 
-  return { items, payments, methods, ficha, loading, reload: loadItems };
+  return { items, payments, methods, ficha, stats, loading, reload: loadItems };
 };

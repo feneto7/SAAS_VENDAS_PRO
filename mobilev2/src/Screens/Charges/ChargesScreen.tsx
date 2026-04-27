@@ -139,7 +139,8 @@ export const ChargesScreen = () => {
   return (
     <SafeAreaView style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
 
       <View style={styles.content}>
         <View style={styles.header}>
@@ -170,32 +171,38 @@ export const ChargesScreen = () => {
                   <Text style={styles.emptySub}>Esta rota ainda não possui histórico de cobranças registradas.</Text>
                 </View>
               }
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={UI.listItem} 
-                  activeOpacity={0.8}
-                  onPress={() => navigate('chargeDetail', { 
-                    chargeId: item.id, 
-                    chargeCode: item.client_name.replace('Cobrança #', ''),
-                    routeName,
-                    routeId
-                  })}
-                >
-                  <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(item.status) }]} />
-                  <View style={styles.chargeInfo}>
-                    <Text style={styles.chargeName}>{item.client_name}</Text>
-                    <View style={styles.dateRow}>
-                      <Calendar size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                      <Text style={styles.chargeDate}>{formatDate(item.due_date)}</Text>
-                      <View style={styles.dot} />
-                      <Text style={[styles.chargeStatus, { color: getStatusColor(item.status) }]}>
-                        {item.status.toUpperCase()}
-                      </Text>
+              renderItem={({ item }) => {
+                const isClosed = item.status === 'encerrada';
+                return (
+                  <TouchableOpacity 
+                    style={[UI.listItem, isClosed && { opacity: 0.6 }]} 
+                    activeOpacity={isClosed ? 1 : 0.8}
+                    onPress={() => {
+                      if (isClosed) return;
+                      navigate('chargeDetail', { 
+                        chargeId: item.id, 
+                        chargeCode: item.client_name.replace('Cobrança #', ''),
+                        routeName,
+                        routeId
+                      });
+                    }}
+                  >
+                    <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(item.status) }]} />
+                    <View style={styles.chargeInfo}>
+                      <Text style={styles.chargeName}>{item.client_name}</Text>
+                      <View style={styles.dateRow}>
+                        <Calendar size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                        <Text style={styles.chargeDate}>{formatDate(item.due_date)}</Text>
+                        <View style={styles.dot} />
+                        <Text style={[styles.chargeStatus, { color: getStatusColor(item.status) }]}>
+                          {item.status.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  <ArrowRight size={20} color={Colors.textMuted} />
-                </TouchableOpacity>
-              )}
+                    {!isClosed && <ArrowRight size={20} color={Colors.textMuted} />}
+                  </TouchableOpacity>
+                );
+              }}
             />
 
             <TouchableOpacity 
@@ -216,7 +223,6 @@ export const ChargesScreen = () => {
           </>
         )}
       </View>
-      <View style={GlobalStyles.glowBottom} />
     </SafeAreaView>
   );
 };

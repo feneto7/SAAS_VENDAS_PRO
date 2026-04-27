@@ -78,7 +78,8 @@ export const RoutesScreen = () => {
   return (
     <SafeAreaView style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
       
       <View style={styles.content}>
         <View style={styles.header}>
@@ -135,7 +136,6 @@ export const RoutesScreen = () => {
           />
         )}
       </View>
-      <View style={GlobalStyles.glowBottom} />
     </SafeAreaView>
   );
 };

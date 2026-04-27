@@ -11,10 +11,15 @@ import { formatCentsToBRL } from '../../../utils/money';
 interface Props {
   items: CardItem[];
   loading: boolean;
+  cardStatus: string;
+  isLocked?: boolean;
   onItemPress: (item: CardItem) => void;
 }
 
-export const ProductsTab = ({ items, loading, onItemPress }: Props) => {
+export const ProductsTab = ({ items, loading, cardStatus, isLocked, onItemPress }: Props) => {
+  const isPendente = cardStatus === 'pendente';
+  const isFichaLocked = !!isLocked;
+
   const getTypeStyle = (type: string) => {
     switch (type) {
       case 'CC': return { color: Colors.success, label: 'CC' };
@@ -29,8 +34,9 @@ export const ProductsTab = ({ items, loading, onItemPress }: Props) => {
     
     return (
       <TouchableOpacity 
-        style={UI.listItem} 
-        activeOpacity={0.8}
+        style={[UI.listItem, isFichaLocked && { opacity: 0.6, backgroundColor: Colors.inputBg }]} 
+        activeOpacity={isFichaLocked ? 1 : 0.8}
+        disabled={isFichaLocked}
         onPress={() => onItemPress(item)}
       >
         <View style={styles.itemMain}>
@@ -43,13 +49,18 @@ export const ProductsTab = ({ items, loading, onItemPress }: Props) => {
             <View style={styles.qtyBox}>
               <Package size={14} color={Colors.textSecondary} />
               <Text style={styles.qtyText}>
-                {item.quantity} un x {formatCentsToBRL(item.price || 0)}
+                {isPendente 
+                  ? `Deixado: ${item.quantity} | Vendeu: ${item.sold_quantity || 0} | Devolveu: ${item.returned_quantity || 0}`
+                  : `${item.quantity} un x ${formatCentsToBRL(item.price || 0)}`
+                }
               </Text>
             </View>
-            <Text style={styles.subtotalText}>{formatCentsToBRL(item.subtotal || 0)}</Text>
+            {!isPendente && (
+              <Text style={styles.subtotalText}>{formatCentsToBRL(item.subtotal || 0)}</Text>
+            )}
           </View>
         </View>
-        <MoreVertical size={20} color={Colors.textMuted} />
+        {!isPendente && !isFichaLocked && <MoreVertical size={20} color={Colors.textMuted} />}
       </TouchableOpacity>
     );
   };

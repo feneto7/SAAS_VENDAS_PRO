@@ -194,7 +194,8 @@ export const CustomersScreen = () => {
   return (
     <SafeAreaView style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
 
       <View style={styles.content}>
         {/* Header */}
@@ -271,7 +272,6 @@ export const CustomersScreen = () => {
         onSuccess={() => loadCustomers(1, true)}
       />
 
-      <View style={GlobalStyles.glowBottom} />
     </SafeAreaView>
   );
 };

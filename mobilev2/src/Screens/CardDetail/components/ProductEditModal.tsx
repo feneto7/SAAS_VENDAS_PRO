@@ -11,6 +11,8 @@ import { Colors, UI } from '../../../theme/theme';
 import { formatCentsToBRL, applyCurrencyMask, parseBRLToCents } from '../../../utils/money';
 import { CardItem } from '../hooks/useCardItemsData';
 import { db } from '../../../services/database';
+import { CardService } from '../../../services/cardService';
+import { SyncService } from '../../../services/syncService';
 
 interface Props {
   visible: boolean;
@@ -108,7 +110,6 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
           );
           
           // Add to sync queue for POST
-          const { SyncService } = require('../../../services/syncService');
           SyncService.enqueue('POST_ITEM', 'card_items', {
             id: tempId,
             card_id: item.card_id,
@@ -126,7 +127,6 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
           );
 
           // Add to sync queue for PATCH
-          const { SyncService } = require('../../../services/syncService');
           SyncService.enqueue('PATCH_ITEM', 'card_items', {
             id: item.id,
             payload: {
@@ -139,10 +139,17 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
         }
 
         // Update Inventory (Stock) - common for both flows
-        db.runSync(
-          `UPDATE seller_inventory SET stock = stock + ? WHERE product_id = ?`,
-          [qtyDiff, item.product_id]
-        );
+        const sellerId = useAuthStore.getState().user?.id;
+        if (sellerId) {
+          db.runSync(
+            `UPDATE seller_inventory SET stock = stock + ? WHERE product_id = ? AND seller_id = ?`,
+            [qtyDiff, item.product_id, sellerId]
+          );
+        }
+
+        // 2. Global Recalculation (Shared Truth)
+        // Important: this updates the 'cards' table so the header/list reflects new totals
+        CardService.syncLocalTotal(item.card_id);
       });
 
       // 3. Close Modal & Trigger Parent Refresh (which will read from local DB first)

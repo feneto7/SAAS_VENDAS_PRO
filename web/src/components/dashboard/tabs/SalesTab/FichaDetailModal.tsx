@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, User, MapPin, Phone, Calendar, Briefcase, Package, CreditCard, Info } from "lucide-react";
+import { X, User, MapPin, Phone, Calendar, Briefcase, Package, CreditCard, Info, Lock, Unlock } from "lucide-react";
 import { formatCentsToBRL } from "@/utils/money";
 import { Pagination } from "@/components/dashboard/shared/Pagination";
 
@@ -16,6 +16,7 @@ const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
 
 export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: FichaDetailModalProps) {
   const [loading, setLoading] = useState(false);
+  const [togglingLock, setTogglingLock] = useState(false);
   const [ficha, setFicha] = useState<any>(null);
   const [itemPage, setItemPage] = useState(1);
   const itemsPerPage = 10;
@@ -43,6 +44,33 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
       console.error("Erro ao buscar detalhes da ficha:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleLock = async () => {
+    if (!ficha) return;
+    try {
+      setTogglingLock(true);
+      const newLockedState = !ficha.itemsLocked;
+      const res = await fetch(`${SERVER_URL}/api/fichas/${ficha.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': tenantSlug
+        },
+        body: JSON.stringify({ itemsLocked: newLockedState })
+      });
+      
+      if (res.ok) {
+        setFicha({ ...ficha, itemsLocked: newLockedState });
+      } else {
+        alert("Erro ao alternar bloqueio da ficha");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao alternar bloqueio da ficha");
+    } finally {
+      setTogglingLock(false);
     }
   };
 
@@ -78,9 +106,32 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-gray-500 hover:text-white transition-all">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            {ficha?.status === 'pendente' && (
+              <button 
+                onClick={toggleLock} 
+                disabled={togglingLock}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                   ficha?.itemsLocked 
+                     ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20' 
+                     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                }`}
+                title={ficha?.itemsLocked ? "Ficha Bloqueada (Clique para Desbloquear)" : "Ficha Desbloqueada (Clique para Bloquear)"}
+              >
+                {togglingLock ? (
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : ficha?.itemsLocked ? (
+                  <Lock size={14} />
+                ) : (
+                  <Unlock size={14} />
+                )}
+                {togglingLock ? "Alternando..." : (ficha?.itemsLocked ? "Desbloquear Ficha" : "Ficha Liberada")}
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 ml-4 hover:bg-white/5 rounded-full text-gray-500 hover:text-white transition-all">
+              <X size={24} />
+            </button>
+          </div>
         </header>
 
         {/* Content */}
@@ -231,14 +282,24 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
                 {ficha.payments?.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {ficha.payments.map((p: any) => (
-                      <div key={p.id} className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">{p.methodName || p.method}</p>
-                          <p className="text-sm font-bold text-white">{formatCentsToBRL(p.amount)}</p>
+                      <div key={p.id} className={`bg-white/[0.02] border p-4 rounded-2xl flex items-center justify-between transition-all ${p.cancelled ? 'opacity-40 border-red-500/20' : 'border-white/5'}`}>
+                        <div className="flex items-center gap-3">
+                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.cancelled ? 'bg-red-500/10' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                             <CreditCard size={14} className={p.cancelled ? 'text-red-400' : 'text-emerald-400'} />
+                           </div>
+                           <div>
+                             <p className={`text-[10px] font-black uppercase tracking-widest mb-0.5 ${p.cancelled ? 'text-red-400/70 line-through' : 'text-gray-500'}`}>{p.methodName || p.method?.name || "Pagamento"}</p>
+                             <p className={`text-sm font-bold ${p.cancelled ? 'text-red-400/50 line-through' : 'text-white'}`}>{formatCentsToBRL(p.amount)}</p>
+                           </div>
                         </div>
-                        <p className="text-[10px] text-gray-500 font-medium">
-                          {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
-                        </p>
+                        <div className="text-right">
+                          <p className="text-[10px] text-gray-500 font-medium">
+                            {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
+                          </p>
+                          {p.cancelled && (
+                            <span className="text-[8px] font-black text-red-500/80 uppercase tracking-tighter mt-1 block">CANCELADO</span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
