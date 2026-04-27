@@ -1,38 +1,41 @@
-# 🧠 Vault Brain: Memória Global de Engenharia
+# 🧠 BRAIN: Núcleo Central de Inteligência
 
-Este vault serve como a **Memória Persistente Central** para todas as atividades de desenvolvimento, decisões arquiteturais e padrões de design. Ele não se limita a um único projeto, mas acumula inteligência de cada interação para acelerar e padronizar trabalhos futuros.
+Este vault é a **Memória Persistente Oficial**. Ele deve ser consultado ANTES de qualquer ação e atualizado APÓS cada aprendizado significativo.
 
-## 🚀 Missão
+## 🗺️ Mapa da Memória (Onde buscar?)
 
-Sempre que um novo projeto for iniciado ou uma decisão complexa for tomada, este cofre deve ser consultado e atualizado para garantir que:
+### 1. [📜 PADRÃO GLOBAL](PADRAO.md) <!-- id: priority-1 -->
 
-1. Padrões de sucesso sejam replicados.
-2. Erros do passado não se repitam.
-3. A identidade visual e técnica (Premium Aesthetics) seja mantida.
-4. **Modularização Total**: Todos os projetos devem ser 100% modularizados e componentizados para máximo desempenho.
+**O que é?** As regras fundamentais de desenvolvimento, nomenclatura e comportamento que regem TODOS os meus projetos.
+**Prioridade:** 🔴 Máxima. Verifique sempre antes de implementar qualquer funcionalidade.
 
-## 📁 Estrutura do Cofre
+### 2. [📂 WORKSPACE](Workspace/)
 
-### 🛠️ Padrões Globais
+**O que é?** A base de conhecimento específica de cada projeto ativo.
 
-- [[Coding_Standards_Decisions]]: Padrões de código, UI/UX e decisões técnicas transversais.
+- [🚀 SAAS_VENDAS_PRO](Workspace/SAAS_VENDAS_PRO/Overview.md): Regras de negócio, fluxos e decisões do projeto atual.
+  - [📊 Banco de Dados](Workspace/SAAS_VENDAS_PRO/Database_Schema.md): Schema, provisioning e seeds.
 
-### 🧰 Arsenal de Skills
+### 3. [🧰 ARSENAL DE SKILLS](skills/)
 
-- [[skills/production-code-audit]]: Auditoria profunda e transformação para nível corporativo.
-- [[skills/react-native-architecture]]: Padrões para mobile Expo/React Native.
-- [[skills/vibe-code-auditor]]: Detecção de falhas estruturais e fragilidades.
-- [[skills/nerdzao-elite]]: Workflow sênior de arquitetura, TDD e UX.
-- [[skills/drizzle-orm-expert]]: Especialista em ORM type-safe (Drizzle).
+**O que é?** Micro-documentações de padrões técnicos avançados (Drizzle, Mobile Architecture, Audit).
 
-### 📂 Projetos Ativos
+---
 
-- [[SAAS_VENDAS_PRO]]: Sistema de gestão de vendas SaaS Multi-tenant.
+## 🏷️ Legenda de Importância
 
-## 💡 Como Usar
+| Tag | Nível              | Descrição                                                                  |
+| :-- | :----------------- | :------------------------------------------------------------------------- |
+| 🔴  | **IMPRESCINDÍVEL** | Regras críticas: Zero erros de lint, nomes em Inglês, cores centralizadas. |
+| 🟠  | **ESTRUTURAL**     | Organização: Modularização, Atomic Design, sub-pastas por funcionalidade.  |
+| 🟡  | **PADRÃO UI/UX**   | Estética: Glassmorphism, Luicide Icons, Skeleton loaders.                  |
+| 🟢  | **MANUTENÇÃO**     | Higiene: Limpeza de lixo, comentários obsoletos e atualização da brain.    |
 
-Ao iniciar uma nova tarefa ou projeto:
+---
 
-1. **Consulte**: "O que já aprendemos sobre [Tópico] no Brain?"
-2. **Implemente**: Siga os padrões registrados.
-3. **Registre**: Novos aprendizados, fixes críticos e decisões de design devem ser adicionados imediatamente.
+## 🔝 Prioridades de Verificação Diária
+
+1. **Check Lint/TSC**: Nunca entregue tarefas com erros ativos.
+2. **Consultar Brain**: Verifique se já não existe uma decisão tomada sobre o que você vai fazer.
+3. **Internal English**: Garanta que IDs e nomes técnicos não estejam em Português.
+4. **Local-First**: Resposta da UI deve ser instantânea, independente da rede.

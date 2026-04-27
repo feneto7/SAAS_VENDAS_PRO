@@ -111,6 +111,7 @@ export const fichas = pgTable("fichas", {
   linkToken: text("link_token").unique(),
   discount:  integer("discount").default(0).notNull(),
   commissionPercent: integer("commission_percent").default(0).notNull(), // Percentual de comissão (ex: 30)
+  itemsLocked: boolean("items_locked").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -124,6 +125,7 @@ export const fichaItems = pgTable("ficha_items", {
   quantity:  integer("quantity").default(1).notNull(), // Quantidade Deixada
   quantitySold: integer("quantity_sold").default(0).notNull(),
   quantityReturned: integer("quantity_returned").default(0).notNull(),
+  informed:  boolean("informed").default(false).notNull(),
   unitPrice: integer("unit_price").default(0).notNull(),
   subtotal:  integer("subtotal").default(0).notNull(),
   commissionType: text("commission_type").default("CC"), // CC ou SC

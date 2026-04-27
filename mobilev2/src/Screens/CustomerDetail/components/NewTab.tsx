@@ -8,6 +8,7 @@ import { useNavigationStore } from '../../../stores/useNavigationStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useCardData, Card } from '../hooks/useCardData';
 import { db } from '../../../services/database';
+import { formatStatus } from '../../../utils/status';
 
 interface Props {
   clientId: string;
@@ -123,7 +124,7 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
         <View style={styles.itemFooter}>
           <Text style={styles.itemTotal}>{formatCentsToBRL(item.total || 0)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: Colors.info }]}>
-            <Text style={styles.statusText}>NEW</Text>
+            <Text style={styles.statusText}>{formatStatus(item.status)}</Text>
           </View>
         </View>
       </View>

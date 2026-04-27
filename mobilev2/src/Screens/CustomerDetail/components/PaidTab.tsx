@@ -5,6 +5,7 @@ import { Colors, UI } from '../../../theme/theme';
 import { formatCentsToBRL } from '../../../utils/money';
 import { useNavigationStore } from '../../../stores/useNavigationStore';
 import { useCardData, Card } from '../hooks/useCardData';
+import { formatStatus } from '../../../utils/status';
 
 interface Props {
   clientId: string;
@@ -37,7 +38,7 @@ export const PaidTab = ({ clientId, clientName }: Props) => {
         <View style={styles.itemFooter}>
           <Text style={styles.itemTotal}>{formatCentsToBRL(item.total || 0)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: Colors.success }]}>
-            <Text style={styles.statusText}>PAID</Text>
+            <Text style={styles.statusText}>{formatStatus(item.status)}</Text>
           </View>
         </View>
       </View>

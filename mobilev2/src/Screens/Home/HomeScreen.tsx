@@ -14,7 +14,8 @@ export const HomeScreen = () => {
   return (
     <SafeAreaView style={GlobalStyles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} />
+      <View style={GlobalStyles.glowTop} pointerEvents="none" />
+      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
       
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
@@ -46,7 +47,6 @@ export const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <View style={GlobalStyles.glowBottom} />
     </SafeAreaView>
   );
 };

@@ -39,3 +39,11 @@ export function applyCurrencyMask(value: string): string {
     .replace(".", ",")
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
+
+/**
+ * Arredonda um valor financeiro para garantir que permaneça como um inteiro de centavos.
+ * Útil para cálculos de porcentagem/comissão.
+ */
+export function roundCents(value: number): number {
+  return Math.round(value || 0);
+}

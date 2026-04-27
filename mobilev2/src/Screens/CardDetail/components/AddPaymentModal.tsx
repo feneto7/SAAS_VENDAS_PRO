@@ -9,6 +9,7 @@ import { Input } from '../../../components/ui/Input';
 import { PaymentMethod } from '../hooks/useCardItemsData';
 import { db } from '../../../services/database';
 import { SyncService } from '../../../services/syncService';
+import { CardService } from '../../../services/cardService';
 import * as Crypto from 'expo-crypto';
 
 import { formatCentsToBRL, applyCurrencyMask, parseBRLToCents } from '../../../utils/money';
@@ -83,7 +84,10 @@ export const AddPaymentModal = ({
         [paymentId, cardId, selectedMethodId, valueCents, paymentDate]
       );
 
-      // 2. Enfileirar Sincronismo
+      // 2. Global Sync (Shared Truth)
+      await CardService.syncLocalTotal(cardId);
+
+      // 3. Enfileirar Sincronismo
       await SyncService.enqueue('POST_PAYMENT', 'card_payments', {
         id: paymentId,
         card_id: cardId,

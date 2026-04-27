@@ -1,5 +1,6 @@
 import { db } from './database';
 import { useAuthStore } from '../stores/useAuthStore';
+import { CONFIG } from './config';
 
 export interface SyncItem {
   id: string;
@@ -64,7 +65,7 @@ export const SyncService = {
     
     const token = useAuthStore.getState().token;
     const tenantSlug = useAuthStore.getState().tenant?.slug;
-    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
+    const API_URL = CONFIG.API_URL;
 
     if (!token || !tenantSlug) return;
 
@@ -104,7 +105,28 @@ export const SyncService = {
                 body: JSON.stringify(data.payload),
                 signal: controller.signal
               });
-              success = res.ok;
+              
+              if (res.ok) {
+                const responseData = await res.json();
+                
+                // --- FIX: Prevent clobbering ---
+                // The server returns the updated item object directly (responseData).
+                // We use || to handle potential wrapper if it ever changes.
+                const updatedItem = (responseData.id === data.id) ? responseData : (responseData.item || (responseData.items && responseData.items.find((i: any) => i.id === data.id)));
+                
+                if (updatedItem) {
+                   console.log(`[SYNC] Updating local item ${updatedItem.id} with server truth`);
+                   await db.runAsync(
+                     `UPDATE card_items SET sold_quantity = ?, returned_quantity = ?, is_informed = 1 WHERE id = ?`,
+                     [
+                       updatedItem.quantitySold ?? updatedItem.quantity_sold ?? 0, 
+                       updatedItem.quantityReturned ?? updatedItem.quantity_returned ?? 0, 
+                       updatedItem.id
+                     ]
+                   );
+                }
+                success = true;
+              }
             } finally {
               clearTimeout(timeoutId);
             }
@@ -131,6 +153,28 @@ export const SyncService = {
                 signal: controller.signal
               });
               success = res.ok;
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          } else if (item.action === 'PATCH' && item.table_name === 'cards') {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            try {
+              const res = await fetch(`${API_URL}/api/fichas/${data.id}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'x-tenant-slug': tenantSlug
+                },
+                body: JSON.stringify(data.payload),
+                signal: controller.signal
+              });
+              success = res.ok;
+              if (!success) {
+                console.error(`[SYNC] PATCH cards failed: ${res.status}`);
+              }
             } finally {
               clearTimeout(timeoutId);
             }
@@ -189,6 +233,23 @@ export const SyncService = {
                   methodId: data.method_id,
                   amount: data.amount,
                 }),
+                signal: controller.signal
+              });
+              success = res.ok;
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          } else if (item.action === 'PATCH_CANCEL_PAYMENT') {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            try {
+              const res = await fetch(`${API_URL}/api/payments/${data.id}/cancel`, {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'x-tenant-slug': tenantSlug
+                },
                 signal: controller.signal
               });
               success = res.ok;

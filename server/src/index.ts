@@ -611,7 +611,10 @@ async function bootstrap() {
           quantity: fichaItems.quantity,
           unitPrice: fichaItems.unitPrice,
           subtotal: fichaItems.subtotal,
-          commissionType: fichaItems.commissionType
+          commissionType: fichaItems.commissionType,
+          quantitySold: fichaItems.quantitySold,
+          quantityReturned: fichaItems.quantityReturned,
+          informed: fichaItems.informed
         })
         .from(fichaItems)
         .leftJoin(products, eq(fichaItems.productId, products.id))
@@ -625,7 +628,10 @@ async function bootstrap() {
     instance.patch('/ficha-items/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      const { quantity, unitPrice, subtotal, commissionType } = request.body as any;
+      const { 
+        quantity, unitPrice, subtotal, commissionType, 
+        quantitySold, quantityReturned 
+      } = request.body as any;
 
       try {
         const result = await db.transaction(async (tx: any) => {
@@ -633,34 +639,62 @@ async function bootstrap() {
           const [oldItem] = await tx.select().from(fichaItems).where(eq(fichaItems.id, id)).limit(1);
           if (!oldItem) throw new Error("Item não encontrado");
 
-          // 2. Update item
+          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, oldItem.fichaId)).limit(1);
+          if (!ficha) throw new Error("Ficha não encontrada");
+
+          // 2. Prepare Updates
+          const updatePayload: any = { updatedAt: new Date() };
+          
+          // Logic for NOVA status (general editing)
+          if (quantity !== undefined) {
+            updatePayload.quantity = Number(quantity);
+            
+            // Stock adjustment for NOVA edit
+            const qtyDiff = oldItem.quantity - Number(quantity);
+            if (qtyDiff !== 0 && ficha.sellerId) {
+               await tx.execute(sql`
+                 UPDATE seller_inventory 
+                 SET stock = stock + ${qtyDiff}, updated_at = now()
+                 WHERE seller_id = ${ficha.sellerId} AND product_id = ${oldItem.productId}
+               `);
+            }
+          }
+          if (unitPrice !== undefined) updatePayload.unitPrice = Number(unitPrice);
+          if (subtotal !== undefined) updatePayload.subtotal = Number(subtotal);
+          if (commissionType !== undefined) updatePayload.commissionType = commissionType;
+
+          // Logic for PENDENTE status (Sale Informing)
+          if (quantitySold !== undefined) {
+             const newSoldNum = Number(quantitySold);
+             const leftOriginal = updatePayload.quantity ?? oldItem.quantity;
+             const newReturnedNum = Math.max(0, leftOriginal - newSoldNum);
+             
+             const prevReturnedNum = oldItem.quantityReturned || 0;
+             const returnDelta = newReturnedNum - prevReturnedNum;
+
+             updatePayload.quantitySold = newSoldNum;
+             updatePayload.quantityReturned = newReturnedNum;
+             updatePayload.informed = true;
+
+             // Stock adjustment for Return
+             if (returnDelta !== 0 && ficha.sellerId) {
+               await tx.update(sellerInventory)
+                 .set({ stock: sql`${sellerInventory.stock} + ${returnDelta}` })
+                 .where(and(
+                   eq(sellerInventory.sellerId, ficha.sellerId),
+                   eq(sellerInventory.productId, oldItem.productId)
+                 ));
+             }
+          }
+
+          // 3. Update item
           const [updated] = await tx.update(fichaItems)
-            .set({
-              quantity: quantity ?? oldItem.quantity,
-              unitPrice: unitPrice ?? oldItem.unitPrice,
-              subtotal: subtotal ?? oldItem.subtotal,
-              commissionType: commissionType ?? oldItem.commissionType,
-            })
+            .set(updatePayload)
             .where(eq(fichaItems.id, id))
             .returning();
 
-          // 3. Update Seller Stock
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, oldItem.fichaId)).limit(1);
-          if (ficha) {
-            const qtyDiff = oldItem.quantity - (quantity ?? oldItem.quantity);
-            if (qtyDiff !== 0) {
-              await tx.execute(sql`
-                UPDATE seller_inventory 
-                SET stock = stock + ${qtyDiff}, updated_at = now()
-                WHERE seller_id = ${ficha.sellerId} AND product_id = ${oldItem.productId}
-              `);
-            }
-          }
-
-          // 4. Update Ficha Total
-          const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, oldItem.fichaId));
-          const newTotal = allItems.reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
-          await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, oldItem.fichaId));
+          // 4. Update Ficha Total & Status
+          await updateFichaStatusIfPaid(tx, oldItem.fichaId);
 
           return updated;
         });
@@ -967,38 +1001,60 @@ async function bootstrap() {
         }
 
         console.log(`✅ Ficha ${id} loaded with ${ficha.items?.length || 0} items. Calculating stats...`);
+ 
+        // Force database integrity on GET
+        await db.transaction(async (tx: any) => {
+          await updateFichaStatusIfPaid(tx, id);
+        });
 
-        // Transform items to match expected format (flatten productName)
-        const items = (ficha.items || []).map((i: any) => ({
+        // Re-fetch to get fresh state from DB
+        const refreshedFicha = await db.query.fichas.findFirst({
+          where: eq(fichas.id, id),
+          with: {
+            client: true,
+            seller: { columns: { name: true } },
+            items: { with: { product: { columns: { name: true, sku: true } } } },
+            payments: { with: { method: { columns: { name: true } } } }
+          }
+        });
+        
+        if (!refreshedFicha) throw new Error("Ficha disappeared during re-fetch");
+        
+        const items = (refreshedFicha.items || []).map((i: any) => ({
           ...i,
           productName: i.product?.name,
           sku: i.product?.sku
         }));
 
-        // Transform payments to match expected format (flatten methodName)
-        const fichaPayments = (ficha.payments || []).map((p: any) => ({
+        const fichaPayments = (refreshedFicha.payments || []).map((p: any) => ({
           ...p,
           methodName: p.method?.name
         }));
 
-        const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
+        const isCurrentlyClosed = refreshedFicha.status === 'pendente' || refreshedFicha.status === 'paga';
 
         const totalValueCC = items
           .filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao')
-          .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
+          .reduce((acc: number, curr: any) => {
+            const q = (isCurrentlyClosed && curr.informed) ? Number(curr.quantitySold) : Number(curr.quantity);
+            return acc + (q * Number(curr.unitPrice));
+          }, 0);
         
         const totalValueSC = items
           .filter((i: any) => i.commissionType === 'SC' || i.commissionType === 'sem_comissao')
-          .reduce((acc: number, curr: any) => acc + (Number(curr[qField]) * Number(curr.unitPrice)), 0);
+          .reduce((acc: number, curr: any) => {
+            const q = (isCurrentlyClosed && curr.informed) ? Number(curr.quantitySold) : Number(curr.quantity);
+            return acc + (q * Number(curr.unitPrice));
+          }, 0);
 
         const totalPaid = fichaPayments.filter((p: any) => !p.cancelled).reduce((acc: number, p: any) => acc + Number(p.amount), 0);
         const commissionVal = totalValueCC * (Number(ficha.commissionPercent || 30) / 100);
         const netCC = totalValueCC - commissionVal;
         const totalToPay = netCC + totalValueSC;
-        const balance = totalToPay - totalPaid - Number(ficha.discount || 0);
+        const balance = Math.round(totalToPay - totalPaid - Number(refreshedFicha.discount || 0));
 
-        return {
-          ...ficha,
+        const responseData = {
+          ...refreshedFicha,
           items,
           payments: fichaPayments,
           stats: {
@@ -1010,6 +1066,9 @@ async function bootstrap() {
             itemCount: items.length
           }
         };
+ 
+        console.log(`[DEBUG] Returning ficha ${id} with status: ${refreshedFicha.status}`);
+        return responseData;
       } catch (err: any) {
         console.error("🔥 Error in GET /fichas/:id:", err);
         return reply.status(500).send({ error: "Internal Server Error", message: err.message });
@@ -1158,6 +1217,35 @@ async function bootstrap() {
       }
     });
 
+    // Generic Ficha Update (itemsLocked, commissionPercent, etc)
+    instance.patch('/fichas/:id', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+      const { itemsLocked, commissionPercent, discount, notes, status, saleDate } = request.body as any;
+
+      try {
+        const updatePayload: any = { updatedAt: new Date() };
+        if (itemsLocked !== undefined) updatePayload.itemsLocked = itemsLocked;
+        if (commissionPercent !== undefined) updatePayload.commissionPercent = Number(commissionPercent);
+        if (discount !== undefined) updatePayload.discount = Number(discount);
+        if (notes !== undefined) updatePayload.notes = notes;
+        if (status !== undefined) updatePayload.status = status;
+        if (saleDate !== undefined) updatePayload.saleDate = new Date(saleDate);
+
+        await db.update(fichas).set(updatePayload).where(eq(fichas.id, id));
+        
+        // If locked/unlocked, we might want to recalculate status just in case
+        await db.transaction(async (tx: any) => {
+          await updateFichaStatusIfPaid(tx, id);
+        });
+
+        const [updated] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+        return updated;
+      } catch (err: any) {
+        return reply.status(400).send({ error: err.message });
+      }
+    });
+
     // Delete item from ficha
     instance.delete('/fichas/:id/items/:itemId', async (request, reply) => {
       const db = (request as any).tenantDb;
@@ -1228,30 +1316,58 @@ async function bootstrap() {
 
       console.log(`[DEBUG] items: ${itemsList.length}, payments: ${paymentsList.length}`);
 
-      const qField = ficha.status === 'nova' ? 'quantity' : 'quantitySold';
+      const isCurrentlyClosed = ficha.status === 'pendente' || ficha.status === 'paga';
 
-      const totalValueCC = itemsList.filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
-      const totalValueSC = itemsList.filter((i: any) => i.commissionType === 'SC' || i.commissionType === 'sem_comissao').reduce((acc: number, i: any) => acc + (Number(i[qField]) * Number(i.unitPrice)), 0);
+      const totalValueCC = itemsList
+        .filter((i: any) => i.commissionType === 'CC' || i.commissionType === 'com_comissao')
+        .reduce((acc: number, i: any) => {
+          const q = (isCurrentlyClosed && i.informed) ? Number(i.quantitySold) : Number(i.quantity);
+          return acc + (q * Number(i.unitPrice));
+        }, 0);
+
+      const totalValueSC = itemsList
+        .filter((i: any) => i.commissionType !== 'CC' && i.commissionType !== 'com_comissao')
+        .reduce((acc: number, i: any) => {
+          const q = (isCurrentlyClosed && i.informed) ? Number(i.quantitySold) : Number(i.quantity);
+          return acc + (q * Number(i.unitPrice));
+        }, 0);
       
-      const commissionVal = totalValueCC * (Number(ficha.commissionPercent || 30) / 100);
+      const commissionVal = Math.round(totalValueCC * (Number(ficha.commissionPercent || 30) / 100));
       const netCC = totalValueCC - commissionVal;
       const totalToPay = netCC + totalValueSC;
       
       const totalPaid = paymentsList
         .filter((p: any) => !p.cancelled)
         .reduce((acc: number, p: any) => acc + Number(p.amount), 0);
-      const balance = totalToPay - totalPaid - Number(ficha.discount || 0);
+      const balance = Math.round(totalToPay - totalPaid - Number(ficha.discount || 0));
 
-      console.log(`[DEBUG] qField: ${qField}, totalValueSC: ${totalValueSC}, totalToPay: ${totalToPay}, totalPaid: ${totalPaid}, balance: ${balance}`);
-
-      // Status should be 'paga' if balance <= 0, otherwise 'pendente' (if it were nova or pendente)
-      const newStatus = balance <= 0 ? 'paga' : (ficha.status === 'nova' ? 'nova' : 'pendente');
+      // REGRA DE STATUS: Só vira PAGA se saldo <= 0 AND todos os itens foram conferidos (informed).
+      const allItemsInformed = itemsList.length > 0 && itemsList.every((i: any) => !!i.informed);
       
-      console.log(`[DEBUG] Current status: ${ficha.status}, New status target: ${newStatus}`);
+      const isPaid = balance <= 0 && allItemsInformed && (ficha.status !== 'nova' || !!ficha.itemsLocked);
+      const newStatus = isPaid ? 'paga' : (ficha.status === 'nova' ? 'nova' : 'pendente');
       
+      const updatePayload: any = { updatedAt: new Date() };
       if (ficha.status !== newStatus) {
-        await tx.update(fichas).set({ status: newStatus, updatedAt: new Date() }).where(eq(fichas.id, fichaId));
+        console.log(`[DEBUG] Adding status: ${newStatus} to update payload`);
+        updatePayload.status = newStatus;
       }
+ 
+      // Auto-lock if paid to ensure UI consistency
+      if (isPaid && !ficha.itemsLocked) {
+        console.log(`[DEBUG] Auto-locking ficha ${fichaId} because it is fully paid`);
+        updatePayload.itemsLocked = true;
+      }
+      
+      // Update total column to reflect current calculation field
+      updatePayload.total = totalToPay;
+
+      console.log(`[DEBUG] Executing update for ficha ${fichaId} with payload:`, JSON.stringify(updatePayload));
+      await tx.update(fichas).set(updatePayload).where(eq(fichas.id, fichaId));
+      
+      // Verification log
+      const [after] = await tx.select({ status: fichas.status }).from(fichas).where(eq(fichas.id, fichaId)).limit(1);
+      console.log(`[DEBUG] Verification: Ficha ${fichaId} status in DB is now: ${after?.status}`);
     }
 
     instance.post('/fichas/:id/payments', async (request, reply) => {
@@ -1263,7 +1379,6 @@ async function bootstrap() {
         const newPayment = await db.transaction(async (tx: any) => {
           const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
           if (!ficha) throw new Error("Ficha não encontrada");
-          if (ficha.status === 'paga') throw new Error("Ficha já está paga e não aceita novos pagamentos");
 
           // For 'nova' status, limit payment to total of SC items (initial quantity)
           if (ficha.status === 'nova') {
@@ -1308,10 +1423,13 @@ async function bootstrap() {
       try {
         await db.transaction(async (tx: any) => {
           const [pmt] = await tx.select().from(payments).where(eq(payments.id, id)).limit(1);
-          if (!pmt) throw new Error("Pagamento não encontrado");
+          if (!pmt) {
+            console.log(`[SYNC] Cancel payment: Payment ${id} not found on server, assuming it was never synced. Skipping.`);
+            return;
+          }
 
           const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, pmt.fichaId));
-          if (ficha?.status === 'paga') throw new Error("Ficha já está paga e os pagamentos não podem ser cancelados");
+
 
           await tx.update(payments)
             .set({ cancelled: true, cancelledAt: new Date() })
