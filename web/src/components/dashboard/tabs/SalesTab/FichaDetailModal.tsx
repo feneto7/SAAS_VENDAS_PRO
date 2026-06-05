@@ -8,32 +8,32 @@ import { Pagination } from "@/components/dashboard/shared/Pagination";
 interface FichaDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  fichaId: string | null;
+  cardId: string | null;
   tenantSlug: string;
 }
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
 
-export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: FichaDetailModalProps) {
+export function FichaDetailModal({ isOpen, onClose, cardId, tenantSlug }: FichaDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [togglingLock, setTogglingLock] = useState(false);
-  const [ficha, setFicha] = useState<any>(null);
+  const [card, setFicha] = useState<any>(null);
   const [itemPage, setItemPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    if (isOpen && fichaId) {
+    if (isOpen && cardId) {
       fetchFichaDetails();
     } else {
       setFicha(null);
       setItemPage(1);
     }
-  }, [isOpen, fichaId]);
+  }, [isOpen, cardId]);
 
   const fetchFichaDetails = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${SERVER_URL}/api/fichas/${fichaId}`, {
+      const res = await fetch(`${SERVER_URL}/api/cards/${cardId}`, {
         headers: { "x-tenant-slug": tenantSlug }
       });
       if (res.ok) {
@@ -41,18 +41,18 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
         setFicha(data);
       }
     } catch (err) {
-      console.error("Erro ao buscar detalhes da ficha:", err);
+      console.error("Erro ao buscar detalhes da card:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const toggleLock = async () => {
-    if (!ficha) return;
+    if (!card) return;
     try {
       setTogglingLock(true);
-      const newLockedState = !ficha.itemsLocked;
-      const res = await fetch(`${SERVER_URL}/api/fichas/${ficha.id}`, {
+      const newLockedState = !card.itemsLocked;
+      const res = await fetch(`${SERVER_URL}/api/cards/${card.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -62,13 +62,13 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
       });
       
       if (res.ok) {
-        setFicha({ ...ficha, itemsLocked: newLockedState });
+        setFicha({ ...card, itemsLocked: newLockedState });
       } else {
-        alert("Erro ao alternar bloqueio da ficha");
+        alert("Erro ao alternar bloqueio da card");
       }
     } catch (err) {
       console.error(err);
-      alert("Erro ao alternar bloqueio da ficha");
+      alert("Erro ao alternar bloqueio da card");
     } finally {
       setTogglingLock(false);
     }
@@ -76,107 +76,101 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
 
   if (!isOpen) return null;
 
-  const paginatedItems = ficha?.items?.slice((itemPage - 1) * itemsPerPage, itemPage * itemsPerPage) || [];
-  const totalItemPages = Math.ceil((ficha?.items?.length || 0) / itemsPerPage);
+  const paginatedItems = card?.items?.slice((itemPage - 1) * itemsPerPage, itemPage * itemsPerPage) || [];
+  const totalItemPages = Math.ceil((card?.items?.length || 0) / itemsPerPage);
 
-  const sectionLabel = "text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-4";
-  const dataLabel = "text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1";
-  const dataValue = "text-sm font-medium text-white";
+  const sectionLabel = "nm-heading flex items-center gap-2 mb-4";
+  const dataLabel = "nm-input-group__label mb-1";
+  const dataValue = "text-sm font-bold text-[var(--nm-text-primary)]";
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300" onClick={onClose} />
-
-      {/* Modal Container */}
-      <div className="relative w-full max-w-5xl h-fit max-h-[90vh] bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 shadow-emerald-500/5">
+    <div className="nm-modal-backdrop" onClick={onClose}>
+      <div className="nm-modal nm-modal--xl" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
-        <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-emerald-500/5 to-transparent">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20">
-              <Info className="text-emerald-400" size={24} />
+        <header className="nm-modal__header" style={{ paddingRight: "4rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div className="nm-icon-circle nm-icon-circle--info nm-icon-circle--lg">
+              <Info size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white tracking-tight leading-none">
-                {ficha ? `Ficha #${ficha.code || ficha.id.substring(0,8)}` : "Carregando..."}
+              <h2 className="nm-modal__title">
+                {card ? `Ficha #${card.code || card.id.substring(0,8)}` : "Carregando..."}
               </h2>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-2">
+              <p className="nm-modal__subtitle" style={{ textTransform: "uppercase", fontWeight: "bold", fontSize: "10px" }}>
                 Detalhamento Completo da Venda
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {ficha?.status === 'pendente' && (
+          
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginLeft: "auto" }}>
+            {card?.status === 'pendente' && (
               <button 
                 onClick={toggleLock} 
                 disabled={togglingLock}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                   ficha?.itemsLocked 
-                     ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20' 
-                     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                }`}
-                title={ficha?.itemsLocked ? "Ficha Bloqueada (Clique para Desbloquear)" : "Ficha Desbloqueada (Clique para Bloquear)"}
+                className={`nm-btn nm-btn--sm ${card?.itemsLocked ? 'nm-btn--danger' : 'nm-btn--accent'}`}
+                title={card?.itemsLocked ? "Ficha Bloqueada (Clique para Desbloquear)" : "Ficha Desbloqueada (Clique para Bloquear)"}
               >
                 {togglingLock ? (
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : ficha?.itemsLocked ? (
+                ) : card?.itemsLocked ? (
                   <Lock size={14} />
                 ) : (
                   <Unlock size={14} />
                 )}
-                {togglingLock ? "Alternando..." : (ficha?.itemsLocked ? "Desbloquear Ficha" : "Ficha Liberada")}
+                <span className="ml-1 hidden sm:inline">{togglingLock ? "Alternando..." : (card?.itemsLocked ? "Desbloquear Ficha" : "Ficha Liberada")}</span>
               </button>
             )}
-            <button onClick={onClose} className="p-2 ml-4 hover:bg-white/5 rounded-full text-gray-500 hover:text-white transition-all">
-              <X size={24} />
-            </button>
           </div>
+
+          <button onClick={onClose} className="nm-modal__close">
+            <X size={18} />
+          </button>
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {loading && !ficha ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-4 text-gray-500">
+        <div className="nm-modal__body custom-scrollbar">
+          {loading && !card ? (
+            <div className="py-20 flex flex-col items-center justify-center gap-4 text-[var(--nm-text-muted)]">
               <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-              <p className="text-xs font-black uppercase tracking-widest">Buscando dados...</p>
+              <p className="nm-input-group__label">Buscando dados...</p>
             </div>
-          ) : ficha && (
-            <div className="space-y-10">
+          ) : card && (
+            <div className="max-w-5xl mx-auto space-y-8">
               
               {/* 1. Header Block: Info Cliente / Vendedor */}
               <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 bg-white/[0.02] border border-white/5 p-6 rounded-3xl space-y-6">
+                <div className="md:col-span-2 nm-card nm-card--sm p-6 space-y-6">
                   <h3 className={sectionLabel}><User size={14} /> Dados do Cliente</h3>
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <span className={dataLabel}>Nome</span>
-                      <p className={dataValue}>{ficha.client?.name}</p>
+                      <p className={dataValue}>{card.client?.name}</p>
                     </div>
                     <div>
                       <span className={dataLabel}>Contato</span>
-                      <p className={dataValue}>{ficha.client?.phone || "Não informado"}</p>
+                      <p className={dataValue}>{card.client?.phone || "Não informado"}</p>
                     </div>
                     <div className="col-span-2">
                       <span className={dataLabel}>Endereço</span>
                       <p className={dataValue}>
-                        {ficha.client?.street}, {ficha.client?.number} - {ficha.client?.neighborhood}<br/>
-                        {ficha.client?.city} / {ficha.client?.state}
+                        {card.client?.street}, {card.client?.number} - {card.client?.neighborhood}<br/>
+                        {card.client?.city} / {card.client?.state}
                       </p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="bg-white/[0.02] border border-white/5 p-6 rounded-3xl flex flex-col justify-between">
+                <div className="nm-card nm-card--sm p-6 flex flex-col justify-between">
                   <div className="space-y-6">
                     <h3 className={sectionLabel}><Briefcase size={14} /> Vendedor & Data</h3>
                     <div>
                       <span className={dataLabel}>Responsável</span>
-                      <p className={dataValue}>{ficha.seller?.name}</p>
+                      <p className={dataValue}>{card.seller?.name}</p>
                     </div>
                     <div>
                       <span className={dataLabel}>Data da Venda</span>
-                      <p className={dataValue}>{new Date(ficha.saleDate).toLocaleDateString('pt-BR')}</p>
+                      <p className={dataValue}>{new Date(card.saleDate).toLocaleDateString('pt-BR')}</p>
                     </div>
                   </div>
                 </div>
@@ -184,77 +178,81 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
 
               {/* 2. Stats Block: Valores */}
               <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-emerald-500/5 border border-emerald-500/10 p-5 rounded-3xl">
+                <div className="nm-card nm-card--sm p-5 border-emerald-500/20" style={{ background: "rgba(16, 185, 129, 0.05)" }}>
                   <span className={dataLabel}>Total da Ficha</span>
-                  <p className="text-xl font-black text-emerald-400">{formatCentsToBRL(ficha.total)}</p>
+                  <p className="text-xl font-black text-emerald-400">{formatCentsToBRL(card.total)}</p>
                 </div>
-                <div className="bg-purple-500/5 border border-purple-500/10 p-5 rounded-3xl">
+                <div className="nm-card nm-card--sm p-5 border-purple-500/20" style={{ background: "rgba(168, 85, 247, 0.05)" }}>
                   <span className={dataLabel}>Produtos CC</span>
-                  <p className="text-xl font-black text-purple-400">{formatCentsToBRL(ficha.stats?.totalCC)}</p>
+                  <p className="text-xl font-black text-purple-400">{formatCentsToBRL(card.stats?.totalCC)}</p>
                 </div>
-                <div className="bg-blue-500/5 border border-blue-500/10 p-5 rounded-3xl">
+                <div className="nm-card nm-card--sm p-5 border-blue-500/20" style={{ background: "rgba(59, 130, 246, 0.05)" }}>
                   <span className={dataLabel}>Produtos SC</span>
-                  <p className="text-xl font-black text-blue-400">{formatCentsToBRL(ficha.stats?.totalSC)}</p>
+                  <p className="text-xl font-black text-blue-400">{formatCentsToBRL(card.stats?.totalSC)}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 p-5 rounded-3xl">
+                <div className="nm-card nm-card--sm p-5">
                   <span className={dataLabel}>Qtd Itens</span>
-                  <p className="text-xl font-black text-white">{ficha.stats?.itemCount} unid</p>
+                  <p className="text-xl font-black" style={{ color: "var(--nm-text-primary)" }}>{card.stats?.itemCount} unid</p>
                 </div>
               </section>
 
               {/* 3. Items Table */}
               <section className="space-y-4">
                 <h3 className={sectionLabel}><Package size={14} /> Itens da Venda</h3>
-                <div className="border border-white/5 rounded-2xl overflow-hidden bg-black/20">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-white/5 text-gray-500 font-black uppercase tracking-widest border-b border-white/5">
-                        <th className="px-6 py-4">Produto</th>
-                        <th className="px-6 py-4 text-center">Tipo</th>
-                        <th className="px-6 py-4 text-center">Qtd</th>
-                        <th className="px-6 py-4 text-right">Unitário</th>
-                        <th className="px-6 py-4 text-right">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.03]">
-                      {paginatedItems.map((item: any) => (
-                        <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="px-6 py-3">
-                            <p className="font-bold text-gray-300">{item.productName}</p>
-                            <p className="text-[10px] text-gray-600 font-mono">SKU: {item.sku}</p>
-                          </td>
-                          <td className="px-6 py-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${item.commissionType === 'CC' ? 'bg-purple-500/10 text-purple-400' : 'bg-white/5 text-gray-500'}`}>
-                              {item.commissionType}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3 text-center">
-                            {ficha.status === 'paga' ? (
-                              <div className="flex flex-col items-center">
-                                <div className="text-[10px] font-black text-white/40 mb-1 border-b border-white/5 pb-1 w-full text-center">
-                                  {item.quantity} <span className="text-[8px] uppercase tracking-tighter">Total</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-white font-bold">{item.quantitySold}</span>
-                                  <span className="text-[8px] text-emerald-500 uppercase font-black">vend</span>
-                                </div>
-                                <div className="flex items-center gap-1 opacity-50">
-                                  <span className="text-gray-400 font-medium">{item.quantityReturned}</span>
-                                  <span className="text-[8px] text-gray-500 uppercase font-bold">dev</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="font-bold text-gray-400">{item.quantity}</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-3 text-right text-gray-400">{formatCentsToBRL(item.unitPrice)}</td>
-                          <td className="px-6 py-3 text-right font-black text-white">{formatCentsToBRL(item.subtotal)}</td>
+                <div className="nm-table-wrapper">
+                  <div className="nm-table-scroll">
+                    <table className="nm-table">
+                      <thead>
+                        <tr>
+                          <th>Produto</th>
+                          <th style={{ textAlign: "center" }}>Tipo</th>
+                          <th style={{ textAlign: "center" }}>Qtd</th>
+                          <th style={{ textAlign: "right" }}>Unitário</th>
+                          <th style={{ textAlign: "right" }}>Subtotal</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {paginatedItems.map((item: any) => (
+                          <tr key={item.id}>
+                            <td>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                                <span style={{ fontWeight: 600, color: "var(--nm-text-primary)" }}>{item.productName}</span>
+                                <span style={{ fontSize: "10px", color: "var(--nm-text-muted)", fontFamily: "monospace" }}>SKU: {item.sku}</span>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <span className={`nm-code ${item.commissionType === 'CC' ? 'text-purple-400 border-purple-500/30' : 'text-gray-400'}`} style={{ padding: "0.2rem 0.4rem", fontSize: "10px", fontWeight: "bold" }}>
+                                {item.commissionType}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              {card.status === 'paga' ? (
+                                <div className="flex flex-col items-center">
+                                  <div className="text-[10px] font-black mb-1 pb-1 w-full text-center" style={{ color: "var(--nm-text-muted)", borderBottom: "1px solid var(--nm-border-color)" }}>
+                                    {item.quantity} <span className="text-[8px] uppercase tracking-tighter">Total</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span style={{ fontWeight: "bold", color: "var(--nm-text-primary)" }}>{item.quantitySold}</span>
+                                    <span className="text-[8px] text-emerald-500 uppercase font-black">vend</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-70">
+                                    <span style={{ fontWeight: "bold", color: "var(--nm-text-muted)" }}>{item.quantityReturned}</span>
+                                    <span className="text-[8px] uppercase font-bold" style={{ color: "var(--nm-text-muted)" }}>dev</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span style={{ fontWeight: 800 }}>{item.quantity}</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: "right" }}>{formatCentsToBRL(item.unitPrice)}</td>
+                            <td style={{ textAlign: "right", fontWeight: 800, color: "var(--nm-text-primary)" }}>{formatCentsToBRL(item.subtotal)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                   {totalItemPages > 1 && (
-                    <div className="p-4 border-t border-white/5">
+                    <div style={{ padding: "1rem", borderTop: "1px solid var(--nm-border-color)" }}>
                       <Pagination 
                         currentPage={itemPage}
                         totalPages={totalItemPages}
@@ -269,9 +267,9 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
               {/* 4. Observations */}
               <section>
                 <h3 className={sectionLabel}><MapPin size={14} /> Observações</h3>
-                <div className="bg-white/[0.04] border border-white/10 p-6 rounded-3xl min-h-[80px]">
-                  <p className="text-sm text-gray-400 leading-relaxed italic">
-                    {ficha.notes || "Nenhuma observação cadastrada."}
+                <div className="nm-card nm-card--sm p-6">
+                  <p style={{ fontSize: "0.875rem", color: "var(--nm-text-secondary)", lineHeight: 1.6, fontStyle: "italic" }}>
+                    {card.notes || "Nenhuma observação cadastrada."}
                   </p>
                 </div>
               </section>
@@ -279,34 +277,34 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
               {/* 5. Payments List */}
               <section className="space-y-4">
                 <h3 className={sectionLabel}><CreditCard size={14} /> Pagamentos Lançados</h3>
-                {ficha.payments?.length > 0 ? (
+                {card.payments?.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {ficha.payments.map((p: any) => (
-                      <div key={p.id} className={`bg-white/[0.02] border p-4 rounded-2xl flex items-center justify-between transition-all ${p.cancelled ? 'opacity-40 border-red-500/20' : 'border-white/5'}`}>
+                    {card.payments.map((p: any) => (
+                      <div key={p.id} className={`nm-card nm-card--sm p-4 flex items-center justify-between transition-all ${p.cancelled ? 'opacity-50 grayscale' : ''}`}>
                         <div className="flex items-center gap-3">
-                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.cancelled ? 'bg-red-500/10' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
-                             <CreditCard size={14} className={p.cancelled ? 'text-red-400' : 'text-emerald-400'} />
+                           <div className={`nm-icon-circle nm-icon-circle--sm ${p.cancelled ? 'nm-icon-circle--danger' : 'nm-icon-circle--success'}`}>
+                             <CreditCard size={14} />
                            </div>
                            <div>
-                             <p className={`text-[10px] font-black uppercase tracking-widest mb-0.5 ${p.cancelled ? 'text-red-400/70 line-through' : 'text-gray-500'}`}>{p.methodName || p.method?.name || "Pagamento"}</p>
-                             <p className={`text-sm font-bold ${p.cancelled ? 'text-red-400/50 line-through' : 'text-white'}`}>{formatCentsToBRL(p.amount)}</p>
+                             <p className="nm-input-group__label mb-0.5" style={{ textDecoration: p.cancelled ? 'line-through' : 'none' }}>{p.methodName || p.method?.name || "Pagamento"}</p>
+                             <p style={{ fontSize: "0.875rem", fontWeight: "bold", color: "var(--nm-text-primary)", textDecoration: p.cancelled ? 'line-through' : 'none' }}>{formatCentsToBRL(p.amount)}</p>
                            </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] text-gray-500 font-medium">
+                          <p style={{ fontSize: "10px", fontWeight: 500, color: "var(--nm-text-secondary)" }}>
                             {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
                           </p>
                           {p.cancelled && (
-                            <span className="text-[8px] font-black text-red-500/80 uppercase tracking-tighter mt-1 block">CANCELADO</span>
+                            <span className="text-[8px] font-black text-red-500 uppercase tracking-tighter mt-1 block">CANCELADO</span>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="py-10 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center opacity-30">
+                  <div className="nm-card nm-card--sm py-10 flex flex-col items-center justify-center opacity-50 border-dashed">
                     <CreditCard size={24} className="mb-2" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">Nenhum pagamento registrado</p>
+                    <p className="nm-input-group__label">Nenhum pagamento registrado</p>
                   </div>
                 )}
               </section>
@@ -316,10 +314,10 @@ export function FichaDetailModal({ isOpen, onClose, fichaId, tenantSlug }: Ficha
         </div>
 
         {/* Footer */}
-        <footer className="px-8 py-6 border-t border-white/5 flex justify-end shrink-0">
+        <footer className="nm-modal__footer" style={{ justifyContent: "flex-end" }}>
           <button 
             onClick={onClose}
-            className="px-10 py-4 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+            className="nm-btn nm-btn--flat"
           >
             Fechar Detalhes
           </button>

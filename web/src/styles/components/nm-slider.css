@@ -1,0 +1,215 @@
+/**
+ * Neumorphic Sliders & Progress — nm-slider.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Slider Base ─────────────────────────────── */
+.nm-slider-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nm-slider-wrapper__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nm-slider-wrapper__name {
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--nm-tracking-widest);
+  color: var(--nm-text-muted);
+}
+
+.nm-slider-wrapper__value {
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-bold);
+  color: var(--nm-accent);
+}
+
+/* Track do slider */
+.nm-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 0.5rem;
+  background: var(--nm-surface-deep);
+  border-radius: var(--nm-radius-full);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-inset);
+  outline: none;
+  cursor: pointer;
+  transition: box-shadow var(--nm-transition);
+}
+
+.nm-slider:focus {
+  box-shadow: var(--nm-shadow-glow-inset);
+}
+
+/* Thumb */
+.nm-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border-accent);
+  box-shadow:
+    4px 4px 8px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light),
+    0 0 10px var(--nm-accent-glow);
+  cursor: grab;
+  transition:
+    box-shadow var(--nm-transition),
+    transform var(--nm-transition-fast);
+}
+
+.nm-slider::-webkit-slider-thumb:hover {
+  box-shadow:
+    4px 4px 10px var(--nm-shadow-dark),
+    -3px -3px 8px var(--nm-shadow-light),
+    0 0 18px var(--nm-accent-glow),
+    0 0 32px var(--nm-accent-glow-lg);
+  transform: scale(1.15);
+}
+
+.nm-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  box-shadow:
+    inset 2px 2px 5px rgba(0,0,0,0.3),
+    0 0 12px var(--nm-accent-glow);
+  transform: scale(0.95);
+}
+
+.nm-slider::-moz-range-thumb {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border-accent);
+  box-shadow:
+    4px 4px 8px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light),
+    0 0 10px var(--nm-accent-glow);
+  cursor: grab;
+}
+
+/* Versão accent — thumb colorido */
+.nm-slider--accent::-webkit-slider-thumb {
+  background: var(--nm-gradient-accent);
+  border-color: transparent;
+  box-shadow:
+    4px 4px 8px var(--nm-shadow-dark),
+    0 0 14px var(--nm-accent-glow);
+}
+
+/* Slider vertical */
+.nm-slider--vertical {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 0.5rem;
+  height: 8rem;
+}
+
+/* ── Progress Bar ─────────────────────────────── */
+.nm-progress {
+  position: relative;
+  height: 0.5rem;
+  background: var(--nm-surface-deep);
+  border-radius: var(--nm-radius-full);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-inset);
+  overflow: hidden;
+}
+
+.nm-progress__fill {
+  height: 100%;
+  border-radius: var(--nm-radius-full);
+  background: var(--nm-gradient-accent);
+  box-shadow: 0 0 10px var(--nm-accent-glow);
+  transition: width var(--nm-transition-slow);
+  position: relative;
+}
+
+/* Shine animado no progress */
+.nm-progress__fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.3),
+    transparent
+  );
+  animation: nm-progress-shine 2s ease-in-out infinite;
+}
+
+@keyframes nm-progress-shine {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* Progress grande */
+.nm-progress--lg {
+  height: 0.75rem;
+}
+
+.nm-progress--xl {
+  height: 1.1rem;
+}
+
+/* Progress com label */
+.nm-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nm-progress-wrapper__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nm-progress-wrapper__label {
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--nm-tracking-widest);
+  color: var(--nm-text-muted);
+}
+
+.nm-progress-wrapper__value {
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-bold);
+  color: var(--nm-accent);
+}
+
+/* ── Dots progress ───────────────────────────── */
+.nm-dots-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nm-dots-progress__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--nm-surface-deep);
+  box-shadow: var(--nm-shadow-inset);
+  transition: all var(--nm-transition);
+}
+
+.nm-dots-progress__dot--active {
+  background: var(--nm-gradient-accent);
+  box-shadow: 0 0 8px var(--nm-accent-glow);
+}

@@ -1,0 +1,199 @@
+/**
+ * Neumorphic Tables — nm-table.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Wrapper ──────────────────────────────────── */
+.nm-table-wrapper {
+  background: var(--nm-surface);
+  border-radius: var(--nm-radius-xs);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-raised);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Linha de brilho no topo */
+.nm-table-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.14) 30%,
+    rgba(255,255,255,0.2) 50%,
+    rgba(255,255,255,0.14) 70%,
+    transparent
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+.nm-table-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* ── Tabela ───────────────────────────────────── */
+.nm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--nm-text-sm);
+  table-layout: auto;
+}
+
+/* ── Header ───────────────────────────────────── */
+.nm-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.nm-table thead tr {
+  background: var(--nm-surface-deep);
+  border-bottom: 1px solid var(--nm-border);
+}
+
+.nm-table th {
+  padding: 0.35rem 0.75rem;
+  text-align: left;
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--nm-tracking-widest);
+  color: var(--nm-text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Header sortável */
+.nm-table th.nm-sortable {
+  cursor: pointer;
+  transition: color var(--nm-transition-fast);
+}
+
+.nm-table th.nm-sortable:hover {
+  color: var(--nm-text-primary);
+}
+
+.nm-table th.nm-sort-active {
+  color: var(--nm-accent);
+}
+
+.nm-sort-icon {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+
+/* ── Body ─────────────────────────────────────── */
+.nm-table tbody tr {
+  border-bottom: 1px solid var(--nm-border-subtle);
+  transition:
+    background var(--nm-transition-fast),
+    box-shadow var(--nm-transition-fast);
+  position: relative;
+}
+
+.nm-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.nm-table tbody tr:hover {
+  background: var(--nm-surface-raised);
+  box-shadow: inset 3px 0 0 var(--nm-accent);
+}
+
+.nm-table td {
+  padding: 0.25rem 0.75rem;
+  color: var(--nm-text-primary);
+  vertical-align: middle;
+}
+
+/* Coluna de ações */
+.nm-table td.nm-actions-col {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Linha selecionada */
+.nm-table tbody tr.nm-row--selected {
+  background: var(--nm-accent-glow);
+  box-shadow: inset 3px 0 0 var(--nm-accent);
+}
+
+/* Linha com glow */
+.nm-table tbody tr.nm-row--highlight {
+  background: var(--nm-surface-raised);
+}
+
+/* ── Célula especial ──────────────────────────── */
+.nm-cell--accent {
+  color: var(--nm-accent);
+  font-weight: var(--nm-font-semibold);
+}
+
+.nm-cell--muted {
+  color: var(--nm-text-muted);
+  font-size: var(--nm-text-sm);
+}
+
+.nm-cell--mono {
+  font-family: 'Geist Mono', monospace;
+  font-size: var(--nm-text-sm);
+}
+
+/* ── Empty State ──────────────────────────────── */
+.nm-table-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--nm-text-muted);
+}
+
+.nm-table-empty__icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.4;
+}
+
+.nm-table-empty__text {
+  font-size: var(--nm-text-base);
+  font-weight: var(--nm-font-medium);
+}
+
+/* ── Skeleton loader ──────────────────────────── */
+.nm-skeleton {
+  display: inline-block;
+  background: var(--nm-surface-raised);
+  border-radius: var(--nm-radius-sm);
+  animation: nm-skeleton-pulse 1.5s ease-in-out infinite;
+  height: 1em;
+}
+
+@keyframes nm-skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── Tabela compacta ──────────────────────────── */
+.nm-table--compact th,
+.nm-table--compact td {
+  padding: 0.55rem 0.9rem;
+}
+
+/* ── Tabela com bordas ────────────────────────── */
+.nm-table--bordered td,
+.nm-table--bordered th {
+  border: 1px solid var(--nm-border);
+}
+
+/* ── Tabela com linhas alternadas ─────────────── */
+.nm-table--striped tbody tr:nth-child(even) {
+  background: var(--nm-surface-deep);
+}

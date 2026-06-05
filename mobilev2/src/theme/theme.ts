@@ -1,62 +1,128 @@
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-export const Colors = {
-  // Base Colors
-  background: '#0F0B1E',
+export const darkTokens = {
+  // Base Surfaces
+  background: '#1e2028',
+  surface: '#252830',
+  surfaceRaised: '#2a2d38',
+  surfaceDeep: '#191b22',
+  
+  // Semantic & Accents
   primary: '#6C47FF',
   primaryDark: '#5D3FD3',
   secondary: '#7C3AED',
+  accent: '#00e5c8',
   white: '#FFFFFF',
   transparent: 'transparent',
   
-  // Semantic UI Tokens
-  buttonBg: '#aa95ffff',
-  buttonSuccess: '#10B981',
-  buttonDanger: '#EF4444',
-  buttonWarning: '#F59E0B',
-  buttonInfo: '#3B82F6',
-  
-  // Surface / List Tokens
-  cardBg: 'rgba(255,255,255,0.04)',
-  cardSolid: '#1E1640',
-  cardBorder: 'rgba(255,255,255,0.08)',
-  borderLight: 'rgba(255,255,255,0.1)',
-  listItemBg: '#6C47FF',
+  // Neumorphic Shadows (Native Approximation)
+  shadowDark: '#13151c',
+  shadowLight: '#313748',
   
   // Text Tokens
-  textPrimary: '#FFFFFF',
-  textSecondary: '#CFCADA',
-  textMuted: '#9B91B9',
-  textInput: '#FFFFFF',
+  textPrimary: '#e8eaf0',
+  textSecondary: '#9096b0',
+  textMuted: '#5a607a',
+  textInput: '#e8eaf0',
   
-  // Icon Tokens
-  iconPrimary: '#FFFFFF',
+  // Feedback
+  success: '#00e5c8',
+  danger: '#ff6b7a',
+  warning: '#ffd166',
+  info: '#74b9ff',
   
-  // feedback
-  success: '#10B981',
-  danger: '#EF4444',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-
-  // Gray scale / Placeholders
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray300: '#D1D5DB',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray600: '#4B5563',
-  gray700: '#374151',
-  gray800: '#1F2937',
-  gray900: '#111827',
-
-  // Interactive / Form
-  inputBg: 'rgba(255,255,255,0.06)',
-  inputBorder: 'rgba(108, 71, 255, 0.25)',
-  iconBg: 'rgba(108, 71, 255, 0.15)',
-  iconBorder: 'rgba(108, 71, 255, 0.3)',
+  // Borders
+  border: 'rgba(255, 255, 255, 0.06)',
+  borderAccent: 'rgba(0, 229, 200, 0.35)',
+  borderSubtle: 'rgba(255, 255, 255, 0.03)',
+  borderLight: 'rgba(255,255,255,0.1)',
+  
+  // Specific UI mappings (Legacy fallback mapped to neumorphic)
+  buttonBg: '#00e5c8',
+  buttonText: '#191b22',
+  buttonSuccess: '#00e5c8',
+  cardBg: '#252830',
+  cardSolid: '#2a2d38',
+  cardBorder: 'rgba(255, 255, 255, 0.06)',
+  listItemBg: '#2a2d38',
+  inputBg: '#191b22',
+  inputBorder: 'rgba(255, 255, 255, 0.03)',
+  iconBg: 'rgba(0, 229, 200, 0.1)',
+  iconBorder: 'rgba(0, 229, 200, 0.2)',
 };
 
+export const lightTokens = {
+  // Base Surfaces
+  background: '#e6e9ef',
+  surface: '#e6e9ef',
+  surfaceRaised: '#f0f2f7',
+  surfaceDeep: '#d9dde6',
+  
+  // Semantic & Accents
+  primary: '#6c5ce7',
+  primaryDark: '#5548c8',
+  secondary: '#a29bfe',
+  accent: '#6c5ce7',
+  white: '#FFFFFF',
+  transparent: 'transparent',
+  
+  // Neumorphic Shadows (Native Approximation)
+  shadowDark: 'rgba(152, 165, 186, 0.65)',
+  shadowLight: 'rgba(255, 255, 255, 0.95)',
+  
+  // Text Tokens
+  textPrimary: '#2d3142',
+  textSecondary: '#5a607a',
+  textMuted: '#8c93ab',
+  textInput: '#2d3142',
+  
+  // Feedback
+  success: '#059669',
+  danger: '#dc2626',
+  warning: '#d97706',
+  info: '#2563eb',
+  
+  // Borders
+  border: 'rgba(152, 165, 186, 0.2)',
+  borderAccent: 'rgba(108, 92, 231, 0.35)',
+  borderSubtle: 'rgba(152, 165, 186, 0.1)',
+  borderLight: 'rgba(152, 165, 186, 0.2)',
+  
+  // Specific UI mappings (Legacy fallback mapped to neumorphic)
+  buttonBg: '#6c5ce7',
+  buttonText: '#FFFFFF',
+  buttonSuccess: '#059669',
+  cardBg: '#e6e9ef',
+  cardSolid: '#f0f2f7',
+  cardBorder: 'rgba(152, 165, 186, 0.2)',
+  listItemBg: '#f0f2f7',
+  inputBg: '#d9dde6',
+  inputBorder: 'rgba(152, 165, 186, 0.1)',
+  iconBg: 'rgba(108, 92, 231, 0.1)',
+  iconBorder: 'rgba(108, 92, 231, 0.2)',
+};
+
+// Aliasing type for colors
+export type ThemeColors = typeof darkTokens;
+
+// We export the default Colors just for smooth migration (points to dark)
+// But screens should use useTheme().colors instead.
+
 export const Shadows = {
+  neumorphic: (isDark: boolean) => ({
+    shadowColor: isDark ? '#000' : '#8a95a5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.4 : 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  }),
+  flat: (isDark: boolean) => ({
+    shadowColor: isDark ? '#000' : '#8a95a5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDark ? 0.3 : 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  }),
   black: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -64,142 +130,75 @@ export const Shadows = {
     shadowRadius: 3.84,
     elevation: 5,
   },
-  primary: {
-    shadowColor: Colors.primary,
+  primary: (colors: ThemeColors) => ({
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.6,
     shadowRadius: 24,
     elevation: 12,
-  },
-  soft: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 2,
-  }
+  }),
 };
 
-export const GlobalStyles = StyleSheet.create({
+// Hook/Function to generate global styles dynamically
+export const getGlobalStyles = (colors: ThemeColors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   flex: {
     flex: 1,
   },
-  glowTop: {
-    position: 'absolute',
-    top: -100,
-    left: '50%',
-    marginLeft: -150,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: Colors.primary,
-    opacity: 0.15,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 80,
-    zIndex: -1,
-  },
-  glowBottom: {
-    position: 'absolute',
-    bottom: -60,
-    right: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: Colors.secondary,
-    opacity: 0.1,
-    zIndex: -1,
-  },
 });
 
-// Centralized UI components (Shared between screens for 100% standardization)
-export const UI = {
+export const getUIStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   button: {
     height: 56,
     borderRadius: 16,
-    backgroundColor: Colors.buttonBg,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    backgroundColor: colors.buttonBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  } as ViewStyle,
-  
+    ...Shadows.neumorphic(isDark),
+  },
   actionCard: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: colors.border,
     padding: 24,
     gap: 12,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
-  } as ViewStyle,
-
+    ...Shadows.neumorphic(isDark),
+  },
   listItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: Colors.listItemBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: colors.border,
     padding: 16,
     marginBottom: 12,
     gap: 16,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  } as ViewStyle,
-
-  moduleCard: {
-    flex: 1,
-    backgroundColor: Colors.primary,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    padding: 20,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    minHeight: 140,
-    gap: 12,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 6,
-  } as ViewStyle,
-
-  buttonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  } as TextStyle,
-
+    ...Shadows.flat(isDark),
+  },
   input: {
     height: 56,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.inputBg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    color: Colors.white,
+    borderColor: colors.inputBorder,
+    color: colors.textInput,
     fontSize: 18,
     fontWeight: '700',
     paddingHorizontal: 16,
-  } as TextStyle,
-};
+  },
+  buttonText: {
+    color: colors.buttonText,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
+
+
+

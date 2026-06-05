@@ -76,44 +76,57 @@ export function EmployeesTab({ serverUrl, tenantSlug }: Props) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="nm-flex-col nm-gap-lg nm-animate-fade-in">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Funcionários</h1>
-          <p className="text-zinc-400 mt-1">Gerencie os vendedores e suas rotas de acesso.</p>
+          <h1 className="nm-heading" style={{ fontSize: "var(--nm-text-2xl)" }}>Funcionários</h1>
+          <p className="nm-caption" style={{ marginTop: "0.25rem" }}>Gerencie os vendedores e suas rotas de acesso.</p>
         </div>
-        
+
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-emerald-500/20 active:scale-95 whitespace-nowrap"
+          className="nm-btn nm-btn--accent nm-btn--sm"
         >
-          <UserPlus size={20} />
+          <UserPlus size={16} />
           Novo Funcionário
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="md:col-span-3 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou código app..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-          />
+      {/* Filtros */}
+      <div className="nm-card nm-card--sm" style={{ zIndex: 20, marginBottom: 0, overflow: "visible", padding: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingBottom: "0.4rem", marginRight: "0.5rem" }}>
+            <div className="nm-icon-circle nm-icon-circle--sm" style={{ color: "var(--nm-accent)" }}>
+              <Search size={14} />
+            </div>
+            <span style={{ fontSize: "var(--nm-text-sm)", fontWeight: 600, color: "var(--nm-text-primary)" }}>Filtros</span>
+          </div>
+
+          <div className="nm-input-group" style={{ flex: 1, minWidth: "250px" }}>
+            <label className="nm-input-group__label">Busca Geral</label>
+            <input
+              type="text"
+              placeholder="Buscar por nome ou código app..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="nm-input"
+              style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }}
+            />
+          </div>
+
+          <button
+            onClick={() => fetchEmployees()}
+            className="nm-btn nm-btn--flat nm-btn--xs"
+            style={{ display: "flex", alignItems: "center", gap: "0.3rem", padding: "0.4rem 0.75rem", height: "34px", flexShrink: 0 }}
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
         </div>
-        <button 
-          onClick={() => fetchEmployees()}
-          className="bg-zinc-900/50 border border-white/10 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl px-4 flex items-center justify-center gap-2 transition-all"
-        >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
       </div>
 
-      <EmployeeList 
-        employees={employees}
+      <EmployeeList
+        employees={filteredEmployees}
         loading={loading}
         onEdit={handleOpenModal}
         onToggleStatus={handleToggleStatus}
@@ -121,7 +134,7 @@ export function EmployeesTab({ serverUrl, tenantSlug }: Props) {
       />
 
       {pagination.pages > 1 && (
-        <Pagination 
+        <Pagination
           currentPage={pagination.page}
           totalPages={pagination.pages}
           onPageChange={(p) => setPagination(prev => ({ ...prev, page: p }))}

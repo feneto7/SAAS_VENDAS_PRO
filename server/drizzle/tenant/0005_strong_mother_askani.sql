@@ -1,0 +1,1 @@
+ALTER TABLE "collections" ADD COLUMN "report_metrics" jsonb;

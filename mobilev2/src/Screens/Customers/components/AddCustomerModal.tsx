@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo,  useState } from 'react';
 import { 
   Modal, View, Text, StyleSheet, ScrollView, 
   TouchableOpacity, KeyboardAvoidingView, Platform, 
   Alert, ActivityIndicator 
 } from 'react-native';
 import { X, User, MapPin, Phone, MessageSquare, Tag, Info } from 'lucide-react-native';
-import { Colors, Shadows } from '../../../theme/theme';
+import { useTheme } from '../../../stores/useThemeStore';
+import { Shadows, getUIStyles } from '../../../theme/theme';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
 import { db } from '../../../services/database';
@@ -17,10 +18,15 @@ interface AddCustomerModalProps {
   visible: boolean;
   onClose: () => void;
   routeId: string;
+  chargeId?: string;
   onSuccess: () => void;
 }
 
-export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCustomerModalProps) => {
+export const AddCustomerModal = ({ visible, onClose, routeId, chargeId, onSuccess }: AddCustomerModalProps) => {
+  const { colors, isDark } = useTheme();
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   const [loading, setLoading] = useState(false);
   const user = useAuthStore((state) => state.user);
 
@@ -75,6 +81,7 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
         phone2: form.phone2.trim(),
         comment: form.comment.trim(),
         route_id: routeId,
+        registered_in_collection_id: chargeId || null,
         active: 1
       };
 
@@ -83,13 +90,13 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
         `INSERT INTO clients (
           id, name, nickname, street, state, city, 
           neighborhood, reference_point, phone, phone2, 
-          comment, route_id, active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          comment, route_id, registered_in_collection_id, active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientData.id, clientData.name, clientData.nickname, clientData.street, 
           clientData.state, clientData.city, clientData.neighborhood, 
           clientData.reference_point, clientData.phone, clientData.phone2, 
-          clientData.comment, clientData.route_id, clientData.active
+          clientData.comment, clientData.route_id, clientData.registered_in_collection_id, clientData.active
         ]
       );
 
@@ -136,7 +143,7 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
                 <Text style={styles.subtitle}>Preencha os dados abaixo</Text>
               </View>
               <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-                <X color={Colors.white} size={24} />
+                <X color={colors.white} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -147,7 +154,7 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
             >
               {/* SEÇÃO 1: IDENTIFICAÇÃO */}
               <View style={styles.sectionHeader}>
-                <User size={16} color={Colors.primary} />
+                <User size={16} color={colors.accent} />
                 <Text style={styles.sectionTitle}>Identificação</Text>
               </View>
 
@@ -169,7 +176,7 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
 
               {/* SEÇÃO 2: CONTATO */}
               <View style={styles.sectionHeader}>
-                <Phone size={16} color={Colors.primary} />
+                <Phone size={16} color={colors.accent} />
                 <Text style={styles.sectionTitle}>Contato</Text>
               </View>
 
@@ -198,7 +205,7 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
 
               {/* SEÇÃO 3: ENDEREÇO */}
               <View style={styles.sectionHeader}>
-                <MapPin size={16} color={Colors.primary} />
+                <MapPin size={16} color={colors.accent} />
                 <Text style={styles.sectionTitle}>Localização</Text>
               </View>
 
@@ -255,7 +262,7 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
 
               {/* SEÇÃO 4: OBSERVAÇÕES */}
               <View style={styles.sectionHeader}>
-                <MessageSquare size={16} color={Colors.primary} />
+                <MessageSquare size={16} color={colors.accent} />
                 <Text style={styles.sectionTitle}>Complemento</Text>
               </View>
 
@@ -293,77 +300,65 @@ export const AddCustomerModal = ({ visible, onClose, routeId, onSuccess }: AddCu
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
+    justifyContent: 'flex-end'},
   container: {
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     height: '92%',
-    ...Shadows.black,
-  },
+    ...Shadows.black},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
-  },
+    borderBottomColor: colors.cardBorder},
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: Colors.white,
-  },
+    color: colors.white},
   subtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
+    color: colors.textSecondary,
+    marginTop: 2},
   closeBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: colors.cardBg,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
+    justifyContent: 'center'},
   form: {
-    flex: 1,
-  },
+    flex: 1},
   formContent: {
-    padding: 24,
-  },
+    padding: 24},
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
     marginTop: 8,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.primary,
-    paddingLeft: 10,
-  },
+    borderLeftColor: colors.accent,
+    paddingLeft: 10},
   sectionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: Colors.primary,
+    color: colors.accent,
     marginLeft: 8,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
+    letterSpacing: 1},
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
+    alignItems: 'flex-start'},
   footer: {
     padding: 24,
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: Colors.cardBorder,
-    backgroundColor: Colors.cardBg,
-  }
+    borderTopColor: colors.cardBorder,
+    backgroundColor: colors.cardBg}
 });

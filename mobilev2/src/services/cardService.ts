@@ -3,18 +3,18 @@ import { calculateFichaTotals } from '../utils/calculations';
 
 export const CardService = {
   /**
-   * Recalcula o total de uma ficha com base nos itens e pagamentos locais
+   * Recalcula o total de uma card com base nos itens e pagamentos locais
    * e persiste o resultado na tabela 'cards'.
    * Útil para manter a consistência entre telas (ex: Detalhes -> Lista de Clientes).
    */
   async syncLocalTotal(cardId: string) {
     try {
       // 1. Carregar Dados Atuais
-      const [ficha] = await db.getAllAsync<any>(
+      const [card] = await db.getAllAsync<any>(
         "SELECT status, commission_percent, discount, items_locked FROM cards WHERE id = ?",
         [cardId]
       );
-      if (!ficha) return;
+      if (!card) return;
 
       const items = await db.getAllAsync<any>(
         "SELECT type, quantity, sold_quantity, price, is_informed FROM card_items WHERE card_id = ?",
@@ -29,9 +29,9 @@ export const CardService = {
       // 2. Calcular usando a regra centralizada
       const { totalToPay, balance } = calculateFichaTotals(
         { 
-          status: ficha.status, 
-          commissionPercent: ficha.commission_percent,
-          discount: ficha.discount
+          status: card.status, 
+          commissionPercent: card.commission_percent,
+          discount: card.discount
         }, 
         items, 
         payments
@@ -42,21 +42,21 @@ export const CardService = {
       const informedCount = items.filter(i => !!i.is_informed).length;
       const allItemsInformed = items.length > 0 && informedCount === items.length;
       
-      console.log(`[CardService] Recalculating status for ${cardId}: Balance=${balance}, Locked=${ficha.items_locked}, Informed=${informedCount}/${items.length}, CurrentStatus=${ficha.status}`);
+      console.log(`[CardService] Recalculating status for ${cardId}: Balance=${balance}, Locked=${card.items_locked}, Informed=${informedCount}/${items.length}, CurrentStatus=${card.status}`);
 
-      if (!allItemsInformed && balance <= 0 && ficha.items_locked) {
+      if (!allItemsInformed && balance <= 0 && card.items_locked) {
         const missing = items.filter(i => !i.is_informed).map(i => i.product_name || i.product_id);
         console.log(`[CardService] Blocking PAGA transition because ${items.length - informedCount} items are not informed:`, missing);
       }
 
-      let newStatus = ficha.status;
+      let newStatus = card.status;
       
       // Se estiver bloqueada E saldo <= 0 E tudo conferido -> PAGA
-      if (ficha.items_locked && balance <= 0 && allItemsInformed) {
+      if (card.items_locked && balance <= 0 && allItemsInformed) {
           newStatus = 'paga';
       }
       // Se balance > 0 (ex: cancelou pagamento) e estava PAGA, volta a PENDENTE.
-      else if (balance > 0 && ficha.status === 'paga') {
+      else if (balance > 0 && card.status === 'paga') {
           newStatus = 'pendente';
       }
 

@@ -39,7 +39,7 @@ export function SearchableSelect({
   }, [isOpen]);
 
   const filteredOptions = useMemo(() => {
-    if (search.length < 3) return [];
+    if (!search) return options; // Retorna tudo se não houver busca
     return options.filter(opt => 
       opt.label.toLowerCase().includes(search.toLowerCase())
     );
@@ -56,40 +56,68 @@ export function SearchableSelect({
   }, []);
 
   return (
-    <div className={`relative ${className} ${disabled ? "opacity-50 pointer-events-none" : ""}`} ref={containerRef}>
+    <div className={`relative ${className} ${disabled ? "opacity-50 pointer-events-none" : ""}`} ref={containerRef} style={{ width: "100%" }}>
       {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`
-          w-full flex items-center justify-between
-          bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5
-          text-sm text-white transition-all duration-200
-          hover:bg-white/[0.06] hover:border-white/20
-          ${isOpen ? "border-purple-500/50 ring-2 ring-purple-500/10" : ""}
-          outline-none
-        `}
+        className="nm-input"
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          borderColor: isOpen ? "var(--nm-accent)" : "var(--nm-border)",
+          boxShadow: isOpen ? "0 0 0 1px var(--nm-accent)" : "var(--nm-shadow-inner)",
+          color: selectedOption ? "var(--nm-text-primary)" : "var(--nm-text-muted)",
+        }}
       >
-        <span className={selectedOption ? "text-white font-bold" : "text-gray-500"}>
+        <span style={{ fontSize: "var(--nm-text-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown 
-          size={16} 
-          className={`text-gray-500 transition-transform duration-300 ${isOpen ? "rotate-180 text-purple-400" : ""}`} 
+          size={14} 
+          style={{
+            flexShrink: 0,
+            transition: "transform 0.3s ease, color 0.3s ease",
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+            color: isOpen ? "var(--nm-accent)" : "var(--nm-text-muted)"
+          }} 
         />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-[100] mt-2 w-full bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl">
+        <div 
+          className="nm-card nm-card--sm nm-animate-fade-in"
+          style={{
+            position: "absolute",
+            zIndex: 100,
+            top: "calc(100% + 0.5rem)",
+            left: 0,
+            width: "100%",
+            padding: "0.5rem",
+            boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.5)",
+            border: "1px solid var(--nm-border-subtle)",
+            marginBottom: 0
+          }}
+        >
           {/* Search Input */}
-          <div className="p-2 border-b border-white/5">
+          <div style={{ paddingBottom: "0.5rem", marginBottom: "0.5rem", borderBottom: "1px solid var(--nm-border-subtle)" }}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
               <input
                 autoFocus
                 type="text"
-                className="w-full bg-white/5 border border-white/5 rounded-lg py-2 pl-9 pr-8 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500/30 transition-all"
+                className="nm-input"
+                style={{
+                  width: "100%",
+                  paddingLeft: "2.25rem",
+                  paddingRight: "2rem",
+                  fontSize: "var(--nm-text-sm)",
+                  minHeight: "36px", // um pouco menor que o input normal
+                }}
                 placeholder="Pesquisar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -97,7 +125,7 @@ export function SearchableSelect({
               {search && (
                 <button 
                   onClick={() => setSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[var(--nm-text-primary)]"
                 >
                   <X size={14} />
                 </button>
@@ -105,60 +133,64 @@ export function SearchableSelect({
             </div>
           </div>
 
-          <div className="max-h-60 overflow-y-auto p-1.5 custom-scrollbar">
-            {search.length < 3 ? (
-              <div className="px-4 py-6 text-center">
-                <Search size={20} className="mx-auto text-gray-700 mb-2 opacity-20" />
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">
-                  Digite pelo menos 3 letras
-                </p>
-              </div>
-            ) : filteredOptions.length === 0 ? (
-              <div className="px-4 py-8 text-center text-xs text-gray-500 italic">
+          <div className="max-h-60 overflow-y-auto custom-scrollbar" style={{ padding: "0.25rem" }}>
+            {filteredOptions.length === 0 ? (
+              <div style={{ padding: "1.5rem", textAlign: "center", fontSize: "12px", color: "var(--nm-text-muted)", fontStyle: "italic" }}>
                 Nenhum resultado encontrado
               </div>
             ) : (
-              filteredOptions.map((option) => {
-                const isSelected = option.value === value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setIsOpen(false);
-                    }}
-                    className={`
-                      w-full flex items-center justify-between px-3 py-2.5 rounded-xl
-                      text-sm transition-all duration-150 group
-                      ${isSelected ? "bg-purple-500/10 text-purple-400 font-bold" : "text-gray-400 hover:bg-white/5 hover:text-white"}
-                    `}
-                  >
-                    <span className="truncate">{option.label}</span>
-                    {isSelected && <Check size={14} className="shrink-0" />}
-                  </button>
-                );
-              })
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {filteredOptions.map((option) => {
+                  const isSelected = option.value === value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        onChange(option.value);
+                        setIsOpen(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: "0.5rem",
+                        fontSize: "var(--nm-text-sm)",
+                        transition: "all 0.15s ease",
+                        cursor: "pointer",
+                        backgroundColor: isSelected ? "var(--nm-accent-transparent)" : "transparent",
+                        color: isSelected ? "var(--nm-accent)" : "var(--nm-text-primary)",
+                        fontWeight: isSelected ? 700 : 500,
+                        border: "none",
+                        outline: "none"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.backgroundColor = "var(--nm-bg-elevated)";
+                          e.currentTarget.style.color = "var(--nm-text-primary)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.color = "var(--nm-text-primary)";
+                        }
+                      }}
+                    >
+                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {option.label}
+                      </span>
+                      {isSelected && <Check size={14} style={{ flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
     </div>
   );
 }

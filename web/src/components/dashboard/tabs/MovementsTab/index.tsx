@@ -61,137 +61,88 @@ export function MovementsTab({ tenantSlug, serverUrl }: { tenantSlug: string, se
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="nm-flex-col nm-gap-lg nm-animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <History className="text-purple-400" />
+          <h1 className="nm-heading" style={{ fontSize: "var(--nm-text-2xl)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <History size={24} style={{ color: "var(--nm-accent)" }} />
             Movimentações
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Histórico completo de estoque</p>
+          <p className="nm-caption" style={{ marginTop: "0.25rem" }}>Histórico completo de estoque</p>
         </div>
-        
-        <div className="flex items-center gap-3 self-end pointer-events-none">
-            <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-2 flex items-center gap-2">
-                <Box size={16} className="text-emerald-400" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-white">{pagination.total} registros</span>
-            </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <span className="nm-badge nm-badge--info nm-badge--lg" style={{ pointerEvents: "none" }}>
+            <Box size={14} style={{ marginRight: "0.25rem" }} />
+            {pagination.total} registros
+          </span>
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Mobile view (Cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:hidden gap-4">
-          {loading ? (
-             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 h-32 animate-pulse" />
-            ))
-          ) : movements.length === 0 ? (
-            <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-12 text-center col-span-full">
-              <History size={48} className="mx-auto text-gray-800 mb-4" />
-              <p className="text-gray-500 font-black uppercase tracking-widest text-[10px]">Nenhuma movimentação</p>
-            </div>
-          ) : (
-            movements.map((move) => (
-              <div 
-                key={move.id} 
-                onClick={() => handleViewDetails(move.id)}
-                className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 hover:bg-white/[0.04] transition-all flex flex-col group cursor-pointer"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                    move.type === 'entrada_estoque' 
-                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-                      : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                  }`}>
-                    {move.type === 'entrada_estoque' ? <ArrowUpRight size={12} /> : <Sliders size={12} />}
-                    {move.type === 'entrada_estoque' ? 'Entrada' : 'Ajuste'}
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-600 font-mono">
-                    {format(new Date(move.createdAt), "dd/MM - HH:mm", { locale: ptBR })}
-                  </span>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight leading-tight">
-                    {move.description}
-                  </p>
-                  <p className="text-[10px] text-gray-500 mt-2 flex items-center gap-1 font-black uppercase tracking-widest">
-                    <Box size={10} className="text-gray-700" />
-                    Destino: <span className="text-gray-400">{move.sellerName || 'Depósito Central'}</span>
-                  </p>
-                </div>
-
-                <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Ver Itens</span>
-                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-gray-500 group-hover:bg-emerald-500 group-hover:text-black transition-all shadow-sm border border-white/5">
-                    <ChevronRight size={16} />
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Desktop view (Table) */}
-        <div className="hidden lg:block bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
-          <table className="w-full text-left border-collapse">
+      <div className="nm-table-wrapper">
+        <div className="nm-table-scroll">
+          <table className="nm-table">
             <thead>
-              <tr className="border-b border-white/5 bg-white/[0.01]">
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500">Tipo</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500">Descrição / Destino</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500">Data e Hora</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500 text-right">Ações</th>
+              <tr>
+                <th>Tipo</th>
+                <th>Descrição / Destino</th>
+                <th>Data e Hora</th>
+                <th style={{ textAlign: "right" }}>Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td colSpan={4} className="px-8 py-6 h-20 bg-white/[0.01] border-b border-white/5"></td>
+                  <tr key={i}>
+                    <td><div className="nm-skeleton" style={{ width: "80px" }} /></td>
+                    <td><div className="nm-skeleton" style={{ width: "200px" }} /></td>
+                    <td><div className="nm-skeleton" style={{ width: "120px" }} /></td>
+                    <td><div className="nm-skeleton" style={{ width: "32px", float: "right" }} /></td>
                   </tr>
                 ))
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-8 py-20 text-center">
-                    <History size={48} className="mx-auto text-gray-800 mb-4" />
-                    <p className="text-gray-500 font-black uppercase tracking-widest text-[10px]">Nenhuma movimentação registrada</p>
+                  <td colSpan={4}>
+                    <div className="nm-card nm-card--inset" style={{ textAlign: "center", padding: "4rem 2rem", margin: "1rem" }}>
+                      <div className="nm-icon-circle nm-icon-circle--lg" style={{ margin: "0 auto 1rem" }}>
+                        <History size={32} />
+                      </div>
+                      <h3 className="nm-subheading">Nenhuma movimentação registrada</h3>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 movements.map((move) => (
-                  <tr key={move.id} className="group hover:bg-white/[0.03] transition-all cursor-pointer" onClick={() => handleViewDetails(move.id)}>
-                    <td className="px-8 py-5">
-                      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                        move.type === 'entrada_estoque' 
-                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-                          : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                      }`}>
+                  <tr key={move.id} style={{ cursor: "pointer" }} onClick={() => handleViewDetails(move.id)}>
+                    <td>
+                      <span className={`nm-badge nm-badge--sm ${move.type === 'entrada_estoque' ? 'nm-badge--info' : 'nm-badge--warning'}`}>
                         {move.type === 'entrada_estoque' ? <ArrowUpRight size={12} /> : <Sliders size={12} />}
                         {move.type === 'entrada_estoque' ? 'Entrada' : 'Ajuste'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                        <span style={{ fontWeight: 600, color: "var(--nm-text-primary)", textTransform: "uppercase" }}>{move.description}</span>
+                        <span className="nm-caption" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <Box size={10} />
+                          Destino: {move.sellerName || 'Depósito Central'}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-8 py-5">
-                      <p className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">{move.description}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1 font-black uppercase tracking-widest">
-                        <Box size={10} className="text-gray-700" />
-                        Destino: <span className="text-gray-400">{move.sellerName || 'Depósito Central'}</span>
-                      </p>
-                    </td>
-                    <td className="px-8 py-5 text-sm text-gray-400 font-medium font-mono">
+                    <td>
+                      <span className="nm-code" style={{ padding: "0.2rem 0.4rem" }}>
                         {format(new Date(move.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </span>
                     </td>
-                    <td className="px-8 py-5 text-right">
-                        <button 
-                            className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-emerald-500 hover:border-emerald-500/30 transition-all font-black uppercase text-[10px] tracking-widest"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewDetails(move.id);
-                            }}
-                        >
-                            <Eye size={18} />
-                        </button>
+                    <td className="nm-actions-col">
+                      <button 
+                        className="nm-btn nm-btn--circle nm-btn--xs"
+                        onClick={(e) => { e.stopPropagation(); handleViewDetails(move.id); }}
+                        title="Ver detalhes"
+                      >
+                        <Eye size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -199,18 +150,16 @@ export function MovementsTab({ tenantSlug, serverUrl }: { tenantSlug: string, se
             </tbody>
           </table>
         </div>
-
-        {pagination.pages > 1 && (
-          <div className="p-8 border-t border-white/5 bg-black/5 rounded-3xl">
-            <Pagination 
-                currentPage={pagination.page}
-                totalPages={pagination.pages}
-                onPageChange={fetchMovements}
-                loading={loading}
-            />
-          </div>
-        )}
       </div>
+
+      {pagination.pages > 1 && (
+        <Pagination 
+          currentPage={pagination.page}
+          totalPages={pagination.pages}
+          onPageChange={fetchMovements}
+          loading={loading}
+        />
+      )}
 
       <MovementDetailsModal 
         isOpen={!!selectedMovementId}

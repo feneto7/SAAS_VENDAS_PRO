@@ -12,25 +12,31 @@ import { SaleInformingModal } from './components/SaleInformingModal';
 import { FichaHeader } from './components/FichaHeader';
 import { ClientInfoBar } from './components/ClientInfoBar';
 
-import { Colors, GlobalStyles, Shadows, UI } from '../../theme/theme';
+import { getGlobalStyles, getUIStyles } from '../../theme/theme';
 import { useNavigationStore } from '../../stores/useNavigationStore';
+import { useTheme } from '../../stores/useThemeStore';
 import { useCardItemsData } from './hooks/useCardItemsData';
 import { useCardDetailActions } from './hooks/useCardDetailActions';
-import { styles } from './CardDetailScreen.styles';
+import { getStyles } from './CardDetailScreen.styles';
 
 export const CardDetailScreen = () => {
   const { goBack, currentParams } = useNavigationStore();
-  const { cardId, status: cardStatus, code, total, clientName } = currentParams || {};
-  
-  const { items, payments, methods, ficha, stats, loading, reload } = useCardItemsData(cardId);
+  const { cardId, status: cardStatus, code, total, clientName, collectionId } = currentParams || {};
+
+  const { colors, isDark } = useTheme();
+  const GlobalStyles = React.useMemo(() => getGlobalStyles(colors), [colors]);
+  const UI = React.useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
+  const { items, payments, methods, card, stats, loading, reload } = useCardItemsData(cardId);
   const [activeTab, setActiveTab] = useState<'products' | 'settlement'>('products');
   
   // Use live data from hook/stats, fallback to params
-  const displayCode = ficha?.code || code;
-  const displayStatus = ficha?.status || cardStatus;
-  const displayTotal = stats.totalToPay;
-  const displayClientName = ficha?.clientName || clientName;
-  const isFichaLocked = !!ficha?.items_locked;
+  const displayCode = card?.code || code;
+  const displayStatus = card?.status || cardStatus;
+  const displayTotal = stats.totalCCRaw + stats.totalSC;
+  const displayClientName = card?.clientName || clientName;
+  const isFichaLocked = !!card?.items_locked;
   
   const {
     editingItem,
@@ -46,7 +52,7 @@ export const CardDetailScreen = () => {
   const allItemsInformed = items.length > 0 && items.every(i => i.is_informed);
 
   const handleTabPress = (tab: 'products' | 'settlement') => {
-    if (tab === 'settlement' && displayStatus === 'pendente' && !ficha?.items_locked) {
+    if (tab === 'settlement' && displayStatus === 'pendente' && !card?.items_locked) {
       Alert.alert(
         'Ação Necessária',
         'Você precisa fechar a conferência de produtos antes de acessar o financeiro.',
@@ -66,15 +72,14 @@ export const CardDetailScreen = () => {
   };
 
   const onHandleCloseFicha = async () => {
-      const success = await handleCloseFicha();
-      if (success) setActiveTab('settlement');
+    if (!allItemsInformed) return;
+    const success = await handleCloseFicha();
+    if (success) setActiveTab('settlement');
   };
 
   return (
     <SafeAreaView style={GlobalStyles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} pointerEvents="none" />
-      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       <View style={styles.content}>
         <FichaHeader code={displayCode} status={displayStatus} onBack={goBack} />
@@ -115,6 +120,7 @@ export const CardDetailScreen = () => {
                   <TouchableOpacity 
                     style={[UI.button, !allItemsInformed && styles.buttonDisabled]} 
                     activeOpacity={0.8}
+                    disabled={!allItemsInformed}
                     onPress={onHandleCloseFicha}
                   >
                     <Text style={UI.buttonText}>Fechar Ficha para Conferência</Text>
@@ -130,23 +136,24 @@ export const CardDetailScreen = () => {
               items={items} 
               payments={payments}
               methods={methods}
-              ficha={ficha} 
+              card={card} 
               stats={stats}
               isLocked={isFichaLocked}
               onRefresh={reload}
+              collectionId={collectionId}
             />
           )}
         </View>
       </View>
 
-      {/* FAB - Só visível na aba de produtos de fichas "nova" */}
+      {/* FAB - Só visível na aba de produtos de cards "nova" */}
       {displayStatus === 'nova' && activeTab === 'products' && (
         <TouchableOpacity 
           style={styles.fab} 
           activeOpacity={0.8}
           onPress={() => setIsAddModalVisible(true)}
         >
-          <Plus color={Colors.white} size={32} />
+          <Plus color={colors.white} size={32} />
         </TouchableOpacity>
       )}
 

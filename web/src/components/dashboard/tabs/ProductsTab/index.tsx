@@ -15,18 +15,8 @@ interface ProductsTabProps {
   tenantSlug: string;
 }
 
-const initialFilters: ProductFilters = {
-  descricao: "",
-  categoria: "",
-  marca: "",
-  sku: "",
-};
-
-const initialStats: ProductStats = {
-  totalCost: 0,
-  totalCC: 0,
-  totalSC: 0,
-};
+const initialFilters: ProductFilters = { descricao: "", categoria: "", marca: "", sku: "" };
+const initialStats: ProductStats = { totalCost: 0, totalCC: 0, totalSC: 0 };
 
 export function ProductsTab({ serverUrl, tenantSlug }: ProductsTabProps) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,13 +36,12 @@ export function ProductsTab({ serverUrl, tenantSlug }: ProductsTabProps) {
       if (filters.categoria) query.append("categoria", filters.categoria);
       if (filters.marca)     query.append("marca",     filters.marca);
       if (filters.sku)       query.append("sku",       filters.sku);
-      query.append("page", currentPage.toString());
+      query.append("page",  currentPage.toString());
       query.append("limit", "10");
 
       const res = await fetch(`${serverUrl}/api/products?${query.toString()}`, {
         headers: { "x-tenant-slug": tenantSlug },
       });
-
       if (res.ok) {
         const data = await res.json();
         setProducts(data.items || []);
@@ -66,7 +55,6 @@ export function ProductsTab({ serverUrl, tenantSlug }: ProductsTabProps) {
     }
   }
 
-  // Debounce effect for searching
   useEffect(() => {
     const timer = setTimeout(fetchProducts, 400);
     return () => clearTimeout(timer);
@@ -78,65 +66,64 @@ export function ProductsTab({ serverUrl, tenantSlug }: ProductsTabProps) {
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="nm-flex-col nm-gap-lg nm-animate-fade-in">
+
+      {/* Cabeçalho */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-white">Estoque de Produtos</h1>
-          <p className="text-gray-500 text-xs lg:text-sm">
-            {products.length} produtos encontrados
-          </p>
+          <h1 className="nm-heading" style={{ fontSize: "var(--nm-text-2xl)" }}>Estoque de Produtos</h1>
+          <span className="nm-caption" style={{ marginTop: "0.25rem", display: "block" }}>
+            {loading ? "Carregando..." : `${products.length} produto${products.length !== 1 ? "s" : ""} encontrado${products.length !== 1 ? "s" : ""}`}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <button
+            id="btn-estoque-entrada"
+            className="nm-btn nm-btn--sm nm-btn--ghost"
             onClick={() => setIsStockInOpen(true)}
-            className="flex-1 sm:flex-none justify-center bg-white/5 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-white/10 transition-all border border-white/10 active:scale-95"
           >
-            <Download size={18} className="text-emerald-400" />
+            <Download size={15} style={{ color: "var(--nm-success)" }} />
             Entrada
           </button>
-          
           <button
+            id="btn-novo-produto"
+            className="nm-btn nm-btn--sm nm-btn--accent"
             onClick={() => setIsModalOpen(true)}
-            className="flex-1 sm:flex-none justify-center bg-white text-black px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-gray-200 transition-all shadow-lg active:scale-95"
           >
-            <Plus size={18} />
+            <Plus size={15} />
             Novo
           </button>
         </div>
-      </header>
+      </div>
 
-      {/* 1. Filtros */}
-      <FilterComponent 
-        filters={filters} 
-        onChange={handleFilterChange} 
-        onReset={() => handleFilterChange(initialFilters)} 
-      />
-
-      {/* 2. Estatísticas Gerais */}
+      {/* Stats */}
       <ProductStatsCards stats={stats} />
 
-      {/* 3. Listagem */}
+      {/* Filtros */}
+      <FilterComponent
+        filters={filters}
+        onChange={handleFilterChange}
+        onReset={() => handleFilterChange(initialFilters)}
+      />
+
+      {/* Lista */}
       <ProductList products={products} loading={loading} />
 
-      {/* Pagination */}
-      <Pagination 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
         onPageChange={setCurrentPage}
         loading={loading}
       />
 
-      {/* 4. Modal de Cadastro */}
-      <ProductModal 
+      <ProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchProducts}
         serverUrl={serverUrl}
         tenantSlug={tenantSlug}
       />
-
-      {/* 5. Modal de Entrada (Stock In) */}
       <StockInModal
         isOpen={isStockInOpen}
         onClose={() => setIsStockInOpen(false)}

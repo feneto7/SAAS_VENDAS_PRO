@@ -1,0 +1,191 @@
+/**
+ * Neumorphic Badges & Pills — nm-badge.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Badge Base ──────────────────────────────── */
+.nm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--nm-tracking-wider);
+  color: var(--nm-text-secondary);
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-full);
+  box-shadow: var(--nm-shadow-raised);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ── Variantes de cor ────────────────────────── */
+.nm-badge--accent {
+  color: var(--nm-accent);
+  border-color: var(--nm-border-accent);
+  background: var(--nm-accent-glow);
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light),
+    0 0 12px var(--nm-accent-glow);
+}
+
+.nm-badge--success {
+  color: var(--nm-success);
+  border-color: rgba(0, 229, 200, 0.3);
+  background: rgba(0, 229, 200, 0.1);
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light);
+}
+
+.nm-badge--danger {
+  color: var(--nm-danger);
+  border-color: rgba(255, 107, 122, 0.3);
+  background: rgba(255, 107, 122, 0.1);
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light);
+}
+
+.nm-badge--warning {
+  color: var(--nm-warning);
+  border-color: rgba(255, 209, 102, 0.3);
+  background: rgba(255, 209, 102, 0.1);
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light);
+}
+
+.nm-badge--info {
+  color: var(--nm-info);
+  border-color: rgba(116, 185, 255, 0.3);
+  background: rgba(116, 185, 255, 0.1);
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light);
+}
+
+/* ── Badge com Glow ──────────────────────────── */
+.nm-badge--glow {
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -3px -3px 7px var(--nm-shadow-light),
+    0 0 16px var(--nm-accent-glow),
+    0 0 32px var(--nm-accent-glow-lg);
+  color: var(--nm-accent);
+  border-color: var(--nm-border-accent);
+}
+
+/* ── Badge Sólido ─────────────────────────────── */
+.nm-badge--solid {
+  background: var(--nm-gradient-accent);
+  color: #fff;
+  border-color: transparent;
+  box-shadow:
+    2px 2px 5px var(--nm-shadow-dark),
+    0 0 10px var(--nm-accent-glow);
+}
+
+.nm-badge--solid-danger {
+  background: var(--nm-gradient-danger);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* ── Badge Inset ─────────────────────────────── */
+.nm-badge--inset {
+  box-shadow: var(--nm-shadow-inset);
+  background: var(--nm-surface-deep);
+}
+
+/* ── Dot de status ───────────────────────────── */
+.nm-badge__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.nm-badge__dot--pulse {
+  position: relative;
+}
+
+.nm-badge__dot--pulse::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: nm-badge-pulse 1.6s ease-out infinite;
+}
+
+@keyframes nm-badge-pulse {
+  0%   { transform: scale(0.8); opacity: 0.4; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+
+/* ── Tamanhos ─────────────────────────────────── */
+.nm-badge--sm {
+  padding: 0.1rem 0.45rem;
+  font-size: 0.55rem;
+}
+
+.nm-badge--lg {
+  padding: 0.3rem 0.9rem;
+  font-size: var(--nm-text-sm);
+}
+
+/* ── Pill (maior, sem uppercase) ──────────────── */
+.nm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 1rem;
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-semibold);
+  color: var(--nm-text-secondary);
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-full);
+  box-shadow: var(--nm-shadow-raised);
+  white-space: nowrap;
+  transition:
+    box-shadow var(--nm-transition),
+    color var(--nm-transition),
+    border-color var(--nm-transition);
+}
+
+.nm-pill:hover {
+  box-shadow: var(--nm-shadow-flat);
+  color: var(--nm-text-primary);
+}
+
+.nm-pill--active {
+  color: var(--nm-accent);
+  border-color: var(--nm-border-accent);
+  box-shadow: var(--nm-shadow-glow);
+}
+
+/* ── Contador / Notification Badge ───────────── */
+.nm-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  font-size: 0.6rem;
+  font-weight: var(--nm-font-black);
+  color: #fff;
+  background: var(--nm-gradient-accent);
+  border-radius: var(--nm-radius-full);
+  box-shadow: 0 0 10px var(--nm-accent-glow);
+  line-height: 1;
+}

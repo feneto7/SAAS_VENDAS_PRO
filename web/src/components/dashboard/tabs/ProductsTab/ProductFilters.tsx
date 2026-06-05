@@ -7,15 +7,6 @@ interface ProductFiltersProps {
   onReset: () => void;
 }
 
-const inputClass = `
-  w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5
-  text-sm text-white placeholder-gray-500
-  focus:outline-none focus:border-purple-500/60 focus:bg-white/[0.06]
-  transition-all duration-150
-`;
-
-const labelClass = "block text-xs font-medium text-gray-400 mb-1.5";
-
 export function ProductFilters({ filters, onChange, onReset }: ProductFiltersProps) {
   function set(key: keyof IProductFilters, value: string) {
     onChange({ ...filters, [key]: value });
@@ -24,63 +15,48 @@ export function ProductFilters({ filters, onChange, onReset }: ProductFiltersPro
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   return (
-    <div className="bg-white/[0.02] border border-white/8 rounded-2xl p-5 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Search size={16} className="text-purple-400" />
-          <h2 className="text-sm font-semibold text-white">Pesquisar Produtos</h2>
+    <div className="nm-card nm-card--sm" style={{ marginBottom: "0", overflow: "visible", padding: "1rem" }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", flexWrap: "wrap" }}>
+        
+        {/* Label Pesquisar */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingBottom: "0.4rem", marginRight: "0.5rem" }}>
+          <div className="nm-icon-circle nm-icon-circle--sm" style={{ color: "var(--nm-accent)" }}>
+            <Search size={14} />
+          </div>
+          <span style={{ fontSize: "var(--nm-text-sm)", fontWeight: 600, color: "var(--nm-text-primary)" }}>Filtros</span>
+          {hasActiveFilters && <span className="nm-badge nm-badge--accent nm-badge--sm">ativos</span>}
         </div>
+
+        <div className="nm-input-group" style={{ flex: 2, minWidth: "150px" }}>
+          <label className="nm-input-group__label">Descrição</label>
+          <input className="nm-input" placeholder="Nome do produto"
+            value={filters.descricao} onChange={(e) => set("descricao", e.target.value)} />
+        </div>
+
+        <div className="nm-input-group" style={{ flex: 1, minWidth: "120px" }}>
+          <label className="nm-input-group__label">Categoria</label>
+          <input className="nm-input" placeholder="Ex: Alimentos"
+            value={filters.categoria} onChange={(e) => set("categoria", e.target.value)} />
+        </div>
+
+        <div className="nm-input-group" style={{ flex: 1, minWidth: "120px" }}>
+          <label className="nm-input-group__label">Marca</label>
+          <input className="nm-input" placeholder="Marca"
+            value={filters.marca} onChange={(e) => set("marca", e.target.value)} />
+        </div>
+
+        <div className="nm-input-group" style={{ flex: 1, minWidth: "100px" }}>
+          <label className="nm-input-group__label">SKU</label>
+          <input className="nm-input" placeholder="Código"
+            value={filters.sku} onChange={(e) => set("sku", e.target.value)} />
+        </div>
+
         {hasActiveFilters && (
-          <button
-            onClick={onReset}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
-          >
-            <X size={13} />
-            Limpar
+          <button onClick={onReset} className="nm-btn nm-btn--flat nm-btn--xs"
+            style={{ display: "flex", alignItems: "center", gap: "0.3rem", padding: "0.4rem 0.75rem", height: "34px", flexShrink: 0 }}>
+            <X size={12} /> Limpar
           </button>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label className={labelClass}>Descrição</label>
-          <input
-            className={inputClass}
-            placeholder="Nome do produto"
-            value={filters.descricao}
-            onChange={(e) => set("descricao", e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className={labelClass}>Categoria</label>
-          <input
-            className={inputClass}
-            placeholder="Ex: Alimentos, Limpeza"
-            value={filters.categoria}
-            onChange={(e) => set("categoria", e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className={labelClass}>Marca</label>
-          <input
-            className={inputClass}
-            placeholder="Marca do produto"
-            value={filters.marca}
-            onChange={(e) => set("marca", e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className={labelClass}>Código (SKU)</label>
-          <input
-            className={inputClass}
-            placeholder="SKU"
-            value={filters.sku}
-            onChange={(e) => set("sku", e.target.value)}
-          />
-        </div>
       </div>
     </div>
   );

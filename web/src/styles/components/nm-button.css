@@ -1,0 +1,268 @@
+/**
+ * Neumorphic Buttons — nm-button.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Base ────────────────────────────────────── */
+.nm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.4rem;
+  font-family: var(--nm-font-family);
+  font-size: var(--nm-text-base);
+  font-weight: var(--nm-font-semibold);
+  letter-spacing: var(--nm-tracking-wide);
+  color: var(--nm-text-primary);
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-md);
+  box-shadow: var(--nm-shadow-raised);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    box-shadow var(--nm-transition),
+    transform var(--nm-transition-fast),
+    background var(--nm-transition);
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ripple shine */
+.nm-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(255,255,255,0.06) 0%,
+    transparent 60%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.nm-btn:hover {
+  box-shadow: var(--nm-shadow-flat);
+  transform: translateY(-1px);
+}
+
+.nm-btn:active,
+.nm-btn--pressed {
+  box-shadow: var(--nm-shadow-inset);
+  transform: translateY(0) scale(0.98);
+}
+
+.nm-btn:focus-visible {
+  outline: 2px solid var(--nm-accent-ring);
+  outline-offset: 3px;
+}
+
+/* ── Variantes ───────────────────────────────── */
+
+/* Accent/Primary */
+.nm-btn--accent {
+  background: var(--nm-gradient-accent);
+  color: #fff;
+  border-color: transparent;
+  box-shadow:
+    var(--nm-shadow-distance) var(--nm-shadow-distance) var(--nm-shadow-blur) var(--nm-shadow-dark),
+    calc(-1 * var(--nm-shadow-distance)) calc(-1 * var(--nm-shadow-distance)) var(--nm-shadow-blur) var(--nm-shadow-light),
+    0 4px 20px var(--nm-accent-glow);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+.nm-btn--accent::before {
+  background: linear-gradient(
+    145deg,
+    rgba(255,255,255,0.18) 0%,
+    transparent 60%
+  );
+}
+
+.nm-btn--accent:hover {
+  box-shadow:
+    2px 2px 6px var(--nm-shadow-dark),
+    -2px -2px 6px var(--nm-shadow-light),
+    0 6px 28px var(--nm-accent-glow);
+  filter: brightness(1.08);
+}
+
+.nm-btn--accent:active {
+  box-shadow:
+    inset 3px 3px 8px rgba(0,0,0,0.3),
+    inset -2px -2px 6px rgba(255,255,255,0.08),
+    0 2px 12px var(--nm-accent-glow);
+  filter: brightness(0.94);
+}
+
+/* Glow */
+.nm-btn--glow {
+  box-shadow: var(--nm-shadow-glow);
+  border-color: var(--nm-border-accent);
+  color: var(--nm-accent);
+}
+
+.nm-btn--glow:hover {
+  box-shadow:
+    4px 4px 10px var(--nm-shadow-dark),
+    -4px -4px 10px var(--nm-shadow-light),
+    0 0 28px var(--nm-accent-glow),
+    0 0 52px var(--nm-accent-glow-lg);
+}
+
+/* Inset / Pressed */
+.nm-btn--inset {
+  box-shadow: var(--nm-shadow-inset);
+}
+
+.nm-btn--inset:hover {
+  box-shadow: var(--nm-shadow-inset);
+}
+
+/* Flat */
+.nm-btn--flat {
+  box-shadow: none;
+  background: transparent;
+  color: var(--nm-text-secondary);
+}
+
+.nm-btn--flat:hover {
+  box-shadow: var(--nm-shadow-flat);
+  color: var(--nm-text-primary);
+}
+
+/* Danger */
+.nm-btn--danger {
+  background: var(--nm-gradient-danger);
+  color: #fff;
+  border-color: transparent;
+  box-shadow:
+    var(--nm-shadow-distance) var(--nm-shadow-distance) var(--nm-shadow-blur) var(--nm-shadow-dark),
+    calc(-1 * var(--nm-shadow-distance)) calc(-1 * var(--nm-shadow-distance)) var(--nm-shadow-blur) var(--nm-shadow-light),
+    0 4px 18px rgba(255,107,122,0.25);
+}
+
+/* Ghost */
+.nm-btn--ghost {
+  background: transparent;
+  border-color: var(--nm-border-accent);
+  color: var(--nm-accent);
+  box-shadow: none;
+}
+
+.nm-btn--ghost:hover {
+  background: var(--nm-accent-glow);
+  box-shadow: var(--nm-shadow-flat);
+}
+
+/* ── Tamanhos ─────────────────────────────────── */
+.nm-btn--xs {
+  padding: 0.35rem 0.75rem;
+  font-size: var(--nm-text-xs);
+  border-radius: var(--nm-radius-sm);
+}
+
+.nm-btn--sm {
+  padding: 0.5rem 1rem;
+  font-size: var(--nm-text-sm);
+  border-radius: var(--nm-radius-sm);
+}
+
+.nm-btn--lg {
+  padding: 0.9rem 2rem;
+  font-size: var(--nm-text-md);
+  font-weight: var(--nm-font-bold);
+  border-radius: var(--nm-radius-lg);
+}
+
+.nm-btn--xl {
+  padding: 1.1rem 2.5rem;
+  font-size: var(--nm-text-lg);
+  font-weight: var(--nm-font-bold);
+  border-radius: var(--nm-radius-xl);
+}
+
+/* ── Botão Circular / Ícone ──────────────────── */
+.nm-btn--circle {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: var(--nm-radius-full);
+  flex-shrink: 0;
+}
+
+.nm-btn--circle.nm-btn--xs {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.nm-btn--circle.nm-btn--sm {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+
+.nm-btn--circle.nm-btn--lg {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.nm-btn--circle.nm-btn--xl {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+/* ── Full Width ───────────────────────────────── */
+.nm-btn--block {
+  width: 100%;
+}
+
+/* ── Loading State ────────────────────────────── */
+.nm-btn--loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.nm-btn--loading::after {
+  content: '';
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: nm-spin 0.6s linear infinite;
+  margin-left: 0.25rem;
+}
+
+/* ── Disabled ─────────────────────────────────── */
+.nm-btn:disabled,
+.nm-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: var(--nm-shadow-flat);
+}
+
+/* ── Grupo de botões ──────────────────────────── */
+.nm-btn-group {
+  display: inline-flex;
+}
+
+.nm-btn-group .nm-btn {
+  border-radius: 0;
+}
+
+.nm-btn-group .nm-btn:first-child {
+  border-radius: var(--nm-radius-md) 0 0 var(--nm-radius-md);
+}
+
+.nm-btn-group .nm-btn:last-child {
+  border-radius: 0 var(--nm-radius-md) var(--nm-radius-md) 0;
+}
+
+/* ── Animação spin ────────────────────────────── */
+@keyframes nm-spin {
+  to { transform: rotate(360deg); }
+}

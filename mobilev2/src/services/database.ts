@@ -107,6 +107,7 @@ export const setupDatabase = async () => {
       if (!columns.includes('reference_point')) db.execSync(`ALTER TABLE clients ADD COLUMN reference_point TEXT;`);
       if (!columns.includes('phone2')) db.execSync(`ALTER TABLE clients ADD COLUMN phone2 TEXT;`);
       if (!columns.includes('comment')) db.execSync(`ALTER TABLE clients ADD COLUMN comment TEXT;`);
+      if (!columns.includes('registered_in_collection_id')) db.execSync(`ALTER TABLE clients ADD COLUMN registered_in_collection_id TEXT;`);
     } catch (e) {
       console.log('Clients table migration check:', e);
     }
@@ -117,6 +118,7 @@ export const setupDatabase = async () => {
       CREATE TABLE IF NOT EXISTS cards (
         id TEXT PRIMARY KEY,
         code TEXT, 
+        type INTEGER DEFAULT 1,
         status TEXT NOT NULL,
         total REAL DEFAULT 0,
         commission_percent REAL DEFAULT 30,
@@ -132,6 +134,13 @@ export const setupDatabase = async () => {
         FOREIGN KEY(client_id) REFERENCES clients(id)
       );
     `);
+
+    try {
+      db.execSync("ALTER TABLE cards ADD COLUMN type INTEGER DEFAULT 1;");
+      db.execSync("UPDATE cards SET type = 2 WHERE status = 'pedido';");
+    } catch(e) {
+      // Ignore if column already exists
+    }
 
     // Itens do Card (Produtos)
     db.execSync(`

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { ThemeToggle } from "@/styles/ThemeToggle";
 import {
   LayoutDashboard,
   Package,
@@ -19,6 +19,8 @@ import {
   Briefcase,
   History,
   User,
+  TrendingUp,
+  Bell,
 } from "lucide-react";
 import { formatCentsToBRL } from "@/utils/money";
 import { SalesTab } from "@/components/dashboard/tabs/SalesTab";
@@ -28,11 +30,7 @@ import { ClientsTab } from "@/components/dashboard/tabs/ClientsTab";
 import { EmployeesTab } from "@/components/dashboard/tabs/EmployeesTab";
 import { MovementsTab } from "@/components/dashboard/tabs/MovementsTab";
 import { SettingsTab } from "@/components/dashboard/tabs/SettingsTab";
-
-interface TenantInfo {
-  name: string;
-  slug: string;
-}
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 interface DashboardStats {
   totalRevenue: number;
@@ -40,317 +38,324 @@ interface DashboardStats {
   aiInsight: string;
 }
 
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-
 export default function DashboardPage() {
   const { user, isLoaded, step, tenant: tenantInfo } = useOnboardingStatus();
   const { logout } = useAuth();
-  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [activeTab, setActiveTab ] = useState("insights");
+  const [activeTab, setActiveTab] = useState("insights");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
       if (step !== "completed" || !tenantInfo) return;
-
       try {
-        const serverUrl =
-          process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
-
-        const statsRes = await fetch(`${serverUrl}/api/stats/insights`, {
+        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
+        const res = await fetch(`${serverUrl}/api/stats/insights`, {
           headers: { "x-tenant-slug": tenantInfo.slug },
         });
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          setStats(statsData);
-        }
+        if (res.ok) setStats(await res.json());
       } catch (err) {
         console.error("Dashboard stats fetch error:", err);
-      } finally {
-        setLoadingStats(false);
       }
     }
-    
-    if (step === "completed") {
-        fetchStats();
-    }
+    if (step === "completed") fetchStats();
   }, [step, tenantInfo]);
 
-  // Close sidebar on tab change (mobile)
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [activeTab]);
 
   if (isLoaded || step === "loading") {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+      <div className="nm-page nm-flex-center" style={{ minHeight: "100dvh" }}>
+        <div className="nm-icon-circle nm-icon-circle--glow nm-icon-circle--lg nm-icon-circle--double">
+          <Loader2 size={24} style={{ animation: "nm-spin 0.7s linear infinite" }} />
+        </div>
       </div>
     );
   }
 
+  const navItems = [
+    { id: "insights",   icon: <LayoutDashboard size={20} />, label: "Insights" },
+    { id: "products",   icon: <Package size={20} />,         label: "Produtos" },
+    { id: "sales",      icon: <ShoppingCart size={20} />,    label: "Vendas" },
+    { id: "rotas",      icon: <Map size={20} />,             label: "Rotas" },
+    { id: "clients",    icon: <Users size={20} />,           label: "Clientes" },
+    { id: "employees",  icon: <Briefcase size={20} />,       label: "Funcionários" },
+    { id: "movements",  icon: <History size={20} />,         label: "Movimentações" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex overflow-hidden relative">
-      {/* Mobile Sidebar Overlay */}
+    <div className="nm-page nm-layout" style={{ minHeight: "100dvh", overflow: "hidden" }}>
+
+      {/* Mobile overlay */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
+        <div
+          className="nm-mobile-overlay"
           onClick={() => setIsSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+            background: "var(--nm-overlay)",
+            backdropFilter: "blur(6px)",
+          }}
         />
       )}
 
-      {/* Sidebar */}
+      {/* ── SIDEBAR ───────────────────────────────── */}
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 bg-[#080808] border-r border-white/5 
-          transition-all duration-300 ease-in-out flex flex-col
-          ${isSidebarOpen ? "w-72 translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-64"}
-        `}
+        className={`nm-sidebar ${isSidebarOpen ? "nm-sidebar--mobile-open" : ""}`}
       >
-        <div
-          className={`p-4 lg:p-6 flex items-center ${isSidebarOpen || "justify-center lg:justify-between"} justify-between`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-600/20 shrink-0">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            {/* Desktop Label */}
-            <span className="font-black text-lg tracking-tighter uppercase hidden lg:block">
-              Vendas PRO
-            </span>
-            {/* Mobile Label (only when sidebar is expanded) */}
-            {isSidebarOpen && (
-              <span className="font-black text-lg tracking-tighter uppercase lg:hidden animate-in fade-in slide-in-from-left-2 duration-500">
-                Vendas PRO
-              </span>
-            )}
+        {/* Brand */}
+        <div className="nm-sidebar__brand">
+          <div className="nm-sidebar__logo">
+            <Zap size={20} />
           </div>
+          <span className="nm-sidebar__brand-name">VendasPro</span>
         </div>
 
-        <nav className="flex-1 px-2 lg:px-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
-          <NavItem
-            icon={<LayoutDashboard size={22} />}
-            label="Insights"
-            active={activeTab === "insights"}
-            onClick={() => setActiveTab("insights")}
-            collapsed={!isSidebarOpen}
-          />
-          <NavItem
-            icon={<Package size={22} />}
-            label="Produtos"
-            active={activeTab === "products"}
-            onClick={() => setActiveTab("products")}
-            collapsed={!isSidebarOpen}
-          />
-          <NavItem
-            icon={<ShoppingCart size={22} />}
-            label="Vendas"
-            active={activeTab === "sales"}
-            onClick={() => setActiveTab("sales")}
-            collapsed={!isSidebarOpen}
-          />
-          <NavItem
-            icon={<Map size={22} />}
-            label="Rotas"
-            active={activeTab === "rotas"}
-            onClick={() => setActiveTab("rotas")}
-            collapsed={!isSidebarOpen}
-          />
-          <NavItem
-            icon={<Users size={22} />}
-            label="Clientes"
-            active={activeTab === "clients"}
-            onClick={() => setActiveTab("clients")}
-            collapsed={!isSidebarOpen}
-          />
-          <NavItem
-            icon={<Briefcase size={22} />}
-            label="Funcionários"
-            active={activeTab === "employees"}
-            onClick={() => setActiveTab("employees")}
-            collapsed={!isSidebarOpen}
-          />
-          <NavItem
-            icon={<History size={22} />}
-            label="Movimentações"
-            active={activeTab === "movements"}
-            onClick={() => setActiveTab("movements")}
-            collapsed={!isSidebarOpen}
-          />
+        {/* Nav */}
+        <nav className="nm-sidebar__nav">
+          <div className="nm-nav-section">Principal</div>
+
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              id={`nav-${item.id}`}
+              className={`nm-nav-item${activeTab === item.id ? " nm-nav-item--active" : ""}`}
+              onClick={() => setActiveTab(item.id)}
+              style={{ width: "100%", textAlign: "left" }}
+            >
+              <div className="nm-nav-item__icon">{item.icon}</div>
+              <span className="nm-nav-item__label">{item.label}</span>
+            </button>
+          ))}
+
+          <div className="nm-divider" style={{ margin: "0.75rem 0" }} />
+          <div className="nm-nav-section">Sistema</div>
+
+          <button
+            id="nav-settings"
+            className={`nm-nav-item${activeTab === "settings" ? " nm-nav-item--active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+            style={{ width: "100%", textAlign: "left" }}
+          >
+            <div className="nm-nav-item__icon"><Settings size={20} /></div>
+            <span className="nm-nav-item__label">Configurações</span>
+          </button>
         </nav>
 
-        <div className="p-2 lg:p-4 border-t border-white/5 space-y-2">
-          <NavItem
-            icon={<Settings size={22} />}
-            label="Configurações"
-            active={activeTab === "settings"}
-            onClick={() => setActiveTab("settings")}
-            collapsed={!isSidebarOpen}
-          />
-          <button
-            onClick={logout}
-            className={`w-full flex items-center transition-all p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-2xl group ${!isSidebarOpen ? "justify-center lg:justify-start lg:px-4" : "gap-3 px-4"}`}
-          >
-            <LogOut
-              size={22}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
-            <span
-              className={`font-bold text-[11px] uppercase tracking-widest lg:block ${isSidebarOpen ? "block" : "hidden"}`}
+        {/* Footer */}
+        <div className="nm-sidebar__footer">
+          <div className="nm-sidebar__user">
+            <div className="nm-avatar nm-avatar--sm nm-avatar--accent">
+              {user?.name?.charAt(0).toUpperCase() || <User size={14} />}
+            </div>
+            <div className="nm-sidebar__user-info">
+              <div className="nm-sidebar__user-name">{user?.name || "Usuário"}</div>
+              <div className="nm-sidebar__user-role">{user?.email}</div>
+            </div>
+            <button
+              id="btn-logout"
+              className="nm-btn nm-btn--circle nm-btn--sm nm-btn--flat"
+              onClick={logout}
+              title="Sair"
             >
-              Sair
-            </span>
-          </button>
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 lg:pl-64 min-h-screen relative overflow-hidden bg-[#050505]">
-        {/* Background glow */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* ── MAIN CONTENT ──────────────────────────── */}
+      <main className="nm-layout__main" style={{ paddingTop: 0, display: "flex", flexDirection: "column", overflowX: "hidden" }}>
+        {/* Topbar */}
+        <header className="nm-topbar" style={{ position: "sticky", top: 0, zIndex: 10 }}>
+          {/* Mobile burger */}
+          <button
+            id="btn-sidebar-toggle"
+            className="nm-btn nm-btn--circle nm-btn--sm md:hidden shrink-0"
+            onClick={() => setIsSidebarOpen(v => !v)}
+          >
+            <LayoutDashboard size={18} />
+          </button>
 
-        <header className="h-16 lg:h-20 border-b border-white/5 px-4 lg:px-8 flex items-center justify-between sticky top-0 bg-[#050505]/80 backdrop-blur-md z-10 shrink-0">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 bg-white/5 rounded-lg text-gray-400 hover:text-white"
-            >
-              <LayoutDashboard size={24} />
-            </button>
-            <div className="min-w-0">
-              <h2 className="text-lg lg:text-xl font-semibold truncate">
-                {tenantInfo?.name || "Minha Empresa"}
-              </h2>
-              <p className="text-[10px] lg:text-xs text-gray-500 uppercase tracking-widest truncate">
-                {tenantInfo?.slug}
-              </p>
-            </div>
+          <div className="flex flex-col overflow-hidden mr-2">
+            <p className="truncate" style={{
+              fontSize: "var(--nm-text-lg)",
+              fontWeight: "var(--nm-font-bold)",
+              color: "var(--nm-text-primary)",
+              letterSpacing: "var(--nm-tracking-tight)",
+            }}>
+              {tenantInfo?.name || "Minha Empresa"}
+            </p>
+            <p className="nm-label truncate" style={{ marginTop: "0.1rem" }}>
+              {tenantInfo?.slug}
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 lg:gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-[10px] text-gray-500 truncate max-w-[150px]">
-                {user?.email}
-              </p>
+          <div className="nm-topbar__spacer" />
+
+          <div className="nm-topbar__actions">
+            {/* Notificações */}
+            <div style={{ position: "relative" }}>
+              <button id="btn-notifications" className="nm-btn nm-btn--circle nm-btn--sm">
+                <Bell size={16} />
+              </button>
+              <span className="nm-counter" style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                minWidth: "1rem",
+                height: "1rem",
+                fontSize: "0.5rem",
+                zIndex: 10,
+              }}>3</span>
             </div>
-            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full border border-white/10 overflow-hidden bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center shrink-0">
-               <User className="w-5 h-5 text-purple-400" />
+
+            <ThemeToggle size="sm" />
+
+            {/* Avatar do usuário */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <div className="hidden sm:flex flex-col text-right">
+                <span style={{ fontSize: "var(--nm-text-sm)", fontWeight: 600, color: "var(--nm-text-primary)" }}>
+                  {user?.name}
+                </span>
+                <span className="nm-caption truncate max-w-[150px]">{user?.email}</span>
+              </div>
+              <div className="nm-avatar nm-avatar--sm nm-avatar--accent shrink-0">
+                {user?.name?.charAt(0).toUpperCase() || <User size={14} />}
+              </div>
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8 space-y-6 lg:space-y-8 scroll-smooth">
-          {/* Insights Tab */}
+        {/* Page Content */}
+        <div style={{ flex: 1, padding: "1.75rem 0", overflowY: "auto" }}>
+
+          {/* ── INSIGHTS TAB ──────────────────── */}
           {activeTab === "insights" && (
-            <>
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard
+            <div className="nm-flex-col nm-gap-lg nm-animate-fade-in">
+
+              {/* Page title */}
+              <div>
+                <h1 className="nm-heading" style={{ fontSize: "var(--nm-text-2xl)" }}>
+                  Painel de Insights
+                </h1>
+                <p className="nm-caption" style={{ marginTop: "0.25rem" }}>
+                  Visão geral do desempenho da sua operação
+                </p>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="nm-grid-3">
+                <NmStatCard
                   label="Faturamento Total"
                   value={formatCentsToBRL(stats?.totalRevenue || 0)}
-                  icon={<DollarSign className="text-green-400" />}
+                  icon={<DollarSign size={22} />}
                   trend="+0%"
+                  trendUp={true}
+                  iconVariant="success"
                 />
-                <StatCard
+                <NmStatCard
                   label="Fichas Abertas"
                   value={(stats?.salesCount || 0).toString()}
-                  icon={<ShoppingCart className="text-blue-400" />}
+                  icon={<ShoppingCart size={22} />}
                   trend="+0%"
+                  trendUp={true}
+                  iconVariant="accent"
                 />
-                <StatCard
+                <NmStatCard
                   label="Taxa de Recebimento"
                   value="0%"
-                  icon={<Sparkles className="text-purple-400" />}
+                  icon={<TrendingUp size={22} />}
                   trend="---"
+                  trendUp={false}
+                  iconVariant="warning"
                 />
               </div>
 
               {/* AI Insights Card */}
-              <section className="bg-white/5 border border-white/10 rounded-3xl p-4 lg:p-8 relative overflow-hidden">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-purple-500/10 rounded-lg">
-                    <Sparkles className="text-purple-400 w-5 h-5" />
+              <div className="nm-card nm-card--glow">
+                <div className="nm-card__header">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div className="nm-icon-circle nm-icon-circle--glow nm-icon-circle--sm">
+                      <Sparkles size={16} />
+                    </div>
+                    <div>
+                      <div className="nm-card__title">AI Insights</div>
+                      <div className="nm-card__subtitle">Análise inteligente do seu negócio</div>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold">Insights</h3>
+                  <span className="nm-badge nm-badge--glow">
+                    <span className="nm-badge__dot nm-badge__dot--pulse" />
+                    Live
+                  </span>
                 </div>
-                <p className="text-gray-300 leading-relaxed italic text-sm lg:text-base">
-                  "
-                  {stats?.aiInsight ||
-                    "Acompanhe suas fichas de venda em tempo real."}
-                  "
+
+                <p className="nm-body" style={{
+                  fontStyle: "italic",
+                  padding: "1rem",
+                  background: "var(--nm-surface-deep)",
+                  borderRadius: "var(--nm-radius-lg)",
+                  boxShadow: "var(--nm-shadow-inset)",
+                  border: "1px solid var(--nm-border)",
+                }}>
+                  &ldquo;{stats?.aiInsight || "Acompanhe suas cards de venda em tempo real e identifique oportunidades de crescimento."}&rdquo;
                 </p>
-                <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 h-24 lg:h-32 bg-white/5 rounded-2xl animate-pulse" />
-                  <div className="flex-1 h-24 lg:h-32 bg-white/5 rounded-2xl animate-pulse" />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1.25rem" }}>
+                  <div className="nm-card nm-card--inset nm-card--sm" style={{ minHeight: "7rem" }}>
+                    <div className="nm-skeleton" style={{ width: "40%", marginBottom: "0.75rem" }} />
+                    <div className="nm-skeleton" style={{ width: "70%", height: "1.5rem", marginTop: "0.5rem" }} />
+                  </div>
+                  <div className="nm-card nm-card--inset nm-card--sm" style={{ minHeight: "7rem" }}>
+                    <div className="nm-skeleton" style={{ width: "55%", marginBottom: "0.75rem" }} />
+                    <div className="nm-skeleton" style={{ width: "60%", height: "1.5rem", marginTop: "0.5rem" }} />
+                  </div>
                 </div>
-              </section>
-            </>
+              </div>
+            </div>
           )}
 
-          {/* Sales Tab */}
+          {/* Outras tabs sem mudança funcional */}
           {activeTab === "sales" && tenantInfo && (
             <SalesTab tenantSlug={tenantInfo.slug} />
           )}
-
-          {/* Products Tab */}
           {activeTab === "products" && tenantInfo && (
             <ProductsTab
-              serverUrl={
-                process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
-              }
+              serverUrl={process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"}
               tenantSlug={tenantInfo.slug}
             />
           )}
-
-          {/* Routes Tab */}
           {activeTab === "rotas" && tenantInfo && (
             <RoutesTab
-              serverUrl={
-                process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
-              }
+              serverUrl={process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"}
               tenantSlug={tenantInfo.slug}
             />
           )}
-
-          {/* Clients Tab */}
           {activeTab === "clients" && tenantInfo && (
             <ClientsTab
-              serverUrl={
-                process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
-              }
+              serverUrl={process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"}
               tenantSlug={tenantInfo.slug}
             />
           )}
-
-          {/* Employees Tab */}
           {activeTab === "employees" && tenantInfo && (
             <EmployeesTab
-              serverUrl={
-                process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
-              }
+              serverUrl={process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"}
               tenantSlug={tenantInfo.slug}
             />
           )}
-
-          {/* Movements Tab */}
           {activeTab === "movements" && tenantInfo && (
             <MovementsTab
-              serverUrl={
-                process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
-              }
+              serverUrl={process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"}
               tenantSlug={tenantInfo.slug}
             />
           )}
-
-          {/* Settings Tab */}
           {activeTab === "settings" && tenantInfo && (
             <SettingsTab
-              serverUrl={
-                process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"
-              }
+              serverUrl={process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001"}
               tenantSlug={tenantInfo.slug}
             />
           )}
@@ -360,66 +365,43 @@ export default function DashboardPage() {
   );
 }
 
-function NavItem({
-  icon,
-  label,
-  active,
-  onClick,
-  collapsed,
-}: {
-  icon: any;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  collapsed?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center transition-all duration-300 rounded-2xl group ${
-        active
-          ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
-          : "text-gray-400 hover:text-white hover:bg-white/5"
-      } ${collapsed ? "justify-center p-3 lg:justify-start lg:px-4 lg:gap-3" : "gap-3 px-4 py-3"}`}
-    >
-      <div
-        className={`transition-transform duration-300 ${active ? "scale-110" : "group-hover:scale-110"}`}
-      >
-        {icon}
-      </div>
-      <span
-        className={`font-bold text-[11px] uppercase tracking-widest leading-none lg:block ${collapsed ? "hidden" : "block"} animate-in fade-in slide-in-from-left-2 duration-500`}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
-function StatCard({
+/* ── Stat Card Neumórfico ─────────────────────── */
+function NmStatCard({
   label,
   value,
   icon,
   trend,
+  trendUp,
+  iconVariant,
 }: {
   label: string;
   value: string;
-  icon: any;
+  icon: React.ReactNode;
   trend: string;
+  trendUp: boolean;
+  iconVariant: "accent" | "success" | "warning" | "danger";
 }) {
   return (
-    <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:border-white/20 transition-all group">
-      <div className="flex items-center justify-between mb-4">
-        <div className="p-2 bg-white/5 rounded-lg group-hover:scale-110 transition-transform">
+    <div className="nm-stat-card">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div className={`nm-icon-circle nm-icon-circle--${iconVariant} nm-icon-circle--sm`}>
           {icon}
         </div>
-        <div className="text-xs font-medium text-green-400 flex items-center gap-1">
+        <span
+          className={`nm-badge nm-badge--${trendUp ? "success" : "danger"} nm-badge--sm`}
+          style={{ display: "flex", alignItems: "center", gap: "0.2rem" }}
+        >
           {trend}
-          <ArrowUpRight size={14} />
+          <ArrowUpRight size={10} />
+        </span>
+      </div>
+
+      <div>
+        <div className="nm-stat-card__label">{label}</div>
+        <div className="nm-stat-card__value nm-stat-card__value--accent" style={{ marginTop: "0.25rem" }}>
+          {value}
         </div>
       </div>
-      <p className="text-gray-400 text-sm mb-1">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { SearchX, Plus } from 'lucide-react-native';
-import { Colors, UI } from '../../../theme/theme';
+import { getUIStyles, Shadows } from '../../../theme/theme';
+import { useTheme } from '../../../stores/useThemeStore';
 import { formatCentsToBRL } from '../../../utils/money';
 import { useNavigationStore } from '../../../stores/useNavigationStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -14,12 +15,17 @@ interface Props {
   clientId: string;
   clientName?: string;
   routeId?: string;
+  collectionId?: string;
 }
 
-export const NewTab = ({ clientId, clientName, routeId }: Props) => {
+export const NewTab = ({ clientId, clientName, routeId, collectionId }: Props) => {
   const { navigate } = useNavigationStore();
   const { items, loading, refreshing, refresh } = useCardData(clientId, 'nova');
   const [creating, setCreating] = useState(false);
+
+  const { colors, isDark } = useTheme();
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const handleCreateFicha = async () => {
     console.log('[DEBUG] handleCreateFicha clicked');
@@ -60,9 +66,9 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
 
       // 3. Persistir Localmente
       await db.runAsync(
-        `INSERT INTO cards (id, code, status, total, sale_date, client_id, seller_id, route_id) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, finalCode, 'nova', 0, now.toISOString(), clientId, user.id, routeId || null]
+        `INSERT INTO cards (id, code, status, total, sale_date, client_id, seller_id, route_id, charge_id) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, finalCode, 'nova', 0, now.toISOString(), clientId, user.id, routeId || null, collectionId || null]
       );
 
       // 4. Adicionar na Fila de Sincronismo
@@ -78,6 +84,7 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
             clientId,
             sellerId: user.id,
             routeId,
+            collectionId,
             total: 0,
             status: 'nova',
             saleDate: now.toISOString()
@@ -96,7 +103,7 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
       });
     } catch (e: any) {
       console.error('[DEBUG] Create Ficha Error:', e);
-      Alert.alert('Erro ao criar ficha', e.message || 'Erro inesperado.');
+      Alert.alert('Erro ao criar card', e.message || 'Erro inesperado.');
     } finally {
       setCreating(false);
     }
@@ -117,13 +124,10 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
       <View style={styles.itemInfo}>
         <View style={styles.itemHeader}>
           <Text style={styles.itemCode}>Ficha #{item.code}</Text>
-          <Text style={styles.itemDate}>
-            {item.sale_date ? new Date(item.sale_date).toLocaleDateString('pt-BR') : '---'}
-          </Text>
         </View>
         <View style={styles.itemFooter}>
-          <Text style={styles.itemTotal}>{formatCentsToBRL(item.total || 0)}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: Colors.info }]}>
+          <Text style={styles.itemTotal}>{formatCentsToBRL((item.gross_total || item.total) || 0)}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: colors.info }]}>
             <Text style={styles.statusText}>{formatStatus(item.status)}</Text>
           </View>
         </View>
@@ -135,7 +139,7 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
     <View style={{ flex: 1 }}>
       {loading && items.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -147,8 +151,8 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
           refreshing={refreshing}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <SearchX size={64} color={Colors.cardBorder} />
-              <Text style={styles.emptyText}>Nenhuma ficha nova encontrada.</Text>
+              <SearchX size={64} color={colors.border} />
+              <Text style={styles.emptyText}>Nenhuma card nova encontrada.</Text>
             </View>
           }
         />
@@ -162,28 +166,28 @@ export const NewTab = ({ clientId, clientName, routeId }: Props) => {
         activeOpacity={0.7}
       >
         {creating ? (
-          <ActivityIndicator color={Colors.white} size="small" />
+          <ActivityIndicator color={colors.white} size="small" />
         ) : (
-          <Plus size={32} color={Colors.white} strokeWidth={2.5} />
+          <Plus size={32} color={colors.white} strokeWidth={2.5} />
         )}
       </TouchableOpacity>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   list: { paddingBottom: 100, paddingHorizontal: 20, paddingTop: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   itemInfo: { flex: 1 },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  itemCode: { fontSize: 16, fontWeight: '800', color: Colors.white },
-  itemDate: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  itemCode: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  itemDate: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
   itemFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemTotal: { fontSize: 18, fontWeight: '900', color: Colors.white },
+  itemTotal: { fontSize: 18, fontWeight: '900', color: colors.textPrimary },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 10, fontWeight: '900', color: Colors.white },
+  statusText: { fontSize: 10, fontWeight: '900', color: colors.white },
   emptyContainer: { alignItems: 'center', marginTop: 100, opacity: 0.7 },
-  emptyText: { color: Colors.white, fontSize: 16, fontWeight: '600', marginTop: 24 },
+  emptyText: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', marginTop: 24 },
   fab: {
     position: 'absolute',
     right: 24,
@@ -191,14 +195,11 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Shadows.neumorphic(isDark),
     elevation: 10,
     zIndex: 9999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   }
 });

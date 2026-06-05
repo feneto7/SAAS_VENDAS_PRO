@@ -1,8 +1,8 @@
 import { roundCents } from './money';
 
-export function calculateFichaTotals(ficha: any, items: any[], payments: any[]) {
-    // A ficha é considerada "fechada" para fins de cobrança se estiver no status pendente ou paga
-    const isCurrentlyClosed = ficha?.status === 'pendente' || ficha?.status === 'paga';
+export function calculateFichaTotals(card: any, items: any[], payments: any[]) {
+    // A card é considerada "fechada" para fins de cobrança se estiver no status pendente ou paga
+    const isCurrentlyClosed = card?.status === 'pendente' || card?.status === 'paga';
     
     // Total CC (com comissão)
     const totalCCRaw = items
@@ -22,7 +22,7 @@ export function calculateFichaTotals(ficha: any, items: any[], payments: any[]) 
         return acc + (qty * (curr.price || 0));
       }, 0);
     
-    const commP = Number(ficha?.commissionPercent || ficha?.commission_percent || 30);
+    const commP = Number(card?.commissionPercent || card?.commission_percent || 30);
     const commV = roundCents(totalCCRaw * (commP / 100));
     const totalToPay = roundCents((totalCCRaw - commV) + totalSC);
     
@@ -30,7 +30,7 @@ export function calculateFichaTotals(ficha: any, items: any[], payments: any[]) 
       .filter(p => !p.cancelled)
       .reduce((acc, curr) => acc + (curr.amount || 0), 0);
     
-    const discount = Number(ficha?.discount || 0);
+    const discount = Number(card?.discount || 0);
     const balance = roundCents(totalToPay - totalPaid - discount);
     
     return {

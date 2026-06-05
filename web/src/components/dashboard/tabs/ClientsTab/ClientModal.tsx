@@ -94,42 +94,36 @@ export function ClientModal({ isOpen, onClose, onSuccess, client, routes, server
 
   if (!isOpen) return null;
 
-  const sectionLabel = "text-[10px] font-black text-purple-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-6";
-  const inputLabel = "text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 mb-2 block";
-  const inputClass = "w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-purple-500 focus:bg-white/[0.06] outline-none transition-all placeholder:text-gray-700";
+  const sectionLabel = "nm-heading flex items-center gap-2 mb-6";
+  const inputLabel = "nm-input-group__label mb-1";
+  const inputClass = "nm-input";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-[#050505]/95 backdrop-blur-md animate-in fade-in duration-300" 
-        onClick={onClose} 
-      />
+    <div className="nm-modal-backdrop" onClick={onClose}>
+      <div className="nm-modal nm-modal--lg" onClick={(e) => e.stopPropagation()}>
 
-      <div className="relative w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] bg-[#0c0c0c] border-t sm:border border-white/10 rounded-t-[3rem] sm:rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500 ease-out">
-        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden shrink-0" />
-
-        <header className="px-6 py-4 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-purple-500/10 to-transparent">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center border border-purple-500/20">
-              <User className="text-purple-400" size={20} />
+        <header className="nm-modal__header">
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div className="nm-icon-circle nm-icon-circle--accent nm-icon-circle--lg">
+              <User size={20} />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+              <h2 className="nm-modal__title">
                 {client ? "Editar Cliente" : "Novo Cliente"}
               </h2>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
+              <p className="nm-modal__subtitle" style={{ textTransform: "uppercase", fontWeight: "bold", fontSize: "10px" }}>
                 {client ? `Código: ${String(client.code).padStart(4, '0')}` : "Cadastro de Consumidor"}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-all outline-none">
-            <X size={24} />
+          <button onClick={onClose} className="nm-modal__close">
+            <X size={18} />
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col custom-scrollbar">
-          <div className="px-6 py-4 sm:p-8 space-y-8 sm:space-y-10 flex-1">
-            <section className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
+        <form onSubmit={handleSubmit} className="nm-modal__body">
+          <div className="space-y-6">
+            <section className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <h3 className={sectionLabel}><User size={14} /> Dados de Identificação</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
@@ -153,7 +147,7 @@ export function ClientModal({ isOpen, onClose, onSuccess, client, routes, server
               </div>
             </section>
 
-            <section className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
+            <section className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <h3 className={sectionLabel}><Home size={14} /> Endereço de Entrega</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="col-span-2 md:col-span-3">
@@ -183,7 +177,7 @@ export function ClientModal({ isOpen, onClose, onSuccess, client, routes, server
               </div>
             </section>
 
-            <section className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
+            <section className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <h3 className={sectionLabel}><Map size={14} /> Logística e Setor</h3>
               <div>
                 <label className={inputLabel}>Rota de Venda</label>
@@ -200,11 +194,11 @@ export function ClientModal({ isOpen, onClose, onSuccess, client, routes, server
           </div>
         </form>
 
-        <footer className="relative p-6 sm:p-8 border-t border-white/5 bg-[#0c0c0c] sm:bg-black/20 flex gap-4 shrink-0">
-          <button type="button" onClick={onClose} className="hidden sm:block flex-1 py-4 text-[10px] font-black text-zinc-500 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl uppercase tracking-widest">
+        <footer className="nm-modal__footer">
+          <button type="button" onClick={onClose} className="nm-btn nm-btn--flat" style={{ flex: 1 }}>
             Cancelar
           </button>
-          <button onClick={handleSubmit} type="button" disabled={loading} className="flex-[2] sm:flex-1 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] flex items-center justify-center gap-2 hover:bg-purple-400 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-white/5">
+          <button onClick={handleSubmit} type="button" disabled={loading} className="nm-btn nm-btn--accent" style={{ flex: 1 }}>
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
             {client ? "Salvar Alterações" : "Cadastrar Cliente"}
           </button>

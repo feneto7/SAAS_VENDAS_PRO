@@ -42,13 +42,13 @@ export const useCardItemsData = (cardId: string | undefined) => {
   const [items, setItems] = useState<CardItem[]>([]);
   const [payments, setPayments] = useState<CardPayment[]>([]);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [ficha, setFicha] = useState<any>(null);
+  const [card, setFicha] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // --- DERIVED STATS (Instant UI) ---
   const stats = useMemo(() => {
-    return calculateFichaTotals(ficha, items, payments);
-  }, [items, payments, ficha]);
+    return calculateFichaTotals(card, items, payments);
+  }, [items, payments, card]);
 
   const normalizeFicha = (f: any) => {
     if (!f) return null;
@@ -117,7 +117,7 @@ export const useCardItemsData = (cardId: string | undefined) => {
       // NOVO: Desativa o loading logo após o carregamento local
       // Assim o usuário vê os itens instantaneamente enquanto o sync corre em background
       setLoading(false);
-      console.log(`[Sync] Dados locais carregados para ficha ${cardId}`);
+      console.log(`[Sync] Dados locais carregados para card ${cardId}`);
 
       // 2. SINCRONISMO (API)
       const token = useAuthStore.getState().token;
@@ -131,11 +131,11 @@ export const useCardItemsData = (cardId: string | undefined) => {
           
           try {
             const [resItems, resFicha, resMethods] = await Promise.all([
-              fetch(`${API_URL}/api/fichas/${cardId}/items`, {
+              fetch(`${API_URL}/api/cards/${cardId}/items`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-slug': tenantSlug },
                 signal: controller.signal
               }),
-              fetch(`${API_URL}/api/fichas/${cardId}`, {
+              fetch(`${API_URL}/api/cards/${cardId}`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'x-tenant-slug': tenantSlug },
                 signal: controller.signal
               }),
@@ -177,7 +177,7 @@ export const useCardItemsData = (cardId: string | undefined) => {
               // Persistir localmente com Sync Guard (Robusto)
               await db.withTransactionAsync(async () => {
                 const pendingSyncItems = await db.getAllAsync<any>(
-                  `SELECT data FROM sync_queue WHERE status = 'pending'`
+                  `SELECT data FROM sync_queue WHERE status IN ('pending', 'syncing', 'failed')`
                 );
                 
                 const hasPendingThisFicha = pendingSyncItems.some(s => {
@@ -206,6 +206,10 @@ export const useCardItemsData = (cardId: string | undefined) => {
                     );
                   }
 
+                  const [localCard] = await db.getAllAsync<any>(`SELECT items_locked FROM cards WHERE id = ?`, [cardId]);
+                  const isLocallyLocked = localCard ? localCard.items_locked : 0;
+                  const finalLocked = (serverFicha.itemsLocked || serverFicha.items_locked || isLocallyLocked) ? 1 : 0;
+
                   // 2. Atualizar Outros Campos da Ficha (menos total/status que o CardService resolve)
                   await db.runAsync(
                     `UPDATE cards SET code = ?, commission_percent = ?, discount = ?, items_locked = ? WHERE id = ?`,
@@ -213,7 +217,7 @@ export const useCardItemsData = (cardId: string | undefined) => {
                       serverFicha.code, 
                       serverFicha.commissionPercent ?? serverFicha.commission_percent ?? 30,
                       serverFicha.discount ?? 0,
-                      (serverFicha.itemsLocked ?? serverFicha.items_locked) ? 1 : 0,
+                      finalLocked,
                       cardId
                     ]
                   );
@@ -291,9 +295,9 @@ export const useCardItemsData = (cardId: string | undefined) => {
         const { items: pList } = await res.json();
         await db.withTransactionAsync(async () => {
           for (const p of pList) {
-            if (p.stock > 0) {
-              await db.runAsync(`INSERT OR REPLACE INTO products (id, sku, name, price_cc, price_sc, active) VALUES (?, ?, ?, ?, ?, ?)`, [p.id, p.sku, p.name, p.priceCC, p.priceSC, p.active ? 1 : 0]);
-              if (sellerId) { await db.runAsync(`INSERT OR REPLACE INTO seller_inventory (id, seller_id, product_id, stock) VALUES (?, ?, ?, ?)`, [`${sellerId}-${p.id}`, sellerId, p.id, p.stock]); }
+            await db.runAsync(`INSERT OR REPLACE INTO products (id, sku, name, price_cc, price_sc, active) VALUES (?, ?, ?, ?, ?, ?)`, [p.id, p.sku, p.name, p.priceCC, p.priceSC, p.active ? 1 : 0]);
+            if (sellerId) { 
+              await db.runAsync(`INSERT OR REPLACE INTO seller_inventory (id, seller_id, product_id, stock) VALUES (?, ?, ?, ?)`, [`${sellerId}-${p.id}`, sellerId, p.id, p.stock || 0]); 
             }
           }
         });
@@ -303,5 +307,5 @@ export const useCardItemsData = (cardId: string | undefined) => {
 
   useEffect(() => { loadItems(); }, [cardId]);
 
-  return { items, payments, methods, ficha, stats, loading, reload: loadItems };
+  return { items, payments, methods, card, stats, loading, reload: loadItems };
 };

@@ -7,10 +7,9 @@ import { SalesList }   from "./SalesList";
 import { NewFichaModal } from "./NewFichaModal";
 import { FichaLinkModal } from "./FichaLinkModal";
 import { FichaDetailModal } from "./FichaDetailModal";
-import type { FichaListItem, FichaFilters, Route } from "@/types/ficha.types";
-import { EMPTY_FILTERS } from "@/types/ficha.types";
+import type { FichaListItem, FichaFilters, Route } from "@/types/card.types";
+import { EMPTY_FILTERS } from "@/types/card.types";
 import { Pagination } from "@/components/dashboard/shared/Pagination";
-import { formatCentsToBRL } from "@/utils/money";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001";
 
@@ -18,17 +17,8 @@ interface SalesTabProps {
   tenantSlug: string;
 }
 
-function buildQueryString(filters: FichaFilters): string {
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, val]) => {
-    if (val) params.set(key, val);
-  });
-  params.set("limit", "10");
-  return params.toString();
-}
-
 export function SalesTab({ tenantSlug }: SalesTabProps) {
-  const [fichas,  setFichas]  = useState<FichaListItem[]>([]);
+  const [cards,  setFichas]  = useState<FichaListItem[]>([]);
   const [routes,  setRoutes]  = useState<Route[]>([]);
   const [filters, setFilters] = useState<FichaFilters>(EMPTY_FILTERS);
   const [loading, setLoading] = useState(true);
@@ -42,7 +32,6 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
   const [ordersCount, setOrdersCount] = useState(0);
   const debounceRef = useRef<any>(null);
 
-  // Fetch available routes for the filter dropdown
   useEffect(() => {
     fetch(`${SERVER_URL}/api/routes?limit=100`, { headers: { "x-tenant-slug": tenantSlug } })
       .then((r) => r.ok ? r.json() : { items: [] })
@@ -50,7 +39,6 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
       .catch(() => setRoutes([]));
   }, [tenantSlug]);
 
-  // Fetch fichas whenever filters change (debounced 400ms)
   const fetchFichas = useCallback((activeFilters: FichaFilters) => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -62,11 +50,10 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
         });
         params.set("limit", "10");
         params.set("page", currentPage.toString());
-        
-        const res = await fetch(
-          `${SERVER_URL}/api/fichas?${params.toString()}`,
-          { headers: { "x-tenant-slug": tenantSlug } }
-        );
+
+        const res = await fetch(`${SERVER_URL}/api/cards?${params.toString()}`, {
+          headers: { "x-tenant-slug": tenantSlug },
+        });
         if (res.ok) {
           const data = await res.json();
           setFichas(data.items || []);
@@ -75,7 +62,7 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
           setOrdersCount(data.stats?.ordersCount || 0);
         }
       } catch (err) {
-        console.error("Erro ao buscar fichas:", err);
+        console.error("Erro ao buscar cards:", err);
       } finally {
         setLoading(false);
       }
@@ -93,58 +80,62 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
 
   const handleDeleteFicha = async (id: string) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/fichas/${id}`, {
-        method: 'DELETE',
-        headers: { 'x-tenant-slug': tenantSlug }
+      const res = await fetch(`${SERVER_URL}/api/cards/${id}`, {
+        method: "DELETE",
+        headers: { "x-tenant-slug": tenantSlug },
       });
       if (res.ok) {
         fetchFichas(filters);
-      } else {
-        alert("Erro ao excluir ficha");
       }
-    } catch (err) {
-      alert("Erro de conexão");
+    } catch {
+      /* silencioso */
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page title + summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="nm-flex-col nm-gap-lg nm-animate-fade-in">
+
+      {/* Cabeçalho da aba */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            Fichas de Venda
-          </h1>
-          <div className="flex items-center gap-4 mt-0.5">
-            <p className="text-sm text-gray-500">
-              {loading ? "Carregando..." : `${totalCount} ficha${totalCount !== 1 ? "s" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
-            </p>
-            <div className="w-1 h-1 rounded-full bg-white/10 hidden sm:block" />
-            <p className="text-sm text-emerald-400 font-medium">
-              {loading ? "" : `${ordersCount} pedido${ordersCount !== 1 ? "s" : ""}`}
-            </p>
+          <h1 className="nm-heading text-xl md:text-2xl">Fichas de Venda</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.35rem" }}>
+            <span className="nm-caption">
+              {loading ? "Carregando..." : `${totalCount} card${totalCount !== 1 ? "s" : ""} encontrada${totalCount !== 1 ? "s" : ""}`}
+            </span>
+            {!loading && ordersCount > 0 && (
+              <>
+                <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "var(--nm-border)" }} />
+                <span className="nm-badge nm-badge--success nm-badge--sm">
+                  <span className="nm-badge__dot" />
+                  {ordersCount} pedido{ordersCount !== 1 ? "s" : ""}
+                </span>
+              </>
+            )}
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <button
+            id="btn-card-link"
+            className="nm-btn nm-btn--ghost nm-btn--sm"
             onClick={() => setIsLinkModalOpen(true)}
-            className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-purple-500 hover:text-white transition-all active:scale-95"
           >
-            <LinkIcon size={16} />
+            <LinkIcon size={15} />
             Ficha Link
           </button>
-          <button 
+          <button
+            id="btn-nova-card"
+            className="nm-btn nm-btn--accent nm-btn--sm"
             onClick={() => setIsModalOpen(true)}
-            className="bg-white text-black px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-white/5"
           >
-            <Plus size={16} />
+            <Plus size={15} />
             Nova Ficha
           </button>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <SalesFilters
         filters={filters}
         routes={routes}
@@ -152,47 +143,41 @@ export function SalesTab({ tenantSlug }: SalesTabProps) {
         onReset={() => handleFilterChange(EMPTY_FILTERS)}
       />
 
-      {/* List */}
+      {/* Lista */}
       <SalesList
-        fichas={fichas}
+        cards={cards}
         loading={loading}
         tenantSlug={tenantSlug}
         onDelete={handleDeleteFicha}
-        onFichaClick={(ficha) => {
-          setSelectedFichaId(ficha.id);
+        onFichaClick={(card) => {
+          setSelectedFichaId(card.id);
           setIsDetailModalOpen(true);
         }}
       />
 
-      <Pagination 
+      <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         loading={loading}
       />
 
-      <NewFichaModal 
+      <NewFichaModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => fetchFichas(filters)}
         tenantSlug={tenantSlug}
       />
-      <FichaLinkModal 
-        isOpen={isLinkModalOpen} 
-        onClose={() => setIsLinkModalOpen(false)} 
-        onSuccess={() => {
-          setIsLinkModalOpen(false);
-          fetchFichas(filters);
-        }}
+      <FichaLinkModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        onSuccess={() => { setIsLinkModalOpen(false); fetchFichas(filters); }}
         tenantSlug={tenantSlug}
       />
-      <FichaDetailModal 
+      <FichaDetailModal
         isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedFichaId(null);
-        }}
-        fichaId={selectedFichaId}
+        onClose={() => { setIsDetailModalOpen(false); setSelectedFichaId(null); }}
+        cardId={selectedFichaId}
         tenantSlug={tenantSlug}
       />
     </div>

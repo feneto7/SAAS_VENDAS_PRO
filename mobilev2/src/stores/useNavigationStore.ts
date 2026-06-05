@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ViewScreen = 'home' | 'routes' | 'products' | 'charges' | 'chargeDetail' | 'customers' | 'customerDetail' | 'cardDetail';
+export type ViewScreen = 'home' | 'routes' | 'products' | 'charges' | 'chargeDetail' | 'chargeReport' | 'customers' | 'customerDetail' | 'cardDetail' | 'ordersDetail';
 
 interface ViewState {
   view: ViewScreen;

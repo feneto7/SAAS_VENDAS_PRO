@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo,  useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, Modal, 
   TouchableOpacity, TextInput, KeyboardAvoidingView, 
   Platform, TouchableWithoutFeedback, Keyboard 
 } from 'react-native';
-import { Colors, UI, Shadows } from '../../../theme/theme';
+import { Shadows, getUIStyles } from '../../../theme/theme';
 import { CardItem } from '../hooks/useCardItemsData';
 import { Package, ShoppingCart, RotateCcw, Plus, Minus } from 'lucide-react-native';
+import { useTheme } from '../../../stores/useThemeStore';
 
 interface Props {
   visible: boolean;
@@ -17,6 +18,10 @@ interface Props {
 }
 
 export const SaleInformingModal = ({ visible, item, isLocked, onClose, onSave }: Props) => {
+  const { colors, isDark } = useTheme();
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors, isDark, UI), [colors, isDark, UI]);
+
   const [soldQty, setSoldQty] = useState('0');
   const isFichaLocked = !!isLocked;
   
@@ -50,32 +55,32 @@ export const SaleInformingModal = ({ visible, item, isLocked, onClose, onSave }:
               
               <View style={styles.infoRow}>
                 <View style={styles.infoBox}>
-                  <Package size={20} color={Colors.textSecondary} />
+                  <Package size={20} color={colors.textSecondary} />
                   <Text style={styles.infoLabel}>Deixado</Text>
                   <Text style={styles.infoValue}>{left}</Text>
                 </View>
                 <View style={styles.infoBox}>
-                  <RotateCcw size={20} color={Colors.warning} />
+                  <RotateCcw size={20} color={colors.warning} />
                   <Text style={styles.infoLabel}>Devolve</Text>
-                  <Text style={[styles.infoValue, { color: Colors.warning }]}>{returned}</Text>
+                  <Text style={[styles.infoValue, { color: colors.warning }]}>{returned}</Text>
                 </View>
               </View>
 
               <View style={styles.qtyActionRow}>
                 <TouchableOpacity 
-                   style={[styles.qtyBtn, isFichaLocked && { opacity: 0.5, backgroundColor: Colors.textMuted }]} 
+                   style={[styles.qtyBtn, isFichaLocked && { opacity: 0.5, backgroundColor: colors.textMuted }]} 
                    disabled={isFichaLocked}
                    onPress={() => {
                      const num = parseInt(soldQty) || 0;
                      if (num > 0) setSoldQty(String(num - 1));
                    }}
                 >
-                  <Minus color={Colors.white} size={28} />
+                  <Minus color={colors.buttonText} size={28} />
                 </TouchableOpacity>
 
                 <View style={styles.inputWrapper}>
                   <TextInput
-                    style={[styles.input, isFichaLocked && { color: Colors.textMuted }]}
+                    style={[styles.input, isFichaLocked && { color: colors.textMuted }]}
                     value={soldQty}
                     editable={!isFichaLocked}
                     onChangeText={(val) => {
@@ -85,20 +90,20 @@ export const SaleInformingModal = ({ visible, item, isLocked, onClose, onSave }:
                     }}
                     keyboardType="number-pad"
                     placeholder="0"
-                    placeholderTextColor={Colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     selectTextOnFocus
                   />
                 </View>
 
                 <TouchableOpacity 
-                   style={[styles.qtyBtn, isFichaLocked && { opacity: 0.5, backgroundColor: Colors.textMuted }]} 
+                   style={[styles.qtyBtn, isFichaLocked && { opacity: 0.5, backgroundColor: colors.textMuted }]} 
                    disabled={isFichaLocked}
                    onPress={() => {
                      const num = parseInt(soldQty) || 0;
                      if (num < left) setSoldQty(String(num + 1));
                    }}
                 >
-                  <Plus color={Colors.white} size={28} />
+                  <Plus color={colors.buttonText} size={28} />
                 </TouchableOpacity>
               </View>
 
@@ -127,7 +132,7 @@ export const SaleInformingModal = ({ visible, item, isLocked, onClose, onSave }:
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean, UI: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -137,17 +142,17 @@ const styles = StyleSheet.create({
   },
   container: { width: '100%', maxWidth: 400 },
   content: {
-    backgroundColor: Colors.cardSolid,
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    ...Shadows.black
+    borderColor: colors.border,
+    ...Shadows.neumorphic(isDark)
   },
   title: {
     fontSize: 14,
     fontWeight: '900',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
     textAlign: 'center',
@@ -156,7 +161,7 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 20,
     fontWeight: '800',
-    color: Colors.white,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 24
   },
@@ -167,16 +172,16 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     flex: 1,
-    backgroundColor: Colors.inputBg,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.cardBorder
+    borderColor: colors.border
   },
   infoLabel: {
     fontSize: 10,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '700',
     textTransform: 'uppercase',
     marginTop: 8
@@ -184,7 +189,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 24,
     fontWeight: '900',
-    color: Colors.white,
+    color: colors.textPrimary,
     marginTop: 4
   },
   qtyActionRow: {
@@ -197,24 +202,22 @@ const styles = StyleSheet.create({
   qtyBtn: {
     width: 64,
     height: 64,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.primary
+    ...Shadows.primary(colors)
   },
   inputWrapper: {
     flex: 1,
-    maxWidth: 100,
-  },
+    maxWidth: 100},
   input: {
     ...UI.input,
     textAlign: 'center',
     fontSize: 28,
     paddingHorizontal: 0,
     height: 64,
-    borderRadius: 20,
-  },
+    borderRadius: 20},
   footer: {
     flexDirection: 'row',
     gap: 12
@@ -227,19 +230,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   cancelBtn: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border
   },
   cancelBtnText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '800'
   },
   saveBtn: {
-    backgroundColor: Colors.primary,
-    ...Shadows.primary
+    backgroundColor: colors.accent,
+    ...Shadows.primary(colors)
   },
   saveBtnText: {
-    color: Colors.white,
+    color: colors.buttonText,
     fontSize: 13,
     fontWeight: '900'
   }

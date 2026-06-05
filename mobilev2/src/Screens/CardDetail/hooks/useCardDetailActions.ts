@@ -23,7 +23,7 @@ export const useCardDetailActions = (
   const handleItemPress = (item: any) => {
     if (displayStatus === 'pendente') {
        if (isFichaLocked) {
-         Alert.alert('Ficha Bloqueada', 'Esta ficha já foi conferida e bloqueada. Para editar, peça ao administrador para liberar na web.');
+         Alert.alert('Ficha Bloqueada', 'Esta card já foi conferida e bloqueada. Para editar, peça ao administrador para liberar na web.');
          return;
        }
        setEditingItem(item);
@@ -70,8 +70,6 @@ export const useCardDetailActions = (
       const soldNum = Number(soldQty);
       const leftOrOriginal = editingItem.quantity;
       const returnedQty = Math.max(0, leftOrOriginal - soldNum);
-      const prevReturnedQty = editingItem.returned_quantity || 0;
-      const returnDelta = returnedQty - prevReturnedQty;
 
       await db.withTransactionAsync(async () => {
         // 1. Update item
@@ -82,14 +80,6 @@ export const useCardDetailActions = (
         
         // 2. Global Recalculation (Shared Truth)
         await CardService.syncLocalTotal(cardId);
-
-        const sellerId = useAuthStore.getState().user?.id;
-        if (sellerId && returnDelta !== 0) {
-          await db.runAsync(
-            "UPDATE seller_inventory SET stock = stock + ? WHERE seller_id = ? AND product_id = ?",
-            [returnDelta, sellerId, editingItem.product_id]
-          );
-        }
       });
 
       SyncService.enqueue('PATCH_ITEM', 'card_items', {
@@ -106,15 +96,50 @@ export const useCardDetailActions = (
   };
 
   const handleCloseFicha = async () => {
-    if (!cardId) return;
+    if (!cardId || isFichaLocked) return;
     try {
-      // 1. Marcar como bloqueada e pendente localmente
-      await db.runAsync(
-        "UPDATE cards SET items_locked = 1, status = 'pendente', last_manual_update = ? WHERE id = ?", 
-        [new Date().toISOString(), cardId]
-      );
+      await db.withTransactionAsync(async () => {
+        // 1. Marcar como bloqueada e pendente localmente
+        await db.runAsync(
+          "UPDATE cards SET items_locked = 1, status = 'pendente', last_manual_update = ? WHERE id = ?", 
+          [new Date().toISOString(), cardId]
+        );
 
-      // 2. Global Sync (Recalcula e verifica se já pode virar PAGA)
+        // 2. Atualizar estoque do vendedor localmente e tratar items não informados
+        const sellerId = useAuthStore.getState().user?.id;
+        const allItems = await db.getAllAsync(
+          "SELECT id, product_id, quantity, returned_quantity, is_informed FROM card_items WHERE card_id = ?", 
+          [cardId]
+        ) as any[];
+
+        for (const itm of allItems) {
+           const isInf = !!itm.is_informed;
+           const qtyRet = isInf ? itm.returned_quantity : itm.quantity;
+           
+           if (!isInf) {
+              await db.runAsync(
+                "UPDATE card_items SET sold_quantity = 0, returned_quantity = ?, is_informed = 1 WHERE id = ?",
+                [itm.quantity, itm.id]
+              );
+              
+              // Sincronizar o item para o servidor para que o backend saiba que ele foi informado
+              SyncService.enqueue('PATCH_ITEM', 'card_items', {
+                id: itm.id,
+                card_id: cardId,
+                payload: { quantitySold: 0, quantityReturned: itm.quantity, informed: true }
+              });
+           }
+
+           if (sellerId && qtyRet > 0) {
+              await db.runAsync(
+                "UPDATE seller_inventory SET stock = stock + ? WHERE seller_id = ? AND product_id = ?",
+                [qtyRet, sellerId, itm.product_id]
+              );
+           }
+        }
+      });
+
+      // 3. Global Sync (Recalcula e verifica se já pode virar PAGA)
       const result = await CardService.syncLocalTotal(cardId);
       const newStatus = result?.newStatus || 'pendente';
       
@@ -132,7 +157,7 @@ export const useCardDetailActions = (
       await reload();
       return true;
     } catch (e: any) {
-      Alert.alert('Erro', 'Falha ao fechar ficha: ' + e.message);
+      Alert.alert('Erro', 'Falha ao fechar card: ' + e.message);
       return false;
     }
   };

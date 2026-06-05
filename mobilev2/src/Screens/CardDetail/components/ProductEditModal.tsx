@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo,  useState, useEffect } from 'react';
 import * as Crypto from 'expo-crypto';
 import { 
   View, Text, StyleSheet, Modal, TouchableOpacity, 
@@ -6,8 +6,9 @@ import {
   TouchableWithoutFeedback, Keyboard 
 } from 'react-native';
 import { X, Minus, Plus } from 'lucide-react-native';
+import { useTheme } from '../../../stores/useThemeStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
-import { Colors, UI } from '../../../theme/theme';
+import { getUIStyles, Shadows } from '../../../theme/theme';
 import { formatCentsToBRL, applyCurrencyMask, parseBRLToCents } from '../../../utils/money';
 import { CardItem } from '../hooks/useCardItemsData';
 import { db } from '../../../services/database';
@@ -22,6 +23,10 @@ interface Props {
 }
 
 export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
+  const { colors, isDark } = useTheme();
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors, isDark, UI), [colors, isDark, UI]);
+
   const [type, setType] = useState<'CC' | 'SC' | 'brinde'>('CC');
   const [price, setPrice] = useState('0,00');
   const [quantity, setQuantity] = useState(0);
@@ -178,7 +183,7 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
                     <Text style={styles.subtitle}>{item.product_name}</Text>
                   </View>
                   <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                    <X color={Colors.textSecondary} size={24} />
+                    <X color={colors.textSecondary} size={24} />
                   </TouchableOpacity>
                 </View>
 
@@ -223,7 +228,7 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
                           onChangeText={handlePriceChange}
                           keyboardType="numeric"
                           placeholder="0,00"
-                          placeholderTextColor={Colors.textMuted}
+                          placeholderTextColor={colors.textMuted}
                           editable={type !== 'brinde'}
                         />
                       </View>
@@ -233,7 +238,7 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
                         <View style={styles.labelRow}>
                           <Text style={styles.label}>Quantidade</Text>
                           <Text style={styles.stockLabel}>
-                            Estoque: <Text style={{ color: Colors.white }}>{liveStock}</Text>
+                            Estoque: <Text style={{ color: colors.textPrimary }}>{liveStock}</Text>
                           </Text>
                         </View>
                         <View style={styles.qtyRow}>
@@ -241,7 +246,7 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
                             style={styles.qtyBtn} 
                             onPress={() => setQuantity(Math.max(1, quantity - 1))}
                           >
-                            <Minus color={Colors.white} size={24} />
+                            <Minus color={colors.buttonText} size={24} />
                           </TouchableOpacity>
                           <View style={styles.qtyDisplay}>
                             <Text style={styles.qtyValue}>{quantity}</Text>
@@ -250,7 +255,7 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
                             style={styles.qtyBtn} 
                             onPress={() => setQuantity(quantity + 1)}
                           >
-                            <Plus color={Colors.white} size={24} />
+                            <Plus color={colors.buttonText} size={24} />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -278,37 +283,37 @@ export const ProductEditModal = ({ visible, item, onClose, onSave }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: Colors.background, justifyContent: 'center', padding: 20 },
+const getStyles = (colors: any, isDark: boolean, UI: any) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
   modalContainer: { width: '100%' },
-  content: { backgroundColor: Colors.cardBg, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: Colors.cardBorder },
+  content: { backgroundColor: colors.surface, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: colors.border, ...Shadows.neumorphic(isDark) },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.white },
-  subtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
+  title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
   closeBtn: { padding: 4 },
 
   section: { marginBottom: 20 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  label: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  stockLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
+  label: { fontSize: 13, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  stockLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   
   typeRow: { flexDirection: 'row', gap: 8 },
-  typeOption: { flex: 1, height: 40, borderRadius: 10, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
-  typeActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  typeText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
-  typeTextActive: { color: Colors.white },
+  typeOption: { flex: 1, height: 40, borderRadius: 10, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  typeActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  typeText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  typeTextActive: { color: colors.buttonText },
   
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  qtyBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
-  qtyDisplay: { flex: 1, height: 56, backgroundColor: Colors.background, borderRadius: 16, borderWidth: 1, borderColor: Colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
-  qtyValue: { fontSize: 22, fontWeight: '900', color: Colors.white },
+  qtyBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...Shadows.primary(colors) },
+  qtyDisplay: { flex: 1, height: 56, backgroundColor: colors.surfaceRaised, borderRadius: 16, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  qtyValue: { fontSize: 22, fontWeight: '900', color: colors.textPrimary },
 
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 20, borderTopWidth: 1, borderTopColor: Colors.cardBorder },
-  totalLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600', textTransform: 'uppercase' },
-  totalValue: { fontSize: 24, fontWeight: '900', color: Colors.white },
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.border },
+  totalLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600', textTransform: 'uppercase' },
+  totalValue: { fontSize: 24, fontWeight: '900', color: colors.textPrimary },
   saveBtn: { 
     ...UI.button, 
     paddingHorizontal: 32, 
     minWidth: 120 
-  },
+  }
 });

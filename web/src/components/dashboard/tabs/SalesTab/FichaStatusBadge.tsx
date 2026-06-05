@@ -1,4 +1,4 @@
-import type { FichaStatus } from "@/types/ficha.types";
+import type { FichaStatus } from "@/types/card.types";
 
 const STATUS_CONFIG: Record<FichaStatus, { label: string; className: string; dot: string }> = {
   nova:         { label: "Nova",         className: "bg-blue-500/15   text-blue-400   border-blue-500/30",   dot: "bg-blue-400"   },

@@ -1,5 +1,5 @@
 import { Search, X } from "lucide-react";
-import type { FichaFilters, Route } from "@/types/ficha.types";
+import type { FichaFilters, Route } from "@/types/card.types";
 import { CustomSelect } from "@/components/dashboard/shared/CustomSelect";
 
 interface SalesFiltersProps {
@@ -9,15 +9,6 @@ interface SalesFiltersProps {
   onReset: () => void;
 }
 
-const inputClass = `
-  w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5
-  text-sm text-white placeholder-gray-500
-  focus:outline-none focus:border-purple-500/60 focus:bg-white/[0.06]
-  transition-all duration-150
-`;
-
-const labelClass = "block text-xs font-medium text-gray-400 mb-1.5";
-
 export function SalesFilters({ filters, routes, onChange, onReset }: SalesFiltersProps) {
   function set(key: keyof FichaFilters, value: string) {
     onChange({ ...filters, [key]: value });
@@ -26,134 +17,106 @@ export function SalesFilters({ filters, routes, onChange, onReset }: SalesFilter
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   return (
-    <div className="bg-white/[0.02] border border-white/8 rounded-2xl p-5 relative z-20">
-      {/* Title row */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Search size={16} className="text-purple-400" />
-          <h2 className="text-sm font-semibold text-white">Filtros</h2>
-          {hasActiveFilters && (
-            <span className="bg-purple-500/20 text-purple-300 text-xs px-2 py-0.5 rounded-full border border-purple-500/30">
-              ativos
-            </span>
-          )}
+    <div className="nm-card nm-card--sm" style={{ position: "relative", zIndex: 20, overflow: "visible", padding: "1rem" }}>
+      
+      {/* Top Row: "Filtros" + Text Inputs */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-4 sm:flex-wrap">
+        
+        {/* Label Filtros */}
+        <div className="flex items-center gap-2 pb-0 sm:pb-2 sm:mr-2">
+          <div className="nm-icon-circle nm-icon-circle--sm" style={{ color: "var(--nm-accent)" }}>
+            <Search size={14} />
+          </div>
+          <span style={{ fontSize: "var(--nm-text-sm)", fontWeight: 600, color: "var(--nm-text-primary)" }}>Filtros</span>
+          {hasActiveFilters && <span className="nm-badge nm-badge--accent nm-badge--sm">ativos</span>}
         </div>
-        {hasActiveFilters && (
-          <button
-            onClick={onReset}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
-          >
-            <X size={13} />
-            Limpar filtros
-          </button>
-        )}
+
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[120px]">
+          <label className="nm-input-group__label">Cliente</label>
+          <input className="nm-input" style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }} placeholder="Nome do cliente"
+            value={filters.cliente} onChange={(e) => set("cliente", e.target.value)} />
+        </div>
+        
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[120px]">
+          <label className="nm-input-group__label">Vendedor</label>
+          <input className="nm-input" style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }} placeholder="Nome ou e-mail"
+            value={filters.vendedor} onChange={(e) => set("vendedor", e.target.value)} />
+        </div>
+
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[100px]">
+          <label className="nm-input-group__label">Estado</label>
+          <input className="nm-input" style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }} placeholder="Ex: SP, RJ"
+            value={filters.estado} onChange={(e) => set("estado", e.target.value)} />
+        </div>
+
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[120px]">
+          <label className="nm-input-group__label">Cidade</label>
+          <input className="nm-input" style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }} placeholder="Nome da cidade"
+            value={filters.cidade} onChange={(e) => set("cidade", e.target.value)} />
+        </div>
+
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[120px]">
+          <label className="nm-input-group__label">Rua</label>
+          <input className="nm-input" style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }} placeholder="Nome da rua"
+            value={filters.rua} onChange={(e) => set("rua", e.target.value)} />
+        </div>
+
       </div>
 
-      {/* Filter grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-4">
-        {/* Cliente */}
-        <div className="lg:col-span-1">
-          <label className={labelClass}>Cliente</label>
-          <input
-            className={inputClass}
-            placeholder="Nome do cliente"
-            value={filters.cliente}
-            onChange={(e) => set("cliente", e.target.value)}
-          />
-        </div>
-
-        {/* Vendedor */}
-        <div>
-          <label className={labelClass}>Vendedor</label>
-          <input
-            className={inputClass}
-            placeholder="Nome ou e-mail"
-            value={filters.vendedor}
-            onChange={(e) => set("vendedor", e.target.value)}
-          />
-        </div>
-
-        {/* Rota */}
-        <div>
-          <label className={labelClass}>Rota</label>
+      {/* Second Row: Selects and Period */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:flex-wrap">
+        
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[150px]">
+          <label className="nm-input-group__label">Rota</label>
           <CustomSelect
             options={[
               { value: "", label: "Todas as rotas" },
-              ...routes.map(r => ({ value: r.id, label: r.name }))
+              ...routes.map(r => ({ value: r.id, label: r.name })),
             ]}
             value={filters.rotaId}
             onChange={val => set("rotaId", val)}
+            className="sm"
           />
         </div>
 
-        {/* Status */}
-        <div>
-          <label className={labelClass}>Status</label>
+        <div className="nm-input-group w-full sm:flex-1 sm:min-w-[150px]">
+          <label className="nm-input-group__label">Status</label>
           <CustomSelect
             options={[
               { value: "", label: "Todos" },
               { value: "nova", label: "Nova" },
               { value: "pendente", label: "Pendente" },
-              { value: "paga", label: "Paga" }
+              { value: "paga", label: "Paga" },
             ]}
             value={filters.status}
             onChange={val => set("status", val)}
+            className="sm"
           />
         </div>
 
-        {/* Estado */}
-        <div>
-          <label className={labelClass}>Estado</label>
-          <input
-            className={inputClass}
-            placeholder="Ex: SP, RJ"
-            value={filters.estado}
-            onChange={(e) => set("estado", e.target.value)}
-          />
-        </div>
-
-        {/* Cidade */}
-        <div>
-          <label className={labelClass}>Cidade</label>
-          <input
-            className={inputClass}
-            placeholder="Nome da cidade"
-            value={filters.cidade}
-            onChange={(e) => set("cidade", e.target.value)}
-          />
-        </div>
-
-        {/* Rua */}
-        <div>
-          <label className={labelClass}>Rua</label>
-          <input
-            className={inputClass}
-            placeholder="Nome da rua"
-            value={filters.rua}
-            onChange={(e) => set("rua", e.target.value)}
-          />
-        </div>
-
-        {/* Período */}
-        <div className="lg:col-span-1">
-          <label className={labelClass}>Período</label>
-          <div className="flex items-center gap-1">
-            <input
-              type="date"
-              className={`${inputClass} !px-1.5 !text-[11px] h-[40px] flex-1 min-w-0`}
-              value={filters.dataInicio}
-              onChange={(e) => set("dataInicio", e.target.value)}
-            />
-            <span className="text-gray-500 text-[9px] font-bold uppercase shrink-0">~</span>
-            <input
-              type="date"
-              className={`${inputClass} !px-1.5 !text-[11px] h-[40px] flex-1 min-w-0`}
-              value={filters.dataFim}
-              onChange={(e) => set("dataFim", e.target.value)}
-            />
+        <div className="nm-input-group w-full sm:flex-[2] sm:min-w-[200px]">
+          <label className="nm-input-group__label">Período</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <input type="date" className="nm-input" style={{ flex: 1, padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }}
+              value={filters.dataInicio} onChange={(e) => set("dataInicio", e.target.value)} />
+            <span style={{ color: "var(--nm-text-muted)", fontSize: "var(--nm-text-xs)" }}>~</span>
+            <input type="date" className="nm-input" style={{ flex: 1, padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }}
+              value={filters.dataFim} onChange={(e) => set("dataFim", e.target.value)} />
           </div>
         </div>
+
+        {hasActiveFilters && (
+          <button
+            onClick={onReset}
+            className="nm-btn nm-btn--flat nm-btn--xs w-full sm:w-auto mt-2 sm:mt-0"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3rem", padding: "0.4rem 0.75rem", height: "34px", flexShrink: 0 }}
+          >
+            <X size={12} />
+            Limpar
+          </button>
+        )}
       </div>
+
     </div>
   );
 }

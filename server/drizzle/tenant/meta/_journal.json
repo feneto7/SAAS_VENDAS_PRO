@@ -22,6 +22,27 @@
       "when": 1776906615514,
       "tag": "0002_stormy_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780444672000,
+      "tag": "0003_rename_to_english",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780443971484,
+      "tag": "0004_real_rogue",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780452439051,
+      "tag": "0005_strong_mother_askani",
+      "breakpoints": true
     }
   ]
 }

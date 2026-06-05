@@ -74,54 +74,36 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
     }
   }
 
-  const inputClass = `
-    w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3
-    text-sm text-white placeholder-gray-500
-    focus:outline-none focus:border-purple-500 focus:bg-white/[0.06]
-    transition-all duration-200
-    [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-  `;
-
-  const labelClass = "block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider";
+  const inputClass = "nm-input";
+  const labelClass = "nm-input-group__label mb-1";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-hidden">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-[#050505]/90 backdrop-blur-md animate-in fade-in duration-300"
-        onClick={onClose}
-      />
-
+    <div className="nm-modal-backdrop" onClick={onClose}>
       {/* Modal Content */}
-      <div className="relative w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] bg-[#0f0f0f] border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500 ease-out">
-        {/* Mobile drag handle */}
-        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden shrink-0" />
+      <div className="nm-modal nm-modal--lg" onClick={(e) => e.stopPropagation()}>
 
-        <header className="px-6 py-4 sm:p-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-purple-500/5 to-transparent shrink-0">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center border border-purple-500/20">
-              <Package className="text-purple-400" size={20} />
+        <header className="nm-modal__header">
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div className="nm-icon-circle nm-icon-circle--accent nm-icon-circle--lg">
+              <Package size={20} />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Novo Produto</h2>
-              <p className="text-[10px] sm:text-xs text-gray-400">Preencha as informações do estoque.</p>
+              <h2 className="nm-modal__title">Novo Produto</h2>
+              <p className="nm-modal__subtitle" style={{ textTransform: "uppercase", fontWeight: "bold", fontSize: "10px" }}>Preencha as informações do estoque.</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-white/5 rounded-full text-gray-500 hover:text-white transition-all"
-          >
-            <X size={24} />
+          <button onClick={onClose} className="nm-modal__close">
+            <X size={18} />
           </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 sm:p-8 overflow-y-auto custom-scrollbar flex-1">
+        <form onSubmit={handleSubmit} className="nm-modal__body custom-scrollbar">
           <div className="space-y-6">
             {/* Main Info */}
-            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
-              <div className="flex items-center gap-2 text-purple-400 border-b border-white/5 pb-3">
-                <Info size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Informações Básicas</span>
+            <div className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <Info size={16} className="nm-text-accent" />
+                <span className="nm-heading">Informações Básicas</span>
               </div>
               
               <div className="space-y-4">
@@ -140,7 +122,8 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                   <div>
                     <label className={labelClass}>Código SKU</label>
                     <input 
-                      className={`${inputClass} opacity-40 bg-black/20`}
+                      className={`${inputClass}`}
+                      style={{ opacity: 0.6 }}
                       placeholder="SET"
                       value={formData.sku}
                       readOnly
@@ -150,7 +133,8 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                     <label className={labelClass}>Estoque</label>
                     <input 
                       type="number"
-                      className={`${inputClass} opacity-40 bg-black/20`}
+                      className={`${inputClass}`}
+                      style={{ opacity: 0.6 }}
                       placeholder="0"
                       value={formData.stockDeposit}
                       readOnly
@@ -182,19 +166,20 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
             </div>
 
             {/* Pricing Info */}
-            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
-              <div className="flex items-center gap-2 text-emerald-400 border-b border-white/5 pb-3">
-                <DollarSign size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Precificação</span>
+            <div className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign size={16} className="nm-text-accent" />
+                <span className="nm-heading">Precificação</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className={labelClass}>Custo</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-xs text-gray-500 font-bold">R$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold nm-text-muted">R$</span>
                     <input 
-                      className={`${inputClass} pl-10`}
+                      className={`${inputClass}`}
+                      style={{ paddingLeft: "2rem" }}
                       placeholder="0,00"
                       value={formData.costPrice}
                       onChange={e => setFormData({...formData, costPrice: applyCurrencyMask(e.target.value)})}
@@ -204,9 +189,10 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                 <div>
                   <label className={labelClass}>Preço Com Comissão</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-xs text-purple-400 font-bold">R$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-purple-400">R$</span>
                     <input 
-                      className={`${inputClass} pl-10 border-purple-500/10 focus:border-purple-500`}
+                      className={`${inputClass}`}
+                      style={{ paddingLeft: "2rem", borderColor: "rgba(168, 85, 247, 0.3)" }}
                       placeholder="0,00"
                       value={formData.priceCC}
                       onChange={e => setFormData({...formData, priceCC: applyCurrencyMask(e.target.value)})}
@@ -216,9 +202,10 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
                 <div>
                   <label className={labelClass}>Preço Sem Comissão</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-xs text-emerald-400 font-bold">R$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-emerald-400">R$</span>
                     <input 
-                      className={`${inputClass} pl-10 border-emerald-500/10 focus:border-emerald-500`}
+                      className={`${inputClass}`}
+                      style={{ paddingLeft: "2rem", borderColor: "rgba(16, 185, 129, 0.3)" }}
                       placeholder="0,00"
                       value={formData.priceSC}
                       onChange={e => setFormData({...formData, priceSC: applyCurrencyMask(e.target.value)})}
@@ -230,28 +217,13 @@ export function ProductModal({ isOpen, onClose, onSuccess, serverUrl, tenantSlug
           </div>
         </form>
 
-        <footer className="relative px-6 py-6 sm:px-8 sm:py-6 bg-zinc-950 border-t border-white/5 flex gap-3 shrink-0">
-          <button 
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="hidden sm:block flex-1 py-4 px-6 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
-          >
+        <footer className="nm-modal__footer">
+          <button type="button" onClick={onClose} disabled={loading} className="nm-btn nm-btn--flat" style={{ flex: 1 }}>
             Cancelar
           </button>
-          <button 
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-[2] py-4 px-6 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl shadow-xl shadow-purple-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                <Save size={18} className="group-hover:rotate-12 transition-transform" />
-                Salvar Produto
-              </>
-            )}
+          <button onClick={handleSubmit} disabled={loading} className="nm-btn nm-btn--accent" style={{ flex: 1 }}>
+            {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
+            Salvar Produto
           </button>
         </footer>
       </div>

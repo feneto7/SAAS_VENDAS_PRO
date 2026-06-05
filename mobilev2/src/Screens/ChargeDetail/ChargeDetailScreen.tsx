@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity, 
   SafeAreaView, StatusBar, FlatList, Alert, ActivityIndicator 
 } from 'react-native';
-import { Colors, GlobalStyles, UI } from '../../theme/theme';
+import { getGlobalStyles, getUIStyles, Shadows } from '../../theme/theme';
+import { useTheme } from '../../stores/useThemeStore';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { 
@@ -18,43 +19,48 @@ export const ChargeDetailScreen = () => {
 
   const [ending, setEnding] = useState(false);
 
+  const { colors, isDark } = useTheme();
+  const GlobalStyles = useMemo(() => getGlobalStyles(colors), [colors]);
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   const modules = [
     { 
       id: 'clients', 
       title: 'Clientes', 
       icon: Users, 
-      color: Colors.primary 
+      color: colors.accent 
     },
     { 
       id: 'products', 
       title: 'Produtos', 
       icon: Package, 
-      color: Colors.info 
+      color: colors.info 
     },
     { 
       id: 'expenses', 
       title: 'Despesas', 
       icon: TrendingDown, 
-      color: Colors.danger 
+      color: colors.danger 
     },
     { 
       id: 'deposits', 
       title: 'Depósitos', 
       icon: Wallet, 
-      color: Colors.success 
+      color: colors.success 
     },
     { 
       id: 'reports', 
       title: 'Relatórios', 
       icon: FileBarChart2, 
-      color: Colors.warning 
+      color: colors.warning 
     },
   ];
 
   const handleCloseCharge = async () => {
     Alert.alert(
       'Encerrar Cobrança',
-      'Deseja realmente encerrar esta cobrança? Todas as fichas novas serão marcadas como pendentes.',
+      'Deseja realmente encerrar esta cobrança? Todas as cards novas serão marcadas como pendentes.',
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
@@ -74,7 +80,7 @@ export const ChargeDetailScreen = () => {
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
 
       // 1. API Call
-      const res = await fetch(`${API_URL}/api/cobrancas/${chargeId}/close`, {
+      const res = await fetch(`${API_URL}/api/collections/${chargeId}/close`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -92,7 +98,7 @@ export const ChargeDetailScreen = () => {
           [chargeId]
         );
 
-        // Atualizar fichas (Verification Logic)
+        // Atualizar cards (Verification Logic)
         // 1. Fichas vinculadas a esta cobrança
         // 2. Fichas da mesma rota sem cobrança vinculada (web)
         await db.runAsync(
@@ -115,9 +121,7 @@ export const ChargeDetailScreen = () => {
 
   return (
     <SafeAreaView style={GlobalStyles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} pointerEvents="none" />
-      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       <View style={styles.content}>
         {/* Header */}
@@ -127,7 +131,7 @@ export const ChargeDetailScreen = () => {
             style={styles.backBtn} 
             activeOpacity={0.7}
           >
-            <ChevronLeft color={Colors.white} size={24} />
+            <ChevronLeft color={colors.textPrimary} size={24} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
             <Text style={styles.title}>Cobrança #{chargeCode || '---'}</Text>
@@ -146,17 +150,19 @@ export const ChargeDetailScreen = () => {
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity 
-              style={UI.moduleCard}
+              style={styles.moduleCard}
               activeOpacity={0.8}
               onPress={() => {
                 if (item.id === 'clients') {
-                  navigate('customers', { routeId, routeName });
+                  navigate('customers', { routeId, routeName, chargeId });
+                } else if (item.id === 'reports') {
+                  navigate('chargeReport', { chargeId, chargeCode, routeId, routeName });
                 } else {
                   console.log(`Navigating to ${item.id}`);
                 }
               }}
             >
-              <item.icon size={36} color={Colors.white} strokeWidth={2.2} />
+              <item.icon size={36} color={item.color} strokeWidth={2.2} />
               <Text style={styles.cardTitle}>{item.title}</Text>
             </TouchableOpacity>
           )}
@@ -170,10 +176,10 @@ export const ChargeDetailScreen = () => {
           activeOpacity={0.8}
         >
           {ending ? (
-            <ActivityIndicator color={Colors.white} />
+            <ActivityIndicator color={colors.white} />
           ) : (
             <>
-              <Power size={20} color={Colors.white} strokeWidth={2.5} />
+              <Power size={20} color={colors.white} strokeWidth={2.5} />
               <Text style={styles.closeBtnText}>ENCERRAR COBRANÇA</Text>
             </>
           )}
@@ -183,7 +189,7 @@ export const ChargeDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
   header: { 
     flexDirection: 'row', 
@@ -195,9 +201,9 @@ const styles = StyleSheet.create({
     width: 44, 
     height: 44, 
     borderRadius: 14, 
-    backgroundColor: Colors.cardBg, 
+    backgroundColor: colors.surface, 
     borderWidth: 1, 
-    borderColor: Colors.cardBorder, 
+    borderColor: colors.border, 
     alignItems: 'center', 
     justifyContent: 'center' 
   },
@@ -205,31 +211,46 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 20, 
     fontWeight: '900', 
-    color: Colors.white, 
+    color: colors.textPrimary, 
     letterSpacing: 0.5 
   },
   subtitle: { 
     fontSize: 14, 
-    color: Colors.textSecondary, 
+    color: colors.textSecondary, 
     marginTop: 2,
     fontWeight: '500'
   },
   list: { paddingBottom: 40 },
   row: { justifyContent: 'space-between', gap: 16, marginBottom: 16 },
+  
+  moduleCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 140,
+    gap: 12,
+    ...Shadows.neumorphic(isDark),
+  },
+  
   cardTitle: { 
     fontSize: 16, 
     fontWeight: '800', 
-    color: Colors.white,
+    color: colors.textPrimary,
     letterSpacing: 0.3
   },
   closeBtn: {
     marginTop: 'auto',
-    backgroundColor: Colors.danger,
-    shadowColor: Colors.danger,
+    backgroundColor: colors.danger,
+    shadowColor: colors.danger,
     marginBottom: 20,
   },
   closeBtnText: {
-    color: Colors.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 1,

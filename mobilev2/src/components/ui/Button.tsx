@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { Colors } from '../../theme/theme';
+import { Shadows } from '../../theme/theme';
+import { useTheme } from '../../stores/useThemeStore';
 
 interface ButtonProps {
   title: string;
@@ -11,47 +12,40 @@ interface ButtonProps {
 }
 
 export const Button = ({ title, onPress, loading, variant = 'primary', style }: ButtonProps) => {
-  const buttonStyle = variant === 'outline' ? styles.buttonOutline : styles.buttonPrimary;
-  const textStyle = variant === 'outline' ? styles.textOutline : styles.textPrimary;
+  const { colors, isDark } = useTheme();
+
+  const buttonStyle = variant === 'outline' 
+    ? { backgroundColor: 'transparent', borderColor: colors.primary, borderWidth: 1 }
+    : { backgroundColor: colors.buttonBg, ...Shadows.neumorphic(isDark) };
+    
+  const textStyle = variant === 'outline' 
+    ? { color: colors.primary } 
+    : { color: colors.white };
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={loading}
-      style={[styles.base, buttonStyle, style]}
+      style={[
+        {
+          height: 56,
+          borderRadius: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          gap: 8,
+        },
+        buttonStyle,
+        style
+      ]}
       activeOpacity={0.75}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? Colors.primary : Colors.white} />
+        <ActivityIndicator color={variant === 'outline' ? colors.primary : colors.white} />
       ) : (
-        <Text style={[styles.text, textStyle]}>{title}</Text>
+        <Text style={[{ fontSize: 16, fontWeight: '700' }, textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  base: {
-    height: 50,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  buttonPrimary: {
-    backgroundColor: Colors.buttonBg,
-  },
-  buttonOutline: {
-    backgroundColor: 'transparent',
-  },
-  text: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  textPrimary: {
-    color: Colors.white,
-  },
-  textOutline: {
-    color: Colors.primary,
-  },
-});

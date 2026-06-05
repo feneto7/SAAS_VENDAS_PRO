@@ -1,0 +1,194 @@
+/**
+ * Neumorphic Design System — Entry Point
+ * VendasPro Web
+ *
+ * Importar este arquivo une todos os tokens e componentes.
+ * Usage: import '@/styles/index.css'
+ * Nota: Fontes carregadas via next/font no layout.tsx
+ */
+
+/* ── Tokens de Tema ──────────────────────────── */
+@import './tokens/neumorphic-light.css';
+@import './tokens/neumorphic-dark.css';
+
+/* ── Base ────────────────────────────────────── */
+@import './base/reset.css';
+@import './base/typography.css';
+
+/* ── Componentes ─────────────────────────────── */
+@import './components/nm-button.css';
+@import './components/nm-card.css';
+@import './components/nm-input.css';
+@import './components/nm-badge.css';
+@import './components/nm-toggle.css';
+@import './components/nm-slider.css';
+@import './components/nm-table.css';
+@import './components/nm-modal.css';
+@import './components/nm-sidebar.css';
+@import './components/nm-avatar.css';
+
+/* ── Utilitários Globais ─────────────────────── */
+
+/* Layout */
+.nm-page {
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--nm-bg);
+  color: var(--nm-text-primary);
+  transition: background-color var(--nm-transition-slow);
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.nm-layout {
+  display: flex;
+  min-height: 100dvh;
+}
+
+.nm-layout__main {
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem;
+}
+
+/* Superfície de seção */
+.nm-surface {
+  background: var(--nm-surface);
+  border-radius: var(--nm-radius-xl);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-raised);
+}
+
+.nm-surface--inset {
+  background: var(--nm-surface-deep);
+  border-radius: var(--nm-radius-xl);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-inset);
+}
+
+/* Divider */
+.nm-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--nm-border) 20%,
+    var(--nm-border) 80%,
+    transparent
+  );
+  border: none;
+  margin: 0;
+}
+
+.nm-divider--vertical {
+  width: 1px;
+  height: auto;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--nm-border) 20%,
+    var(--nm-border) 80%,
+    transparent
+  );
+  align-self: stretch;
+}
+
+/* Glow orb decorativo */
+.nm-glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  background: var(--nm-accent-glow);
+  opacity: 0.4;
+  animation: nm-orb-pulse 4s ease-in-out infinite;
+}
+
+@keyframes nm-orb-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.08); }
+}
+
+/* Flex/Grid utils */
+.nm-flex          { display: flex; }
+.nm-flex-col      { display: flex; flex-direction: column; }
+.nm-flex-center   { display: flex; align-items: center; justify-content: center; }
+.nm-flex-between  { display: flex; align-items: center; justify-content: space-between; }
+.nm-grid-2        { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.nm-grid-3        { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.nm-grid-4        { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.nm-grid-auto     { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+
+/* Gap utils */
+.nm-gap-xs { gap: 0.25rem; }
+.nm-gap-sm { gap: 0.5rem; }
+.nm-gap-md { gap: 1rem; }
+.nm-gap-lg { gap: 1.5rem; }
+.nm-gap-xl { gap: 2rem; }
+
+/* Padding utils */
+.nm-p-sm { padding: 0.75rem; }
+.nm-p-md { padding: 1.25rem; }
+.nm-p-lg { padding: 1.75rem; }
+.nm-p-xl { padding: 2.25rem; }
+
+/* Radius utils */
+.nm-rounded-sm  { border-radius: var(--nm-radius-sm); }
+.nm-rounded-md  { border-radius: var(--nm-radius-md); }
+.nm-rounded-lg  { border-radius: var(--nm-radius-lg); }
+.nm-rounded-xl  { border-radius: var(--nm-radius-xl); }
+.nm-rounded-2xl { border-radius: var(--nm-radius-2xl); }
+.nm-rounded-full{ border-radius: var(--nm-radius-full); }
+
+/* Shadow utils */
+.nm-shadow-raised { box-shadow: var(--nm-shadow-raised); }
+.nm-shadow-inset  { box-shadow: var(--nm-shadow-inset); }
+.nm-shadow-flat   { box-shadow: var(--nm-shadow-flat); }
+.nm-shadow-glow   { box-shadow: var(--nm-shadow-glow); }
+
+/* Animações de entrada */
+@keyframes nm-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nm-slide-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes nm-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.nm-animate-fade-in  { animation: nm-fade-in var(--nm-transition-slow) ease-out forwards; }
+.nm-animate-slide-in { animation: nm-slide-in-left var(--nm-transition-slow) ease-out forwards; }
+.nm-animate-scale-in { animation: nm-scale-in var(--nm-transition-slow) ease-out forwards; }
+
+/* Delay helpers */
+.nm-delay-100 { animation-delay: 100ms; }
+.nm-delay-200 { animation-delay: 200ms; }
+.nm-delay-300 { animation-delay: 300ms; }
+.nm-delay-400 { animation-delay: 400ms; }
+.nm-delay-500 { animation-delay: 500ms; }
+
+/* Responsive breakpoints */
+@media (max-width: 1024px) {
+  .nm-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .nm-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .nm-grid-4,
+  .nm-grid-3,
+  .nm-grid-2 { grid-template-columns: 1fr; }
+
+  .nm-layout__main { padding: 1rem; }
+  .nm-hide-sm { display: none !important; }
+}

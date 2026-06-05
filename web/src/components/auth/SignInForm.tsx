@@ -55,89 +55,95 @@ export function SignInForm({ onClose, onSignUpClick }: SignInFormProps) {
     }
   };
 
-  const labelClass = "block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2.5 ml-1";
-  const inputClass = "w-full h-12 bg-white/[0.03] border border-white/10 rounded-xl px-4 text-sm text-white outline-none focus:border-purple-500/50 focus:bg-white/[0.06] transition-all placeholder:text-gray-700 disabled:opacity-50";
-
   if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 overflow-y-auto">
+    <div className="nm-modal-backdrop" onClick={onClose}>
       <div 
-        className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 my-auto"
+        className="nm-modal nm-modal--sm"
         onClick={(e) => e.stopPropagation()}
+        style={{ margin: "auto" }}
       >
-        <button 
-          onClick={onClose}
-          className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors"
-        >
-          <X size={20} />
-        </button>
-
-        <div className="p-8 sm:p-10">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-black mb-2 tracking-tight text-white">Bem-vindo de Volta</h2>
-            <p className="text-gray-500 text-sm font-medium">Acesse sua conta VendasPro</p>
+        <div className="nm-modal__header" style={{ borderBottom: "none", paddingBottom: 0 }}>
+          <div>
+            <h2 className="nm-modal__title" style={{ textAlign: "center", width: "100%" }}>Bem-vindo de Volta</h2>
+            <p className="nm-modal__subtitle" style={{ textAlign: "center", width: "100%" }}>Acesse sua conta VendasPro</p>
           </div>
+          <button 
+            onClick={onClose}
+            className="nm-modal__close"
+            style={{ position: "absolute", top: "1rem", right: "1rem" }}
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className={labelClass}>Seu E-mail</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 w-4 h-4" />
+        <div className="nm-modal__body" style={{ paddingTop: "1.5rem" }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            
+            <div className="nm-input-group">
+              <label className="nm-input-group__label">Seu E-mail</label>
+              <div className="nm-input-group--with-icon">
+                <div className="nm-input-group__icon">
+                  <Mail size={16} />
+                </div>
                 <input 
                   type="email" 
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="exemplo@email.com" 
-                  className={inputClass + " pl-11"}
+                  className="nm-input"
                   disabled={loading}
                 />
               </div>
             </div>
 
-            <div>
-              <label className={labelClass}>Sua Senha</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 w-4 h-4" />
+            <div className="nm-input-group">
+              <label className="nm-input-group__label">Sua Senha</label>
+              <div className="nm-input-group--with-icon">
+                <div className="nm-input-group__icon">
+                  <Lock size={16} />
+                </div>
                 <input 
                   type="password" 
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••" 
-                  className={inputClass + " pl-11"}
+                  className="nm-input"
                   disabled={loading}
                 />
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
-                <p className="text-red-400 text-[11px] font-medium text-center">{error}</p>
+              <div className="nm-input-group__error" style={{ textAlign: "center", marginTop: "-0.5rem" }}>
+                {error}
               </div>
             )}
 
             <button 
               type="submit"
               disabled={loading}
-              className="w-full h-14 bg-white text-black rounded-xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-500 hover:text-white transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed mt-2 shadow-xl shadow-white/5"
+              className={`nm-btn nm-btn--accent nm-btn--block nm-btn--lg ${loading ? 'nm-btn--loading' : ''}`}
+              style={{ marginTop: "0.5rem" }}
             >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-black" />
-              ) : (
-                <>
-                  Entrar na Plataforma
-                  <ArrowRight size={14} />
-                </>
-              )}
+              Entrar na Plataforma
+              {!loading && <ArrowRight size={16} />}
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+          <div style={{ marginTop: "2rem", textAlign: "center" }}>
+            <p style={{ fontSize: "var(--nm-text-xs)", fontWeight: "var(--nm-font-bold)", textTransform: "uppercase", letterSpacing: "var(--nm-tracking-widest)", color: "var(--nm-text-muted)" }}>
               Não tem uma conta?{" "}
-              <button type="button" onClick={onSignUpClick} className="text-white hover:text-purple-400 transition-colors">Cadastrar Empresa</button>
+              <button 
+                type="button" 
+                onClick={onSignUpClick} 
+                style={{ color: "var(--nm-text-primary)", fontWeight: "var(--nm-font-black)", textDecoration: "none", cursor: "pointer", background: "none", border: "none" }}
+              >
+                Cadastrar Empresa
+              </button>
             </p>
           </div>
         </div>

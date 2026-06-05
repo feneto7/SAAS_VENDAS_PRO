@@ -1,5 +1,5 @@
 /**
- * Normalizes and translates ficha status for Portuguese display.
+ * Normalizes and translates card status for Portuguese display.
  */
 export const formatStatus = (status: string | undefined): string => {
   if (!status) return '---';

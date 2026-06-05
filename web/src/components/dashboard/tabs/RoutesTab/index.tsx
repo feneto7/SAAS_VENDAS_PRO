@@ -100,49 +100,62 @@ export function RoutesTab({ serverUrl, tenantSlug }: RoutesTabProps) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header Grid */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="nm-flex-col nm-gap-lg nm-animate-fade-in">
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Rotas</h1>
-          <p className="text-gray-500 text-sm">Controle seus setores de venda e periodicidade de cobrança.</p>
+          <h1 className="nm-heading" style={{ fontSize: "var(--nm-text-2xl)" }}>Gestão de Rotas</h1>
+          <p className="nm-caption" style={{ marginTop: "0.25rem" }}>Controle seus setores de venda e periodicidade de cobrança.</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-gray-500" size={18} />
-            <input 
-              className="bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-purple-500 outline-none transition-all w-64"
+
+        <button id="btn-nova-rota" className="nm-btn nm-btn--accent nm-btn--sm" onClick={handleAddNew}>
+          <Plus size={15} />
+          Nova Rota
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div className="nm-card nm-card--sm" style={{ zIndex: 20, marginBottom: 0, overflow: "visible", padding: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingBottom: "0.4rem", marginRight: "0.5rem" }}>
+            <div className="nm-icon-circle nm-icon-circle--sm" style={{ color: "var(--nm-accent)" }}>
+              <Search size={14} />
+            </div>
+            <span style={{ fontSize: "var(--nm-text-sm)", fontWeight: 600, color: "var(--nm-text-primary)" }}>Filtros</span>
+          </div>
+
+          <div className="nm-input-group" style={{ flex: 1, minWidth: "250px" }}>
+            <label className="nm-input-group__label">Busca Geral</label>
+            <input
+              type="text"
               placeholder="Pesquisar rota..."
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
+              className="nm-input"
+              style={{ padding: "0.4rem 0.75rem", fontSize: "var(--nm-text-sm)" }}
             />
           </div>
-          <button 
-            onClick={handleAddNew}
-            className="bg-white text-black px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-purple-400 transition-all active:scale-95"
-          >
-            <Plus size={18} />
-            Nova Rota
-          </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="h-64 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="nm-flex-center" style={{ minHeight: "12rem" }}>
+          <div className="nm-icon-circle nm-icon-circle--glow nm-icon-circle--lg nm-icon-circle--double">
+            <Loader2 size={24} style={{ animation: "nm-spin 0.7s linear infinite" }} />
+          </div>
         </div>
       ) : (
-        <RouteList 
-          routes={routes} 
-          onEdit={handleEdit} 
+        <RouteList
+          routes={routes}
+          onEdit={handleEdit}
           onToggleStatus={handleToggleStatus}
           onOpenRoute={handleOpenRoute}
         />
       )}
 
       {!loading && totalPages > 1 && (
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
@@ -150,8 +163,8 @@ export function RoutesTab({ serverUrl, tenantSlug }: RoutesTabProps) {
         />
       )}
 
-      <RouteModal 
-        isOpen={isModalOpen} 
+      <RouteModal
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchRoutes}
         route={selectedRoute}

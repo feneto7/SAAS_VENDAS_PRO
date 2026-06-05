@@ -33,39 +33,62 @@ export function CustomSelect({ options, value, onChange, placeholder = "Selecion
   }, []);
 
   return (
-    <div className={`relative ${className}`} ref={containerRef}>
-      {/* Trigger Button */}
+    <div className={`relative ${className}`} ref={containerRef} style={{ width: "100%" }}>
+      {/* Trigger Button - Estilo de nm-input */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`
-          w-full flex items-center justify-between
-          bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5
-          text-sm text-white transition-all duration-200
-          hover:bg-white/[0.06] hover:border-white/20
-          ${isOpen ? "border-purple-500/50 ring-2 ring-purple-500/10" : ""}
-          outline-none
-        `}
+        className="nm-input"
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          borderColor: isOpen ? "var(--nm-accent)" : "var(--nm-border)",
+          boxShadow: isOpen ? "0 0 0 1px var(--nm-accent)" : "var(--nm-shadow-inner)",
+          color: selectedOption ? "var(--nm-text-primary)" : "var(--nm-text-muted)",
+        }}
       >
-        <span className={selectedOption ? "text-white" : "text-gray-500"}>
+        <span style={{ fontSize: "var(--nm-text-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown 
-          size={16} 
-          className={`text-gray-500 transition-transform duration-300 ${isOpen ? "rotate-180 text-purple-400" : ""}`} 
+          size={14} 
+          style={{
+            flexShrink: 0,
+            transition: "transform 0.3s ease, color 0.3s ease",
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+            color: isOpen ? "var(--nm-accent)" : "var(--nm-text-muted)"
+          }} 
         />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - Estilo de nm-card flutuante */}
       {isOpen && (
-        <div className="absolute z-[100] mt-2 w-full bg-[#121212] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl">
-          <div className="max-h-60 overflow-y-auto p-1.5 custom-scrollbar">
-            {options.length === 0 ? (
-              <div className="px-4 py-3 text-xs text-gray-500 text-center italic">
-                Nenhuma opção disponível
-              </div>
-            ) : (
-              options.map((option) => {
+        <div 
+          className="nm-card nm-card--sm nm-animate-fade-in"
+          style={{
+            position: "absolute",
+            zIndex: 100,
+            top: "calc(100% + 0.5rem)",
+            left: 0,
+            width: "100%",
+            padding: "0.5rem",
+            maxHeight: "240px",
+            overflowY: "auto",
+            boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.5)",
+            border: "1px solid var(--nm-border-subtle)",
+            marginBottom: 0
+          }}
+        >
+          {options.length === 0 ? (
+            <div className="nm-caption" style={{ padding: "0.5rem", textAlign: "center", fontStyle: "italic" }}>
+              Nenhuma opção disponível
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              {options.map((option) => {
                 const isSelected = option.value === value;
                 return (
                   <button
@@ -75,37 +98,46 @@ export function CustomSelect({ options, value, onChange, placeholder = "Selecion
                       onChange(option.value);
                       setIsOpen(false);
                     }}
-                    className={`
-                      w-full flex items-center justify-between px-3 py-2.5 rounded-xl
-                      text-sm transition-all duration-150 group
-                      ${isSelected ? "bg-purple-500/10 text-purple-400 font-bold" : "text-gray-400 hover:bg-white/5 hover:text-white"}
-                    `}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "0.5rem 0.75rem",
+                      borderRadius: "0.5rem",
+                      fontSize: "var(--nm-text-sm)",
+                      transition: "all 0.15s ease",
+                      cursor: "pointer",
+                      backgroundColor: isSelected ? "var(--nm-accent-transparent)" : "transparent",
+                      color: isSelected ? "var(--nm-accent)" : "var(--nm-text-primary)",
+                      fontWeight: isSelected ? 700 : 500,
+                      border: "none",
+                      outline: "none"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = "var(--nm-bg-elevated)";
+                        e.currentTarget.style.color = "var(--nm-text-primary)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "var(--nm-text-primary)";
+                      }
+                    }}
                   >
-                    <span className="truncate">{option.label}</span>
-                    {isSelected && <Check size={14} className="shrink-0" />}
+                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {option.label}
+                    </span>
+                    {isSelected && <Check size={14} style={{ flexShrink: 0 }} />}
                   </button>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       )}
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
     </div>
   );
 }

@@ -18,16 +18,17 @@ import {
   paymentMethods,
   tenants,
   masterUsers,
-  cobrancas,
-  fichas,
+  collections,
+  cards,
   users,
   products,
   routes,
   clients,
   sellerInventory,
-  fichaItems,
+  cardItems,
   inventoryMovements,
-  userRoutes
+  userRoutes,
+  collectionInventorySnapshots
 } from './db/schema/index.js';
 import { eq, ne, and, ilike, sql, desc, inArray, gte, lte, or, isNull } from "drizzle-orm";
 import { getTenantDb } from './db/tenant.js';
@@ -336,6 +337,7 @@ async function bootstrap() {
           phone2:       body.phone2 || null,
           comment:      body.comment || null,
           routeId:      body.routeId || body.route_id || null,
+          registeredInCollectionId: body.registeredInCollectionId || body.registered_in_collection_id || null,
         }).returning()) as any[];
         return newClient;
       } catch (error) {
@@ -600,32 +602,32 @@ async function bootstrap() {
       }
     });
 
-    instance.get('/fichas/:id/items', async (request, reply) => {
+    instance.get('/cards/:id/items', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       try {
         const items = await db.select({
-          id: fichaItems.id,
-          productId: fichaItems.productId,
+          id: cardItems.id,
+          productId: cardItems.productId,
           name: products.name,
-          quantity: fichaItems.quantity,
-          unitPrice: fichaItems.unitPrice,
-          subtotal: fichaItems.subtotal,
-          commissionType: fichaItems.commissionType,
-          quantitySold: fichaItems.quantitySold,
-          quantityReturned: fichaItems.quantityReturned,
-          informed: fichaItems.informed
+          quantity: cardItems.quantity,
+          unitPrice: cardItems.unitPrice,
+          subtotal: cardItems.subtotal,
+          commissionType: cardItems.commissionType,
+          quantitySold: cardItems.quantitySold,
+          quantityReturned: cardItems.quantityReturned,
+          informed: cardItems.informed
         })
-        .from(fichaItems)
-        .leftJoin(products, eq(fichaItems.productId, products.id))
-        .where(eq(fichaItems.fichaId, id));
+        .from(cardItems)
+        .leftJoin(products, eq(cardItems.productId, products.id))
+        .where(eq(cardItems.cardId, id));
         return items;
       } catch (err) {
         return reply.status(400).send({ error: "Erro ao buscar itens" });
       }
     });
 
-    instance.patch('/ficha-items/:id', async (request, reply) => {
+    instance.patch('/card-items/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       const { 
@@ -636,10 +638,10 @@ async function bootstrap() {
       try {
         const result = await db.transaction(async (tx: any) => {
           // 1. Get old item data
-          const [oldItem] = await tx.select().from(fichaItems).where(eq(fichaItems.id, id)).limit(1);
+          const [oldItem] = await tx.select().from(cardItems).where(eq(cardItems.id, id)).limit(1);
           if (!oldItem) throw new Error("Item não encontrado");
 
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, oldItem.fichaId)).limit(1);
+          const [ficha] = await tx.select().from(cards).where(eq(cards.id, oldItem.cardId)).limit(1);
           if (!ficha) throw new Error("Ficha não encontrada");
 
           // 2. Prepare Updates
@@ -688,13 +690,13 @@ async function bootstrap() {
           }
 
           // 3. Update item
-          const [updated] = await tx.update(fichaItems)
+          const [updated] = await tx.update(cardItems)
             .set(updatePayload)
-            .where(eq(fichaItems.id, id))
+            .where(eq(cardItems.id, id))
             .returning();
 
           // 4. Update Ficha Total & Status
-          await updateFichaStatusIfPaid(tx, oldItem.fichaId);
+          await updatecardstatusIfPaid(tx, oldItem.cardId);
 
           return updated;
         });
@@ -705,21 +707,21 @@ async function bootstrap() {
       }
     });
 
-    instance.post('/fichas/:id/items', async (request, reply) => {
+    instance.post('/cards/:id/items', async (request, reply) => {
       const db = (request as any).tenantDb;
-      const { id: fichaId } = request.params as { id: string };
+      const { id: cardId } = request.params as { id: string };
       const { productId, quantity, unitPrice, subtotal, commissionType, id: itemId } = request.body as any;
 
       try {
         const result = await db.transaction(async (tx: any) => {
           // 1. Get ficha
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, fichaId)).limit(1);
+          const [ficha] = await tx.select().from(cards).where(eq(cards.id, cardId)).limit(1);
           if (!ficha) throw new Error("Ficha não encontrada");
 
           // 2. Insert item
-          const [newItem] = await tx.insert(fichaItems).values({
+          const [newItem] = await tx.insert(cardItems).values({
             id: itemId || undefined, // Use provided ID from mobile for sync consistency
-            fichaId,
+            cardId,
             productId,
             quantity,
             unitPrice,
@@ -735,9 +737,9 @@ async function bootstrap() {
           `);
 
           // 4. Update Ficha Total
-          const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, fichaId));
+          const allItems = await tx.select().from(cardItems).where(eq(cardItems.cardId, cardId));
           const newTotal = allItems.reduce((acc: number, curr: any) => acc + (Number(curr.subtotal) || 0), 0);
-          await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, fichaId));
+          await tx.update(cards).set({ total: newTotal, updatedAt: new Date() }).where(eq(cards.id, cardId));
 
           return newItem;
         });
@@ -748,14 +750,14 @@ async function bootstrap() {
       }
     });
 
-    instance.patch('/fichas/:id/convert-order', async (request, reply) => {
+    instance.patch('/cards/:id/convert-order', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      const { cobrancaId } = request.body as { cobrancaId: string };
+      const { collectionId } = request.body as { collectionId: string };
       
       try {
         const result = await db.transaction(async (tx: any) => {
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
+          const [ficha] = await tx.select().from(cards).where(eq(cards.id, id));
           if (!ficha) throw new Error("Ficha não encontrada");
           
           const seller = await tx.select().from(users).where(eq(users.id, ficha.sellerId)).limit(1).then((r:any)=>r[0]||null);
@@ -765,15 +767,15 @@ async function bootstrap() {
           // Generate a code following existing pattern (Seller(4) + DDMMHHmm + Route(4))
           const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
 
-          const [updated] = (await tx.update(fichas)
+          const [updated] = (await tx.update(cards)
             .set({ 
               status: 'nova', 
               code: finalCode,
               saleDate: now,
-              cobrancaId: cobrancaId || null,
+              collectionId: collectionId || null,
               updatedAt: new Date()
             })
-            .where(eq(fichas.id, id))
+            .where(eq(cards.id, id))
             .returning()) as any[];
             
           return updated;
@@ -896,8 +898,8 @@ async function bootstrap() {
     });
 
 
-    // ── Fichas Overview & Creation ───────────────────────────────────────────
-    instance.get('/fichas', async (request) => {
+    // ── cards Overview & Creation ───────────────────────────────────────────
+    instance.get('/cards', async (request) => {
       const db = (request as any).tenantDb;
       const q  = request.query as Record<string, string>;
       const page = Number(q.page) || 1;
@@ -905,49 +907,49 @@ async function bootstrap() {
       const offset = (page - 1) * limit;
 
       const conditions: any[] = [];
-      if (q.status) conditions.push(eq(fichas.status, q.status as any));
-      if (q.routeId) conditions.push(eq(fichas.routeId, q.routeId));
+      if (q.status) conditions.push(eq(cards.status, q.status as any));
+      if (q.routeId) conditions.push(eq(cards.routeId, q.routeId));
       if (q.cliente) conditions.push(ilike(clients.name, `%${q.cliente}%`));
-      if (q.clientId) conditions.push(eq(fichas.clientId, q.clientId));
-      if (q.sellerId) conditions.push(eq(fichas.sellerId, q.sellerId));
+      if (q.clientId) conditions.push(eq(cards.clientId, q.clientId));
+      if (q.sellerId) conditions.push(eq(cards.sellerId, q.sellerId));
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
       // Count total matching filters
       const [{ count }] = await db
         .select({ count: sql`count(*)` })
-        .from(fichas)
-        .leftJoin(clients, eq(fichas.clientId, clients.id))
+        .from(cards)
+        .leftJoin(clients, eq(cards.clientId, clients.id))
         .where(whereClause);
 
       // Count specifically 'pedido' status
       const [{ ordersCount }] = await db
         .select({ ordersCount: sql`count(*)` })
-        .from(fichas)
-        .where(eq(fichas.status, 'pedido'));
+        .from(cards)
+        .where(eq(cards.status, 'pedido'));
 
       const items = await db
         .select({
-          id: fichas.id,
-          code: fichas.code,
-          status: fichas.status,
-          total: fichas.total,
-          saleDate: fichas.saleDate,
-          clientId: fichas.clientId,
-          sellerId: fichas.sellerId,
-          routeId: fichas.routeId,
-          cobrancaId: fichas.cobrancaId,
+          id: cards.id,
+          code: cards.code,
+          status: cards.status,
+          total: cards.total,
+          saleDate: cards.saleDate,
+          clientId: cards.clientId,
+          sellerId: cards.sellerId,
+          routeId: cards.routeId,
+          collectionId: cards.collectionId,
           clientName: clients.name,
           sellerName: users.name,
           routeName: routes.name,
-          linkToken: fichas.linkToken
+          linkToken: cards.linkToken
         })
-        .from(fichas)
-        .leftJoin(clients, eq(fichas.clientId, clients.id))
-        .leftJoin(users, eq(fichas.sellerId, users.id))
-        .leftJoin(routes, eq(fichas.routeId, routes.id))
+        .from(cards)
+        .leftJoin(clients, eq(cards.clientId, clients.id))
+        .leftJoin(users, eq(cards.sellerId, users.id))
+        .leftJoin(routes, eq(cards.routeId, routes.id))
         .where(whereClause)
-        .orderBy(desc(fichas.createdAt))
+        .orderBy(desc(cards.createdAt))
         .limit(limit)
         .offset(offset);
 
@@ -965,14 +967,14 @@ async function bootstrap() {
       };
     });
 
-    instance.get('/fichas/:id', async (request, reply) => {
+    instance.get('/cards/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       console.log(`🔍 Fetching ficha details for ID: ${id}`);
 
       try {
-        const ficha = await db.query.fichas.findFirst({
-          where: eq(fichas.id, id),
+        const ficha = await db.query.cards.findFirst({
+          where: eq(cards.id, id),
           with: {
             client: true,
             seller: {
@@ -1004,12 +1006,12 @@ async function bootstrap() {
  
         // Force database integrity on GET
         await db.transaction(async (tx: any) => {
-          await updateFichaStatusIfPaid(tx, id);
+          await updatecardstatusIfPaid(tx, id);
         });
 
         // Re-fetch to get fresh state from DB
-        const refreshedFicha = await db.query.fichas.findFirst({
-          where: eq(fichas.id, id),
+        const refreshedFicha = await db.query.cards.findFirst({
+          where: eq(cards.id, id),
           with: {
             client: true,
             seller: { columns: { name: true } },
@@ -1070,27 +1072,27 @@ async function bootstrap() {
         console.log(`[DEBUG] Returning ficha ${id} with status: ${refreshedFicha.status}`);
         return responseData;
       } catch (err: any) {
-        console.error("🔥 Error in GET /fichas/:id:", err);
+        console.error("🔥 Error in GET /cards/:id:", err);
         return reply.status(500).send({ error: "Internal Server Error", message: err.message });
       }
     });
 
-    instance.delete('/fichas/:id', async (request, reply) => {
+    instance.delete('/cards/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as any;
       
-      const [ficha] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+      const [ficha] = await db.select().from(cards).where(eq(cards.id, id)).limit(1);
       if (!ficha) return reply.status(404).send({ error: "Não encontrado" });
       
       // Only allow cancelling if it's still a generated link or a new order (optional policy)
       // For now, let's just allow deleting any ficha if the admin wants.
-      await db.delete(fichas).where(eq(fichas.id, id));
+      await db.delete(cards).where(eq(cards.id, id));
       return { success: true };
     });
 
-    instance.post('/fichas', async (request, reply) => {
+    instance.post('/cards', async (request, reply) => {
       const db = (request as any).tenantDb;
-      const { id, clientId, sellerId, routeId, items, total, notes, cobrancaId, saleDate } = request.body as any;
+      const { id, clientId, sellerId, routeId, items, total, notes, collectionId, saleDate } = request.body as any;
 
       try {
         const result = await db.transaction(async (tx: any) => {
@@ -1100,12 +1102,12 @@ async function bootstrap() {
           const now = new Date();
           const datestr = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
           const finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
-          const [newFicha] = await tx.insert(fichas).values({
+          const [newFicha] = await tx.insert(cards).values({
             id: id || undefined,
             clientId,
             sellerId,
             routeId,
-            cobrancaId: cobrancaId || null,
+            collectionId: collectionId || null,
             total: total || 0,
             status: 'nova',
             code: finalCode,
@@ -1124,8 +1126,8 @@ async function bootstrap() {
               throw new Error(`Estoque insuficiente para o produto ${item.productId}`);
             }
 
-            await tx.insert(fichaItems).values({ 
-              fichaId: newFicha.id, 
+            await tx.insert(cardItems).values({ 
+              cardId: newFicha.id, 
               productId: item.productId, 
               quantity: item.quantity, 
               unitPrice: item.unitPrice, 
@@ -1138,7 +1140,7 @@ async function bootstrap() {
         });
         return result;
       } catch (err: any) {
-        console.error('[SERVER ERROR] /api/fichas POST:', err);
+        console.error('[SERVER ERROR] /api/cards POST:', err);
         return reply.status(400).send({ 
           error: "Failed to create ficha", 
           detail: err.message,
@@ -1148,14 +1150,14 @@ async function bootstrap() {
     });
 
     // ── Ficha Link Generation ───────────────────────────────────────────────
-    instance.post('/fichas/generate-link', async (request, reply) => {
+    instance.post('/cards/generate-link', async (request, reply) => {
       const db = (request as any).tenantDb;
       const slug = (request as any).tenant.slug;
       const { clientId, sellerId, routeId, notes } = request.body as any;
 
       try {
         const linkToken = Math.random().toString(36).substring(2, 10);
-        const [newFicha] = (await db.insert(fichas).values({
+        const [newFicha] = (await db.insert(cards).values({
           clientId, sellerId, routeId, notes: notes || "Link gerado para o cliente", status: 'link_gerado', linkToken, total: 0
         }).returning()) as any[];
 
@@ -1165,38 +1167,38 @@ async function bootstrap() {
       }
     });
 
-    instance.patch('/fichas/:id/settle', async (request, reply) => {
+    instance.patch('/cards/:id/settle', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       const { items, discount, commissionPercent } = request.body as any;
 
       try {
         await db.transaction(async (tx: any) => {
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
+          const [ficha] = await tx.select().from(cards).where(eq(cards.id, id));
           if (!ficha) throw new Error("Ficha não encontrada");
           if (ficha.status === 'paga') throw new Error("Ficha já está paga e não pode ser alterada");
 
           // Update Ficha header
-          await tx.update(fichas)
+          await tx.update(cards)
             .set({ 
               discount: discount ?? ficha.discount, 
               commissionPercent: commissionPercent ?? ficha.commissionPercent,
               updatedAt: new Date() 
             })
-            .where(eq(fichas.id, id));
+            .where(eq(cards.id, id));
 
           for (const item of items) {
-            const [existingItem] = await tx.select().from(fichaItems).where(eq(fichaItems.id, item.id));
+            const [existingItem] = await tx.select().from(cardItems).where(eq(cardItems.id, item.id));
             if (!existingItem) continue;
 
             const returnDiff = item.quantityReturned - existingItem.quantityReturned;
 
-            await tx.update(fichaItems)
+            await tx.update(cardItems)
               .set({
                 quantitySold: item.quantitySold,
                 quantityReturned: item.quantityReturned,
               })
-              .where(eq(fichaItems.id, item.id));
+              .where(eq(cardItems.id, item.id));
 
             if (returnDiff !== 0) {
               await tx.execute(sql`
@@ -1208,7 +1210,7 @@ async function bootstrap() {
           }
 
           // Check if balance is zero after settlement
-          await updateFichaStatusIfPaid(tx, id);
+          await updatecardstatusIfPaid(tx, id);
         });
         return { success: true };
       } catch (err: any) {
@@ -1218,7 +1220,7 @@ async function bootstrap() {
     });
 
     // Generic Ficha Update (itemsLocked, commissionPercent, etc)
-    instance.patch('/fichas/:id', async (request, reply) => {
+    instance.patch('/cards/:id', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       const { itemsLocked, commissionPercent, discount, notes, status, saleDate } = request.body as any;
@@ -1232,14 +1234,14 @@ async function bootstrap() {
         if (status !== undefined) updatePayload.status = status;
         if (saleDate !== undefined) updatePayload.saleDate = new Date(saleDate);
 
-        await db.update(fichas).set(updatePayload).where(eq(fichas.id, id));
+        await db.update(cards).set(updatePayload).where(eq(cards.id, id));
         
         // If locked/unlocked, we might want to recalculate status just in case
         await db.transaction(async (tx: any) => {
-          await updateFichaStatusIfPaid(tx, id);
+          await updatecardstatusIfPaid(tx, id);
         });
 
-        const [updated] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+        const [updated] = await db.select().from(cards).where(eq(cards.id, id)).limit(1);
         return updated;
       } catch (err: any) {
         return reply.status(400).send({ error: err.message });
@@ -1247,23 +1249,23 @@ async function bootstrap() {
     });
 
     // Delete item from ficha
-    instance.delete('/fichas/:id/items/:itemId', async (request, reply) => {
+    instance.delete('/cards/:id/items/:itemId', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id, itemId } = request.params as { id: string, itemId: string };
 
       try {
         await db.transaction(async (tx: any) => {
-           const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+           const [ficha] = await tx.select().from(cards).where(eq(cards.id, id)).limit(1);
            if (!ficha) throw new Error("Ficha não encontrada");
-           if (ficha.status !== 'nova') throw new Error("Apenas fichas com status NOVA podem ter itens removidos");
+           if (ficha.status !== 'nova') throw new Error("Apenas cards com status NOVA podem ter itens removidos");
 
-           await tx.delete(fichaItems).where(eq(fichaItems.id, itemId));
+           await tx.delete(cardItems).where(eq(cardItems.id, itemId));
 
            // Recalculate
-           const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+           const allItems = await tx.select().from(cardItems).where(eq(cardItems.cardId, id));
            const newTotal = allItems.reduce((acc: number, curr: any) => acc + Number(curr.subtotal), 0);
-           await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, id));
-           await updateFichaStatusIfPaid(tx, id);
+           await tx.update(cards).set({ total: newTotal, updatedAt: new Date() }).where(eq(cards.id, id));
+           await updatecardstatusIfPaid(tx, id);
         });
         return { message: "Item removido" };
       } catch (err: any) {
@@ -1272,18 +1274,18 @@ async function bootstrap() {
     });
 
     // Update item in ficha
-    instance.patch('/fichas/:id/items/:itemId', async (request, reply) => {
+    instance.patch('/cards/:id/items/:itemId', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id, itemId } = request.params as { id: string, itemId: string };
       const { quantity, unitPrice, commissionType } = request.body as any;
 
       try {
         await db.transaction(async (tx: any) => {
-           const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+           const [ficha] = await tx.select().from(cards).where(eq(cards.id, id)).limit(1);
            if (!ficha) throw new Error("Ficha não encontrada");
-           if (ficha.status !== 'nova') throw new Error("Apenas fichas com status NOVA podem ter itens alterados");
+           if (ficha.status !== 'nova') throw new Error("Apenas cards com status NOVA podem ter itens alterados");
 
-           await tx.update(fichaItems)
+           await tx.update(cardItems)
              .set({ 
                 quantity: Number(quantity), 
                 unitPrice: Number(unitPrice), 
@@ -1291,13 +1293,13 @@ async function bootstrap() {
                 commissionType,
                 updatedAt: new Date() 
              })
-             .where(eq(fichaItems.id, itemId));
+             .where(eq(cardItems.id, itemId));
 
            // Recalculate
-           const allItems = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
+           const allItems = await tx.select().from(cardItems).where(eq(cardItems.cardId, id));
            const newTotal = allItems.reduce((acc: number, curr: any) => acc + Number(curr.subtotal), 0);
-           await tx.update(fichas).set({ total: newTotal, updatedAt: new Date() }).where(eq(fichas.id, id));
-           await updateFichaStatusIfPaid(tx, id);
+           await tx.update(cards).set({ total: newTotal, updatedAt: new Date() }).where(eq(cards.id, id));
+           await updatecardstatusIfPaid(tx, id);
         });
         return { message: "Item atualizado" };
       } catch (err: any) {
@@ -1306,13 +1308,13 @@ async function bootstrap() {
     });
 
     // Helper to auto-update status to 'paga'
-    async function updateFichaStatusIfPaid(tx: any, fichaId: string) {
-      console.log(`[DEBUG] updateFichaStatusIfPaid triggered for ${fichaId}`);
-      const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, fichaId)).limit(1);
+    async function updatecardstatusIfPaid(tx: any, cardId: string) {
+      console.log(`[DEBUG] updatecardstatusIfPaid triggered for ${cardId}`);
+      const [ficha] = await tx.select().from(cards).where(eq(cards.id, cardId)).limit(1);
       if (!ficha) return;
 
-      const itemsList = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, fichaId));
-      const paymentsList = await tx.select().from(payments).where(eq(payments.fichaId, fichaId));
+      const itemsList = await tx.select().from(cardItems).where(eq(cardItems.cardId, cardId));
+      const paymentsList = await tx.select().from(payments).where(eq(payments.cardId, cardId));
 
       console.log(`[DEBUG] items: ${itemsList.length}, payments: ${paymentsList.length}`);
 
@@ -1355,35 +1357,35 @@ async function bootstrap() {
  
       // Auto-lock if paid to ensure UI consistency
       if (isPaid && !ficha.itemsLocked) {
-        console.log(`[DEBUG] Auto-locking ficha ${fichaId} because it is fully paid`);
+        console.log(`[DEBUG] Auto-locking ficha ${cardId} because it is fully paid`);
         updatePayload.itemsLocked = true;
       }
       
       // Update total column to reflect current calculation field
       updatePayload.total = totalToPay;
 
-      console.log(`[DEBUG] Executing update for ficha ${fichaId} with payload:`, JSON.stringify(updatePayload));
-      await tx.update(fichas).set(updatePayload).where(eq(fichas.id, fichaId));
+      console.log(`[DEBUG] Executing update for ficha ${cardId} with payload:`, JSON.stringify(updatePayload));
+      await tx.update(cards).set(updatePayload).where(eq(cards.id, cardId));
       
       // Verification log
-      const [after] = await tx.select({ status: fichas.status }).from(fichas).where(eq(fichas.id, fichaId)).limit(1);
-      console.log(`[DEBUG] Verification: Ficha ${fichaId} status in DB is now: ${after?.status}`);
+      const [after] = await tx.select({ status: cards.status }).from(cards).where(eq(cards.id, cardId)).limit(1);
+      console.log(`[DEBUG] Verification: Ficha ${cardId} status in DB is now: ${after?.status}`);
     }
 
-    instance.post('/fichas/:id/payments', async (request, reply) => {
+    instance.post('/cards/:id/payments', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
-      const { id: bodyId, amount, methodId } = request.body as any;
+      const { id: bodyId, amount, methodId, collectionId } = request.body as any;
 
       try {
         const newPayment = await db.transaction(async (tx: any) => {
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, id));
+          const [ficha] = await tx.select().from(cards).where(eq(cards.id, id));
           if (!ficha) throw new Error("Ficha não encontrada");
 
           // For 'nova' status, limit payment to total of SC items (initial quantity)
           if (ficha.status === 'nova') {
-             const itemsList = await tx.select().from(fichaItems).where(eq(fichaItems.fichaId, id));
-             const paymentsList = await tx.select().from(payments).where(eq(payments.fichaId, id));
+             const itemsList = await tx.select().from(cardItems).where(eq(cardItems.cardId, id));
+             const paymentsList = await tx.select().from(payments).where(eq(payments.cardId, id));
              
              const totalValueSC = itemsList
                .filter((i: any) => i.commissionType !== 'CC')
@@ -1394,18 +1396,19 @@ async function bootstrap() {
                .reduce((acc: number, p: any) => acc + Number(p.amount), 0);
              
              if (currentTotalPaid + Number(amount) > totalValueSC) {
-                throw new Error(`Fichas novas só aceitam pagamento até o total dos itens sem comissão (Limite: ${totalValueSC/100})`);
+                throw new Error(`cards novas só aceitam pagamento até o total dos itens sem comissão (Limite: ${totalValueSC/100})`);
              }
           }
 
           const [inserted] = (await tx.insert(payments).values({
             id: bodyId || require('crypto').randomUUID(),
-            fichaId: id,
+            cardId: id,
             amount,
             methodId,
+            collectionId: collectionId || ficha.collectionId || null,
           }).returning()) as any[];
 
-          await updateFichaStatusIfPaid(tx, id);
+          await updatecardstatusIfPaid(tx, id);
           return inserted;
         });
 
@@ -1428,14 +1431,14 @@ async function bootstrap() {
             return;
           }
 
-          const [ficha] = await tx.select().from(fichas).where(eq(fichas.id, pmt.fichaId));
+          const [ficha] = await tx.select().from(cards).where(eq(cards.id, pmt.cardId));
 
 
           await tx.update(payments)
             .set({ cancelled: true, cancelledAt: new Date() })
             .where(eq(payments.id, id));
 
-          await updateFichaStatusIfPaid(tx, pmt.fichaId);
+          await updatecardstatusIfPaid(tx, pmt.cardId);
         });
         return { success: true };
       } catch (err: any) {
@@ -1504,7 +1507,7 @@ async function bootstrap() {
 
     // ─── Cobranças (Viagens) ──────────────────────────────────────────────────
 
-    instance.get('/routes/:id/cobrancas', async (request, reply) => {
+    instance.get('/routes/:id/collections', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
       try {
@@ -1512,7 +1515,7 @@ async function bootstrap() {
           SELECT id, code, route_id as "routeId", seller_id as "sellerId", status, 
                  start_date as "startDate", end_date as "endDate", 
                  created_at as "createdAt", updated_at as "updatedAt"
-          FROM cobrancas
+          FROM collections
           WHERE route_id = ${id}
           ORDER BY start_date DESC
         `);
@@ -1522,14 +1525,14 @@ async function bootstrap() {
       }
     });
 
-    instance.get('/cobrancas', async (request, reply) => {
+    instance.get('/collections', async (request, reply) => {
       const db = (request as any).tenantDb;
       try {
         const result = await db.execute(sql`
           SELECT id, code, route_id as "routeId", seller_id as "sellerId", status, 
                  start_date as "startDate", end_date as "endDate", 
                  created_at as "createdAt", updated_at as "updatedAt"
-          FROM cobrancas
+          FROM collections
           ORDER BY start_date DESC
         `);
         return { items: result.rows };
@@ -1538,7 +1541,7 @@ async function bootstrap() {
       }
     });
 
-    instance.post('/routes/:id/cobrancas', async (request, reply) => {
+    instance.post('/routes/:id/collections', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id: routeId } = request.params as { id: string };
       const { sellerId } = request.body as { sellerId: string };
@@ -1546,7 +1549,7 @@ async function bootstrap() {
       try {
         // Validation: Block if there's already an open trip for this route
         const openTrips = await db.execute(sql`
-          SELECT id FROM cobrancas 
+          SELECT id FROM collections 
           WHERE route_id = ${routeId} AND status = 'aberta'
         `);
 
@@ -1558,7 +1561,7 @@ async function bootstrap() {
         }
 
         const result = await db.execute(sql`
-          INSERT INTO cobrancas (route_id, seller_id, status)
+          INSERT INTO collections (route_id, seller_id, status)
           VALUES (${routeId}, ${sellerId}, 'aberta')
           RETURNING id, code, route_id as "routeId", seller_id as "sellerId", status, 
                     start_date as "startDate", end_date as "endDate", 
@@ -1571,30 +1574,129 @@ async function bootstrap() {
       }
     });
 
-    instance.patch('/cobrancas/:id/close', async (request, reply) => {
+    const calculateCollectionMetrics = async (db: any, id: string, collection: any) => {
+      const [{ newClientsCount }] = await db.select({ newClientsCount: sql`count(*)` })
+        .from(clients).where(eq(clients.registeredInCollectionId, id));
+
+      // 1. Fichas Pendentes (Todas da Rota atualmente)
+      const [{ pendingCards }] = await db.select({ pendingCards: sql`count(DISTINCT ${cards.id})` })
+        .from(cards)
+        .where(and(
+           eq(cards.routeId, collection.routeId),
+           eq(cards.status, 'pendente')
+        ));
+
+      // 2. Fichas Novas (Criadas nesta cobrança)
+      const [{ newCards }] = await db.select({ newCards: sql`count(DISTINCT ${cards.id})` })
+        .from(cards)
+        .where(eq(cards.collectionId, id));
+
+      // 3. Fichas Pagas (Se tornaram pagas nesta cobrança)
+      // É paga se: status atual é 'paga' E (foi criada nesta cobrança OU recebeu pagamento nesta cobrança)
+      const paidCardsResult = await db.execute(sql`
+        SELECT COUNT(DISTINCT cards.id) as count
+        FROM cards
+        LEFT JOIN payments ON payments.card_id = cards.id AND payments.collection_id = ${id}
+        WHERE cards.status = 'paga' 
+        AND (cards.collection_id = ${id} OR payments.id IS NOT NULL)
+      `);
+      const paidCards = Number(paidCardsResult.rows[0]?.count || 0);
+
+      const methodsResult = await db.select({
+         methodName: paymentMethods.name,
+         amount: sql`sum(${payments.amount})`
+      })
+      .from(payments)
+      .innerJoin(paymentMethods, eq(payments.methodId, paymentMethods.id))
+      .where(eq(payments.collectionId, id))
+      .groupBy(paymentMethods.name);
+      
+      const receivedByMethod = methodsResult.map((r: any) => ({
+        method: r.methodName,
+        amount: Number(r.amount || 0)
+      }));
+      
+      const totalReceived = receivedByMethod.reduce((acc: number, item: any) => acc + item.amount, 0);
+
+      const servedByCard = await db.selectDistinct({ clientId: cards.clientId })
+        .from(cards)
+        .where(eq(cards.collectionId, id));
+        
+      const servedByPayment = await db.selectDistinct({ clientId: cards.clientId })
+        .from(payments)
+        .innerJoin(cards, eq(payments.cardId, cards.id))
+        .where(eq(payments.collectionId, id));
+        
+      const uniqueServedClients = new Set([
+        ...servedByCard.map((r: any) => r.clientId),
+        ...servedByPayment.map((r: any) => r.clientId)
+      ]);
+      const servedClients = uniqueServedClients.size;
+      
+      const [{ totalRouteClients }] = await db.select({ totalRouteClients: sql`count(*)` })
+        .from(clients)
+        .where(and(
+           eq(clients.routeId, collection.routeId),
+           eq(clients.active, true)
+        ));
+      const unservedClients = Math.max(0, Number(totalRouteClients || 0) - servedClients);
+
+      // 4. Totais de produtos CC e SC das fichas geradas nesta cobrança
+      const newCardsProductsResult = await db.execute(sql`
+        SELECT 
+          SUM(CASE WHEN card_items.commission_type = 'CC' THEN card_items.quantity * card_items.unit_price ELSE 0 END) as total_cc,
+          SUM(CASE WHEN card_items.commission_type = 'SC' THEN card_items.quantity * card_items.unit_price ELSE 0 END) as total_sc
+        FROM card_items
+        INNER JOIN cards ON cards.id = card_items.card_id
+        WHERE cards.collection_id = ${id}
+      `);
+      const totalNewCardsCC = Number(newCardsProductsResult.rows[0]?.total_cc || 0);
+      const totalNewCardsSC = Number(newCardsProductsResult.rows[0]?.total_sc || 0);
+
+      return {
+          newClients: Number(newClientsCount),
+          pendingCards: Number(pendingCards),
+          paidCards: Number(paidCards),
+          newCards: Number(newCards),
+          totalReceived,
+          receivedByMethod,
+          servedClients,
+          unservedClients,
+          totalNewCardsCC,
+          totalNewCardsSC
+      };
+    };
+
+    instance.patch('/collections/:id/close', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
 
       try {
-        // 1. Mark trip as closed
-        const [closedCobranca] = (await db.update(cobrancas)
+        const [collection] = await db.select().from(collections).where(eq(collections.id, id)).limit(1);
+        if (!collection) return reply.status(404).send({ error: "Cobrança não encontrada" });
+
+        const metricsSnapshot = await calculateCollectionMetrics(db, id, collection);
+
+        // 1. Mark trip as closed and save snapshot
+        const [closedCobranca] = (await db.update(collections)
           .set({ 
             status: 'encerrada', 
             endDate: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            reportMetrics: metricsSnapshot
           })
-          .where(eq(cobrancas.id, id))
+          .where(eq(collections.id, id))
           .returning()) as any[];
 
         // 2. Transition linked fiches from 'nova' to 'pendente'
         // Include those linked to this trip AND those on the same route with no trip linked (web records)
-        await db.update(fichas)
+        await db.update(cards)
           .set({ status: 'pendente', updatedAt: new Date() })
           .where(and(
-            eq(fichas.status, 'nova'),
+            eq(cards.status, 'nova'),
             or(
-              eq(fichas.cobrancaId, id),
-              and(isNull(fichas.cobrancaId), eq(fichas.routeId, closedCobranca.routeId))
+              eq(cards.collectionId, id),
+              and(isNull(cards.collectionId), eq(cards.routeId, closedCobranca.routeId))
             )
           ));
 
@@ -1613,10 +1715,10 @@ async function bootstrap() {
         const conditions: any[] = [];
         if (q.sellerId) {
             const subquery = db
-                .select({ id: fichas.id })
-                .from(fichas)
-                .where(eq(fichas.sellerId, q.sellerId));
-            conditions.push(inArray(payments.fichaId, subquery));
+                .select({ id: cards.id })
+                .from(cards)
+                .where(eq(cards.sellerId, q.sellerId));
+            conditions.push(inArray(payments.cardId, subquery));
         }
 
         const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -1624,7 +1726,7 @@ async function bootstrap() {
         const results = await db
           .select({
             id: payments.id,
-            fichaId: payments.fichaId,
+            cardId: payments.cardId,
             methodId: payments.methodId,
             amount: payments.amount,
             paymentDate: payments.paymentDate,
@@ -1643,7 +1745,7 @@ async function bootstrap() {
       }
     });
 
-    instance.get('/ficha-items', async (request, reply) => {
+    instance.get('/card-items', async (request, reply) => {
       const db = (request as any).tenantDb;
       const q = request.query as Record<string, string>;
       const limit = Number(q.limit) || 2000;
@@ -1652,22 +1754,22 @@ async function bootstrap() {
         const conditions: any[] = [];
         if (q.sellerId) {
             const subquery = db
-                .select({ id: fichas.id })
-                .from(fichas)
-                .where(eq(fichas.sellerId, q.sellerId));
-            conditions.push(inArray(fichaItems.fichaId, subquery));
+                .select({ id: cards.id })
+                .from(cards)
+                .where(eq(cards.sellerId, q.sellerId));
+            conditions.push(inArray(cardItems.cardId, subquery));
         }
 
         const items = await db
           .select()
-          .from(fichaItems)
+          .from(cardItems)
           .where(and(...conditions))
           .limit(limit);
 
         return items;
       } catch (err: any) {
         console.error('Fetch ficha items failed:', err);
-        return reply.status(500).send({ error: "Erro ao buscar itens das fichas" });
+        return reply.status(500).send({ error: "Erro ao buscar itens das cards" });
       }
     });
 
@@ -1682,49 +1784,49 @@ async function bootstrap() {
         const [client] = await db.select().from(clients).where(eq(clients.id, id));
         if (!client) return reply.status(404).send({ error: "Cliente não encontrado" });
 
-        // 2. Fetch all Fichas for this client
-        const clientFichas = await db
+        // 2. Fetch all cards for this client
+        const clientcards = await db
           .select({
-            id: fichas.id,
-            code: fichas.code,
-            status: fichas.status,
-            total: fichas.total,
-            saleDate: fichas.saleDate,
+            id: cards.id,
+            code: cards.code,
+            status: cards.status,
+            total: cards.total,
+            saleDate: cards.saleDate,
             sellerName: users.name
           })
-          .from(fichas)
-          .leftJoin(users, eq(fichas.sellerId, users.id))
-          .where(eq(fichas.clientId, id))
-          .orderBy(desc(fichas.saleDate));
+          .from(cards)
+          .leftJoin(users, eq(cards.sellerId, users.id))
+          .where(eq(cards.clientId, id))
+          .orderBy(desc(cards.saleDate));
 
         // 3. Calculate Financial Summary
         // totalSold includes everything except 'pedido'
-        const totalSold = clientFichas
+        const totalSold = clientcards
           .filter((f: any) => f.status !== 'pedido')
           .reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
 
         // totalPending includes 'nova' and 'pendente'
-        const totalPending = clientFichas
+        const totalPending = clientcards
           .filter((f: any) => f.status === 'nova' || f.status === 'pendente' || f.status === 'link_gerado')
           .reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
 
-        // Fetch all payments for this client's fichas
+        // Fetch all payments for this client's cards
         const allClientPayments = await db
           .select({ amount: payments.amount })
           .from(payments)
-          .innerJoin(fichas, eq(payments.fichaId, fichas.id))
-          .where(eq(fichas.clientId, id));
+          .innerJoin(cards, eq(payments.cardId, cards.id))
+          .where(eq(cards.clientId, id));
 
         const totalPaid = allClientPayments.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
         const totalRemaining = totalSold - totalPaid;
 
         // Counts per status
         const counts = {
-          novas:     clientFichas.filter((f: any) => f.status === 'nova').length,
-          pendentes: clientFichas.filter((f: any) => f.status === 'pendente').length,
-          pagas:     clientFichas.filter((f: any) => f.status === 'paga').length,
-          pedidos:   clientFichas.filter((f: any) => f.status === 'pedido').length,
-          link_gerado: clientFichas.filter((f: any) => f.status === 'link_gerado').length,
+          novas:     clientcards.filter((f: any) => f.status === 'nova').length,
+          pendentes: clientcards.filter((f: any) => f.status === 'pendente').length,
+          pagas:     clientcards.filter((f: any) => f.status === 'paga').length,
+          pedidos:   clientcards.filter((f: any) => f.status === 'pedido').length,
+          link_gerado: clientcards.filter((f: any) => f.status === 'link_gerado').length,
         };
 
         return {
@@ -1735,7 +1837,7 @@ async function bootstrap() {
             totalPending,
             totalRemaining
           },
-          fichas: clientFichas,
+          cards: clientcards,
           counts
         };
 
@@ -1745,7 +1847,7 @@ async function bootstrap() {
       }
     });
 
-    instance.post('/fichas/:id/confirm-order', async (request, reply) => {
+    instance.post('/cards/:id/confirm-order', async (request, reply) => {
       const db = (request as any).tenantDb;
       const { id } = request.params as { id: string };
 
@@ -1753,19 +1855,19 @@ async function bootstrap() {
       const missingProducts: { id: string, name: string, available: number, required: number }[] = [];
 
       try {
-        const [ficha] = await db.select().from(fichas).where(eq(fichas.id, id)).limit(1);
+        const [ficha] = await db.select().from(cards).where(eq(cards.id, id)).limit(1);
         if (!ficha || (ficha.status !== 'pedido' && ficha.status !== 'link_gerado')) {
           return reply.status(400).send({ error: "Ficha não está em estado de pedido" });
         }
 
         const items = await db.select({
-          productId: fichaItems.productId,
-          quantity: fichaItems.quantity,
+          productId: cardItems.productId,
+          quantity: cardItems.quantity,
           productName: products.name
         })
-        .from(fichaItems)
-        .leftJoin(products, eq(fichaItems.productId, products.id))
-        .where(eq(fichaItems.fichaId, id));
+        .from(cardItems)
+        .leftJoin(products, eq(cardItems.productId, products.id))
+        .where(eq(cardItems.cardId, id));
 
         await db.transaction(async (tx: any) => {
           for (const item of items) {
@@ -1803,7 +1905,7 @@ async function bootstrap() {
             finalCode = `${String(seller?.code||0).padStart(4,'0')}${datestr}${String(route?.code||0).padStart(4,'0')}`;
           }
 
-          await tx.update(fichas).set({ status: 'nova', code: finalCode, updatedAt: new Date() }).where(eq(fichas.id, id));
+          await tx.update(cards).set({ status: 'nova', code: finalCode, updatedAt: new Date() }).where(eq(cards.id, id));
         });
 
         return { success: true };
@@ -1827,8 +1929,8 @@ async function bootstrap() {
       
       try {
         // Simple query first to isolate
-        const rawFichas = await db.select().from(fichas).where(eq(fichas.linkToken, token)).limit(1);
-        const rawFicha = rawFichas[0];
+        const rawcards = await db.select().from(cards).where(eq(cards.linkToken, token)).limit(1);
+        const rawFicha = rawcards[0];
 
         if (!rawFicha) {
           console.log(`❌ Ficha not found for token: ${token}`);
@@ -1842,15 +1944,15 @@ async function bootstrap() {
 
         // Now get the details with joins if possible, or just raw
         const [ficha] = await db.select({ 
-          id: fichas.id, 
-          status: fichas.status, 
+          id: cards.id, 
+          status: cards.status, 
           clientName: clients.name, 
           routeName: routes.name 
         })
-          .from(fichas)
-          .leftJoin(clients, eq(fichas.clientId, clients.id))
-          .leftJoin(routes, eq(fichas.routeId, routes.id))
-          .where(eq(fichas.linkToken, token)).limit(1);
+          .from(cards)
+          .leftJoin(clients, eq(cards.clientId, clients.id))
+          .leftJoin(routes, eq(cards.routeId, routes.id))
+          .where(eq(cards.linkToken, token)).limit(1);
 
         const productsList = await db.select().from(products).where(eq(products.active, true));
         return { ficha: ficha || rawFicha, products: productsList };
@@ -1865,7 +1967,7 @@ async function bootstrap() {
       const { token } = request.params as any;
       const { items } = request.body as any;
       
-      const [ficha] = await db.select().from(fichas).where(eq(fichas.linkToken, token)).limit(1);
+      const [ficha] = await db.select().from(cards).where(eq(cards.linkToken, token)).limit(1);
       if (!ficha || ficha.status !== 'link_gerado') return reply.status(400).send({ error: "Inválido" });
 
       let grandTotal = 0;
@@ -1876,9 +1978,9 @@ async function bootstrap() {
           const price = item.type === 'CC' ? Number(p.priceCC) : Number(p.priceSC);
           const subtotal = item.quantity * price;
           grandTotal += subtotal;
-          await tx.insert(fichaItems).values({ fichaId: ficha.id, productId: item.productId, quantity: item.quantity, unitPrice: price, subtotal });
+          await tx.insert(cardItems).values({ cardId: ficha.id, productId: item.productId, quantity: item.quantity, unitPrice: price, subtotal });
         }
-        await tx.update(fichas).set({ status: 'pedido', total: grandTotal }).where(eq(fichas.id, ficha.id));
+        await tx.update(cards).set({ status: 'pedido', total: grandTotal }).where(eq(cards.id, ficha.id));
       });
       return { success: true };
     });
@@ -2247,11 +2349,11 @@ async function bootstrap() {
       const db = (request as any).tenantDb;
       
       const sales = await db.select({
-        total: fichas.total,
-        status: fichas.status
+        total: cards.total,
+        status: cards.status
       })
-      .from(fichas)
-      .where(ne(fichas.status, 'link_gerado'));
+      .from(cards)
+      .where(ne(cards.status, 'link_gerado'));
 
       const totalRevenue = sales.reduce((acc: number, curr: any) => acc + (Number(curr.total) || 0), 0);
       const salesCount = sales.length;
@@ -2261,6 +2363,57 @@ async function bootstrap() {
         salesCount,
         aiInsight: "Suas vendas estão estáveis. Considere focar na rota com mais clientes pendentes para aumentar o faturamento."
       };
+    });
+
+    instance.get('/collections/:id/report', async (request, reply) => {
+      const db = (request as any).tenantDb;
+      const { id } = request.params as { id: string };
+
+      try {
+        const [collection] = await db.select().from(collections).where(eq(collections.id, id)).limit(1);
+        if (!collection) return reply.status(404).send({ error: "Cobrança não encontrada" });
+
+        const [prevCollection] = await db.select()
+          .from(collections)
+          .where(and(
+             eq(collections.routeId, collection.routeId), 
+             ne(collections.id, collection.id),
+             lte(collections.createdAt, collection.createdAt)
+          ))
+          .orderBy(desc(collections.createdAt))
+          .limit(1);
+
+        let metrics;
+        if (collection.status === 'encerrada' && collection.reportMetrics) {
+          metrics = collection.reportMetrics;
+        } else {
+          metrics = await calculateCollectionMetrics(db, id, collection);
+        }
+
+        const snapshots = await db.select({
+           id: collectionInventorySnapshots.id,
+           productId: collectionInventorySnapshots.productId,
+           productName: products.name,
+           stockBefore: collectionInventorySnapshots.stockBefore,
+           stockAfter: collectionInventorySnapshots.stockAfter,
+           snapshotType: collectionInventorySnapshots.snapshotType,
+           createdAt: collectionInventorySnapshots.createdAt
+        })
+        .from(collectionInventorySnapshots)
+        .leftJoin(products, eq(collectionInventorySnapshots.productId, products.id))
+        .where(eq(collectionInventorySnapshots.collectionId, id));
+
+        return {
+          collection,
+          previousCollection: prevCollection || null,
+          metrics,
+          snapshots
+        };
+
+      } catch (error) {
+        console.error("Report error:", error);
+        return reply.status(500).send({ error: "Erro ao gerar relatório" });
+      }
     });
 
   }, { prefix: '/api' });

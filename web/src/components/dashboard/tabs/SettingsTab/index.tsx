@@ -154,121 +154,131 @@ export function SettingsTab({ serverUrl, tenantSlug }: SettingsTabProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header Tabs */}
-      <div className="flex gap-4 p-1 bg-white/5 rounded-2xl w-fit border border-white/10">
+      <div className="flex gap-2 p-1 bg-black/40 rounded-2xl w-fit border border-white/5 shadow-inner">
         <button
           onClick={() => setActiveSection("company")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
             activeSection === "company" 
-              ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" 
-              : "text-gray-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--nm-accent-color)]/20 text-[var(--nm-accent-color)] border border-[var(--nm-accent-color)]/30 shadow-[0_0_15px_var(--nm-accent-color)]/20" 
+              : "text-gray-500 hover:text-white hover:bg-white/5 border border-transparent"
           }`}
         >
-          <Building2 size={18} />
+          <Building2 size={16} />
           Dados da Empresa
         </button>
         <button
           onClick={() => setActiveSection("payments")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
             activeSection === "payments" 
-              ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" 
-              : "text-gray-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--nm-accent-color)]/20 text-[var(--nm-accent-color)] border border-[var(--nm-accent-color)]/30 shadow-[0_0_15px_var(--nm-accent-color)]/20" 
+              : "text-gray-500 hover:text-white hover:bg-white/5 border border-transparent"
           }`}
         >
-          <CreditCard size={18} />
+          <CreditCard size={16} />
           Formas de Pagamento
         </button>
       </div>
 
       {activeSection === "company" && company && (
-        <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="p-6 lg:p-8 border-b border-white/10 bg-gradient-to-r from-purple-600/10 to-transparent">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <Building2 className="text-purple-400" />
+        <div className="nm-card nm-card--sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="p-6 lg:p-8 border-b border-white/5" style={{ background: "linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent)" }}>
+            <h3 className="nm-heading flex items-center gap-3">
+              <div className="nm-icon-circle nm-icon-circle--accent nm-icon-circle--sm">
+                <Building2 size={16} />
+              </div>
               Perfil da Empresa
             </h3>
-            <p className="text-sm text-gray-400 mt-1">Gerencie as informações básicas que aparecem nos orçamentos e relatórios.</p>
+            <p className="text-sm text-gray-400 mt-2 font-medium">Gerencie as informações básicas que aparecem nos orçamentos e relatórios.</p>
           </div>
 
-          <form onSubmit={handleSaveCompany} className="p-6 lg:p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSaveCompany} className="p-6 lg:p-8 flex flex-col">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Nome Fantasia</label>
+                <label className="nm-input-group__label">Nome Fantasia</label>
                 <input
                   type="text"
                   value={company.name}
                   onChange={(e) => setCompany({ ...company, name: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="nm-input"
                   placeholder="Nome da sua empresa"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Contato / Telefone</label>
+                <label className="nm-input-group__label">Contato / Telefone</label>
                 <input
                   type="text"
                   value={company.contact}
                   onChange={(e) => setCompany({ ...company, contact: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="nm-input"
                   placeholder="(00) 00000-0000"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Rua / Logradouro</label>
+                <label className="nm-input-group__label">Rua / Logradouro</label>
                 <input
                   type="text"
                   value={company.street}
                   onChange={(e) => setCompany({ ...company, street: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="nm-input"
                 />
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:col-span-2">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Número</label>
+                  <label className="nm-input-group__label">Número</label>
                   <input
                     type="text"
                     value={company.number}
                     onChange={(e) => setCompany({ ...company, number: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="nm-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Bairro</label>
+                  <label className="nm-input-group__label">Bairro</label>
                   <input
                     type="text"
                     value={company.neighborhood}
                     onChange={(e) => setCompany({ ...company, neighborhood: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="nm-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Cidade</label>
+                  <label className="nm-input-group__label">Cidade</label>
                   <input
                     type="text"
                     value={company.city}
                     onChange={(e) => setCompany({ ...company, city: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="nm-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Estado</label>
+                  <label className="nm-input-group__label">Estado</label>
                   <input
                     type="text"
                     value={company.state}
                     onChange={(e) => setCompany({ ...company, state: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="nm-input"
                   />
                 </div>
               </div>
             </div>
-
-            <div className="flex justify-end pt-4">
+            <div 
+              className="flex justify-end border-t border-white/5" 
+              style={{ marginTop: '80px', paddingTop: '32px', paddingBottom: '32px' }}
+            >
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-purple-600/20 active:scale-95"
+                className="nm-btn nm-btn--accent nm-btn--lg"
+                style={{ 
+                  background: "var(--nm-accent-color)", 
+                  color: "white", 
+                  boxShadow: "none", 
+                  outline: "none" 
+                }}
               >
-                {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 SALVAR ALTERAÇÕES
               </button>
             </div>
@@ -277,25 +287,27 @@ export function SettingsTab({ serverUrl, tenantSlug }: SettingsTabProps) {
       )}
 
       {activeSection === "payments" && (
-        <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="p-6 lg:p-8 border-b border-white/10 bg-gradient-to-r from-blue-600/10 to-transparent">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              <CreditCard className="text-blue-400" />
+        <div className="nm-card nm-card--sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="p-6 lg:p-8 border-b border-white/5" style={{ background: "linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent)" }}>
+            <h3 className="nm-heading flex items-center gap-3">
+              <div className="nm-icon-circle nm-icon-circle--accent nm-icon-circle--sm">
+                <CreditCard size={16} />
+              </div>
               Métodos de Pagamento
             </h3>
-            <p className="text-sm text-gray-400 mt-1">Configure as opções de pagamento disponíveis para suas vendas.</p>
+            <p className="text-sm text-gray-400 mt-2 font-medium">Configure as opções de pagamento disponíveis para suas vendas.</p>
           </div>
 
           <div className="p-6 lg:p-8 space-y-8">
             {/* Add New */}
-            <div className="flex flex-col sm:flex-row gap-4 p-6 bg-white/5 border border-white/10 rounded-3xl">
+            <div className="flex flex-col sm:flex-row gap-4 p-6 bg-black/20 border border-white/5 rounded-3xl">
               <div className="flex-1 space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Nova Forma de Pagamento</label>
+                <label className="nm-input-group__label">Nova Forma de Pagamento</label>
                 <input
                   type="text"
                   value={newMethodName}
                   onChange={(e) => setNewMethodName(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="nm-input"
                   placeholder="Ex: Pix, Dinheiro, Cartão de Crédito..."
                 />
               </div>
@@ -303,9 +315,10 @@ export function SettingsTab({ serverUrl, tenantSlug }: SettingsTabProps) {
                 <button
                   onClick={handleAddPaymentMethod}
                   disabled={saving || !newMethodName.trim()}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold h-[50px] px-8 rounded-2xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                  className="nm-btn nm-btn--accent"
+                  style={{ height: "42px", background: "#3b82f6", color: "white" }}
                 >
-                  <Plus size={20} />
+                  <Plus size={18} className="mr-1" />
                   ADICIONAR
                 </button>
               </div>
@@ -318,25 +331,26 @@ export function SettingsTab({ serverUrl, tenantSlug }: SettingsTabProps) {
                   key={method.id}
                   className={`p-5 rounded-2xl border transition-all flex items-center justify-between group ${
                     method.active 
-                      ? "bg-white/5 border-white/10 hover:border-blue-500/50" 
+                      ? "bg-white/[0.02] border-white/10 hover:border-blue-500/50" 
                       : "bg-black/20 border-white/5 opacity-60"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${method.active ? "bg-blue-500/20 text-blue-400" : "bg-gray-500/20 text-gray-500"}`}>
-                      <CreditCard size={18} />
+                    <div className={`nm-icon-circle nm-icon-circle--xs ${method.active ? "nm-icon-circle--info border-blue-500/20" : "bg-white/5 text-gray-500 border-white/5"}`} style={method.active ? { background: "rgba(59,130,246,0.1)", color: "#3b82f6" } : {}}>
+                      <CreditCard size={14} />
                     </div>
-                    <span className="font-semibold">{method.name}</span>
+                    <span className="text-sm font-bold text-white">{method.name}</span>
                   </div>
                   
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => togglePaymentMethod(method)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        method.active ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                      className={`nm-btn nm-btn--circle nm-btn--xs ${
+                        method.active ? "nm-btn--danger" : "nm-btn--success"
                       }`}
+                      title={method.active ? "Desativar" : "Ativar"}
                     >
-                      {method.active ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+                      {method.active ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
                     </button>
                   </div>
                 </div>
@@ -345,7 +359,7 @@ export function SettingsTab({ serverUrl, tenantSlug }: SettingsTabProps) {
               {paymentMethods.length === 0 && (
                 <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-500 border-2 border-dashed border-white/5 rounded-3xl">
                   <CreditCard size={48} className="mb-4 opacity-20" />
-                  <p>Nenhuma forma de pagamento cadastrada.</p>
+                  <p className="nm-input-group__label">Nenhuma forma de pagamento cadastrada.</p>
                 </div>
               )}
             </div>

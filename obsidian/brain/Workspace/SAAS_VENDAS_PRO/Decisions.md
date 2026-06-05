@@ -18,6 +18,7 @@
 ### Mobile & Synchronization
 
 - **Sync Guard (Extended)**: Uses a 30-second `last_manual_update` window combined with `sync_queue` presence to prevent stale background fetches from overwriting local manual work.
+- **Race Condition Prevention (Trava de Mão)**: Para estados definitivos que nascem no local-first (ex: travar uma ficha com `items_locked = 1`), é OBRIGATÓRIO preservar a trava local. Todo fetch do servidor que sobrescreve o banco local via `INSERT OR REPLACE` ou `UPDATE` precisa fazer uma leitura do banco local primeiro e aplicar `Math.max(local, server)` para evitar que dados atrasados do servidor (onde o PATCH da trava ainda não foi processado) desfaçam o bloqueio no App.
 - **Local-First Rendering**: UI must decouple `loading` state from background sync. Data from SQLite must be displayed instantly; the network sync runs silently.
 - **UUIDs**: Local entities MUST use UUIDs (`expo-crypto`) to match server schema.
 - **SyncService**: Centralized utility for enqueuing API actions (`enqueue`).

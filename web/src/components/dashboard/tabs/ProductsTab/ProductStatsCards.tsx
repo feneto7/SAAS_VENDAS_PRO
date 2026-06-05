@@ -7,61 +7,50 @@ interface ProductStatsCardsProps {
 }
 
 export function ProductStatsCards({ stats }: ProductStatsCardsProps) {
+  const cards = [
+    {
+      label: "Total Preço de Custo",
+      value: formatCentsToBRL(stats.totalCost),
+      sub: "Soma de todos os subtotais de custo",
+      icon: <DollarSign size={16} />,
+      variant: "info" as const,
+    },
+    {
+      label: "Total Com Comissão (CC)",
+      value: formatCentsToBRL(stats.totalCC),
+      sub: "Soma de todos os subtotais CC",
+      icon: <Percent size={16} />,
+      variant: "accent" as const,
+    },
+    {
+      label: "Total Sem Comissão (SC)",
+      value: formatCentsToBRL(stats.totalSC),
+      sub: "Soma de todos os subtotais SC",
+      icon: <TrendingUp size={16} />,
+      variant: "success" as const,
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      {/* Preço de Custo */}
-      <div className="bg-white/[0.02] border border-white/8 rounded-2xl p-5 hover:bg-white/[0.04] transition-all">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
-            <DollarSign size={20} className="text-blue-400" />
+    <div className="nm-grid-3" style={{ gap: "1rem" }}>
+      {cards.map((card) => (
+        <div key={card.label} className="nm-stat-card" style={{ padding: "0.75rem 1.25rem", gap: "0.4rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+            <div className={`nm-icon-circle nm-icon-circle--${card.variant}`} style={{ width: "24px", height: "24px", minWidth: "24px" }}>
+              {card.icon}
+            </div>
+            <span className="nm-stat-card__label" style={{ textTransform: "none", letterSpacing: "normal", fontSize: "var(--nm-text-sm)", margin: 0 }}>
+              {card.label}
+            </span>
           </div>
-          <span className="text-sm font-medium text-gray-400">Total Preço de Custo</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-2xl font-bold text-white tracking-tight">
-            {formatCentsToBRL(stats.totalCost)}
-          </span>
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider mt-1 font-semibold">
-            Soma de todos os subtotais de custo
-          </span>
-        </div>
-      </div>
-
-      {/* Com Comissão (CC) */}
-      <div className="bg-white/[0.02] border border-white/8 rounded-2xl p-5 hover:bg-white/[0.04] transition-all">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 bg-purple-500/10 rounded-lg">
-            <Percent size={20} className="text-purple-400" />
+          <div className="nm-stat-card__value nm-stat-card__value--accent" style={{ fontSize: "var(--nm-text-xl)" }}>
+            {card.value}
           </div>
-          <span className="text-sm font-medium text-gray-400">Total Com Comissão (CC)</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-2xl font-bold text-white tracking-tight">
-            {formatCentsToBRL(stats.totalCC)}
-          </span>
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider mt-1 font-semibold">
-            Soma de todos os subtotais CC
-          </span>
-        </div>
-      </div>
-
-      {/* Sem Comissão (SC) */}
-      <div className="bg-white/[0.02] border border-white/8 rounded-2xl p-5 hover:bg-white/[0.04] transition-all">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 bg-emerald-500/10 rounded-lg">
-            <TrendingUp size={20} className="text-emerald-400" />
+          <div className="nm-stat-card__label" style={{ marginTop: "0", fontSize: "10px", opacity: 0.8 }}>
+            {card.sub}
           </div>
-          <span className="text-sm font-medium text-gray-400">Total Sem Comissão (SC)</span>
         </div>
-        <div className="flex flex-col">
-          <span className="text-2xl font-bold text-white tracking-tight">
-            {formatCentsToBRL(stats.totalSC)}
-          </span>
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider mt-1 font-semibold">
-            Soma de todos os subtotais SC
-          </span>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }

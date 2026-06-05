@@ -30,9 +30,9 @@ export const SyncService = {
       // Attempt background sync but don't await it
       this.processQueue().catch(() => {});
     } catch (err: any) {
-      console.error('[SERVER ERROR] /api/fichas POST:', err);
+      console.error('[SERVER ERROR] /api/cards POST:', err);
       return { 
-        error: "Failed to create ficha", 
+        error: "Failed to create card", 
         detail: err.message,
         stack: err.stack 
       };
@@ -95,7 +95,7 @@ export const SyncService = {
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s for sync
             
             try {
-              const res = await fetch(`${API_URL}/api/ficha-items/${data.id}`, {
+              const res = await fetch(`${API_URL}/api/card-items/${data.id}`, {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export const SyncService = {
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             try {
-              const res = await fetch(`${API_URL}/api/fichas/${data.card_id}/items`, {
+              const res = await fetch(`${API_URL}/api/cards/${data.card_id}/items`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export const SyncService = {
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             try {
-              const res = await fetch(`${API_URL}/api/fichas/${data.id}`, {
+              const res = await fetch(`${API_URL}/api/cards/${data.id}`, {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
@@ -184,7 +184,7 @@ export const SyncService = {
 
             try {
 
-              const res = await fetch(`${API_URL}/api/fichas`, {
+              const res = await fetch(`${API_URL}/api/cards`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -196,9 +196,14 @@ export const SyncService = {
                   clientId: data.clientId,
                   sellerId: data.sellerId,
                   routeId: data.routeId,
+                  collectionId: data.collectionId || null,
                   total: data.total || 0,
                   status: data.status || 'nova',
                   saleDate: data.saleDate,
+                  discount: data.discount || 0,
+                  commissionPercent: data.commissionPercent || data.commission_percent || 0,
+                  itemsLocked: Boolean(data.itemsLocked || data.items_locked),
+                  notes: data.notes || null,
                   items: data.items || []
                 }),
                 signal: controller.signal
@@ -221,7 +226,7 @@ export const SyncService = {
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             try {
-              const res = await fetch(`${API_URL}/api/fichas/${data.card_id}/payments`, {
+              const res = await fetch(`${API_URL}/api/cards/${data.card_id}/payments`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -232,6 +237,7 @@ export const SyncService = {
                   id: data.id,
                   methodId: data.method_id,
                   amount: data.amount,
+                  collectionId: data.collectionId,
                 }),
                 signal: controller.signal
               });
@@ -261,7 +267,7 @@ export const SyncService = {
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             try {
-              const res = await fetch(`${API_URL}/api/fichas/${data.id}/settle`, {
+              const res = await fetch(`${API_URL}/api/cards/${data.id}/settle`, {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
@@ -308,6 +314,39 @@ export const SyncService = {
                    errDetail = JSON.stringify(errJson, null, 2);
                 } catch(e) {}
                 console.error(`[SYNC] POST_CLIENT failed: ${res.status}`, errDetail);
+              }
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          }
+
+          if (item.action === 'POST' && item.table_name === 'products') {
+            const data = JSON.parse(item.data);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            try {
+              const res = await fetch(`${API_URL}/api/products`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'x-tenant-slug': tenantSlug
+                },
+                body: JSON.stringify(data),
+                signal: controller.signal
+              });
+
+              if (res.ok) {
+                success = true;
+              } else {
+                let errDetail = '';
+                try {
+                   const errText = await res.text();
+                   const errJson = JSON.parse(errText);
+                   errDetail = JSON.stringify(errJson, null, 2);
+                } catch(e) {}
+                console.error(`[SYNC] POST products failed: ${res.status}`, errDetail);
               }
             } finally {
               clearTimeout(timeoutId);

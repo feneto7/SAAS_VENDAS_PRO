@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform,
   Alert, ActivityIndicator, StatusBar, ScrollView
 } from 'react-native';
 import { User, Lock, ArrowRight, ArrowLeft } from 'lucide-react-native';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { Colors, GlobalStyles, UI } from '../../theme/theme';
+import { getGlobalStyles, getUIStyles } from '../../theme/theme';
+import { useTheme } from '../../stores/useThemeStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
 
@@ -17,6 +18,10 @@ export const LoginScreen = ({ onBack }: { onBack: () => void }) => {
 
   const setAuth = useAuthStore((state) => state.setAuth);
   const tenant = useAuthStore((state) => state.tenant);
+  const { colors, isDark } = useTheme();
+
+  const GlobalStyles = useMemo(() => getGlobalStyles(colors), [colors]);
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -55,47 +60,45 @@ export const LoginScreen = ({ onBack }: { onBack: () => void }) => {
 
   return (
     <View style={GlobalStyles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} pointerEvents="none" />
-      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={GlobalStyles.flex}
       >
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 28, paddingTop: 60, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <ArrowLeft size={24} color={Colors.textPrimary} />
+          <TouchableOpacity onPress={onBack} style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 32, borderWidth: 1, borderColor: colors.border }}>
+            <ArrowLeft size={24} color={colors.textPrimary} />
           </TouchableOpacity>
 
-          <View style={styles.headlineBlock}>
-            <Text style={styles.tagline}>{tenant?.name}</Text>
-            <Text style={styles.title}>Acesse sua conta</Text>
-            <Text style={styles.subtitle}>Digite suas credenciais de vendedor</Text>
+          <View style={{ marginBottom: 40 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>{tenant?.name}</Text>
+            <Text style={{ fontSize: 32, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 }}>Acesse sua conta</Text>
+            <Text style={{ fontSize: 16, color: colors.textSecondary, marginTop: 8 }}>Digite suas credenciais de vendedor</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.inputLabel}>Usuário</Text>
-            <View style={styles.inputWrapper}>
-              <User size={20} color={Colors.primary} style={styles.inputIcon} />
+          <View style={{ backgroundColor: colors.surfaceRaised, borderRadius: 24, borderWidth: 1, borderColor: colors.border, padding: 24 }}>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, fontWeight: '500', marginBottom: 10 }}>Usuário</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 14, borderWidth: 1.5, borderColor: colors.inputBorder, paddingHorizontal: 16, height: 56, marginBottom: 20 }}>
+              <User size={20} color={colors.primary} style={{ marginRight: 10 }} />
               <TextInput
-                style={styles.input}
+                style={{ flex: 1, fontSize: 16, color: colors.textInput }}
                 placeholder="seu.usuario"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
               />
             </View>
 
-            <Text style={styles.inputLabel}>Senha</Text>
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color={Colors.primary} style={styles.inputIcon} />
+            <Text style={{ fontSize: 14, color: colors.textSecondary, fontWeight: '500', marginBottom: 10 }}>Senha</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 14, borderWidth: 1.5, borderColor: colors.inputBorder, paddingHorizontal: 16, height: 56, marginBottom: 20 }}>
+              <Lock size={20} color={colors.primary} style={{ marginRight: 10 }} />
               <TextInput
-                style={styles.input}
+                style={{ flex: 1, fontSize: 16, color: colors.textInput }}
                 placeholder="••••••••"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -103,17 +106,17 @@ export const LoginScreen = ({ onBack }: { onBack: () => void }) => {
             </View>
 
             <TouchableOpacity
-              style={[UI.button, loading && styles.buttonLoading]}
+              style={[UI.button, loading && { opacity: 0.7 }]}
               onPress={handleLogin}
               disabled={loading}
               activeOpacity={0.8}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Entrar no Sistema</Text>
-                  <ArrowRight size={20} color={Colors.white} strokeWidth={2.5} />
+                  <Text style={{ color: colors.white, fontSize: 17, fontWeight: '700', letterSpacing: 0.2 }}>Entrar no Sistema</Text>
+                  <ArrowRight size={20} color={colors.white} strokeWidth={2.5} />
                 </>
               )}
             </TouchableOpacity>
@@ -124,92 +127,3 @@ export const LoginScreen = ({ onBack }: { onBack: () => void }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: 28,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  backBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: Colors.cardBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  headlineBlock: {
-    marginBottom: 40,
-  },
-  tagline: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 8,
-  },
-  card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 24,
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    marginBottom: 10,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.inputBg,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: Colors.inputBorder,
-    paddingHorizontal: 16,
-    height: 56,
-    marginBottom: 20,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.textInput,
-  },
-  buttonText: {
-    color: Colors.white,
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  buttonLoading: {
-    opacity: 0.7,
-  },
-  footer: {
-    textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 24,
-  },
-});

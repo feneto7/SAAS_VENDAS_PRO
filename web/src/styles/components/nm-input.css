@@ -1,0 +1,291 @@
+/**
+ * Neumorphic Inputs & Form Fields — nm-input.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Input Base ──────────────────────────────── */
+.nm-input {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  font-family: var(--nm-font-family);
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-medium);
+  color: var(--nm-text-primary);
+  background: var(--nm-surface-deep);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-xs);
+  box-shadow: var(--nm-shadow-inset);
+  outline: none;
+  transition:
+    box-shadow var(--nm-transition),
+    border-color var(--nm-transition);
+  caret-color: var(--nm-accent);
+}
+
+.nm-input::placeholder {
+  color: var(--nm-text-muted);
+  font-weight: var(--nm-font-regular);
+}
+
+.nm-input:hover {
+  border-color: var(--nm-border-accent);
+}
+
+.nm-input:focus,
+.nm-input:focus-within {
+  box-shadow: var(--nm-shadow-glow-inset);
+  border-color: var(--nm-border-accent);
+}
+
+.nm-input:focus-visible {
+  outline: none;
+}
+
+/* ── Input Group ─────────────────────────────── */
+.nm-input-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nm-input-group__label {
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--nm-tracking-widest);
+  color: var(--nm-text-muted);
+  padding-left: 0.25rem;
+  position: relative;
+  z-index: 10;
+}
+
+.nm-input-group__hint {
+  font-size: var(--nm-text-xs);
+  color: var(--nm-text-muted);
+  padding-left: 0.25rem;
+}
+
+.nm-input-group__error {
+  font-size: var(--nm-text-xs);
+  color: var(--nm-danger);
+  font-weight: var(--nm-font-medium);
+  padding-left: 0.25rem;
+}
+
+/* Com ícone à esquerda */
+.nm-input-group--with-icon {
+  position: relative;
+}
+
+.nm-input-group--with-icon .nm-input {
+  padding-left: 2.75rem;
+}
+
+.nm-input-group__icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--nm-text-muted);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+/* Suffix / addon */
+.nm-input-group--with-suffix .nm-input {
+  padding-right: 2.75rem;
+}
+
+.nm-input-group__suffix {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--nm-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color var(--nm-transition-fast);
+}
+
+.nm-input-group__suffix:hover {
+  color: var(--nm-accent);
+}
+
+/* ── Variantes de Input ───────────────────────── */
+
+/* Raised — sem inset, parece "no topo" */
+.nm-input--raised {
+  box-shadow: var(--nm-shadow-raised);
+}
+
+.nm-input--raised:focus {
+  box-shadow: var(--nm-shadow-glow);
+}
+
+/* Search */
+.nm-input--search {
+  border-radius: var(--nm-radius-full);
+  padding: 0.65rem 1.25rem;
+}
+
+/* States */
+.nm-input--success {
+  border-color: var(--nm-success);
+  box-shadow:
+    inset var(--nm-shadow-distance) var(--nm-shadow-distance) var(--nm-shadow-blur) var(--nm-shadow-dark),
+    inset calc(-1 * var(--nm-shadow-distance)) calc(-1 * var(--nm-shadow-distance)) var(--nm-shadow-blur) var(--nm-shadow-light),
+    0 0 14px rgba(0,229,200,0.2);
+}
+
+.nm-input--error {
+  border-color: var(--nm-danger);
+  box-shadow:
+    inset var(--nm-shadow-distance) var(--nm-shadow-distance) var(--nm-shadow-blur) var(--nm-shadow-dark),
+    inset calc(-1 * var(--nm-shadow-distance)) calc(-1 * var(--nm-shadow-distance)) var(--nm-shadow-blur) var(--nm-shadow-light),
+    0 0 14px rgba(255,107,122,0.2);
+}
+
+/* ── Select ──────────────────────────────────── */
+.nm-select-wrapper {
+  position: relative;
+}
+
+.nm-select {
+  width: 100%;
+  padding: 0.4rem 2.5rem 0.4rem 0.75rem;
+  font-family: var(--nm-font-family);
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-medium);
+  color: var(--nm-text-primary);
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-xs);
+  box-shadow: var(--nm-shadow-inset);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition:
+    box-shadow var(--nm-transition),
+    border-color var(--nm-transition);
+}
+
+.nm-select:focus {
+  box-shadow: var(--nm-shadow-glow-inset);
+  border-color: var(--nm-border-accent);
+}
+
+.nm-select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--nm-text-muted);
+  pointer-events: none;
+  transition: border-color var(--nm-transition-fast);
+}
+
+.nm-select:focus ~ .nm-select-arrow,
+.nm-select-wrapper:focus-within::after {
+  border-top-color: var(--nm-accent);
+}
+
+/* ── Textarea ─────────────────────────────────── */
+.nm-textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-family: var(--nm-font-family);
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-medium);
+  color: var(--nm-text-primary);
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-xs);
+  box-shadow: var(--nm-shadow-inset);
+  outline: none;
+  resize: vertical;
+  min-height: 6rem;
+  caret-color: var(--nm-accent);
+  transition:
+    box-shadow var(--nm-transition),
+    border-color var(--nm-transition);
+}
+
+.nm-textarea::placeholder {
+  color: var(--nm-text-muted);
+}
+
+.nm-textarea:focus {
+  box-shadow: var(--nm-shadow-glow-inset);
+  border-color: var(--nm-border-accent);
+}
+
+/* ── Checkbox & Radio ─────────────────────────── */
+.nm-checkbox,
+.nm-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--nm-text-base);
+  color: var(--nm-text-primary);
+}
+
+.nm-checkbox__box,
+.nm-radio__circle {
+  width: 1.25rem;
+  height: 1.25rem;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    box-shadow var(--nm-transition),
+    border-color var(--nm-transition),
+    background var(--nm-transition);
+}
+
+.nm-checkbox__box { border-radius: var(--nm-radius-xs); }
+.nm-radio__circle { border-radius: 50%; }
+
+.nm-checkbox input:checked ~ .nm-checkbox__box,
+.nm-radio input:checked ~ .nm-radio__circle {
+  background: var(--nm-gradient-accent);
+  border-color: transparent;
+  box-shadow:
+    inset 2px 2px 4px rgba(0,0,0,0.25),
+    0 0 14px var(--nm-accent-glow);
+}
+
+.nm-checkbox input,
+.nm-radio input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* ── Form Row ─────────────────────────────────── */
+.nm-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.nm-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

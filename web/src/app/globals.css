@@ -1,3 +1,7 @@
+/* ── Neumorphic Design System ─────────────────── */
+@import "../styles/index.css";
+
+/* ── Tailwind / Shadcn ────────────────────────── */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";

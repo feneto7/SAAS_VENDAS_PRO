@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, FileText, Save, Loader2, User, Map, Package, Plus, Trash2, ArrowRight, DollarSign, Calculator } from "lucide-react";
 import { CustomSelect } from "@/components/dashboard/shared/CustomSelect";
 import { formatCentsToBRL, parseBRLToCents, applyCurrencyMask } from "@/utils/money";
@@ -23,13 +23,34 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
   const [products, setProducts] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    routeId: string;
+    clientId: string;
+    sellerId: string;
+    notes: string;
+    items: Array<{ productId: string; quantity: number; unitPrice: number; type: "CC" | "SC" | "BRINDE" }>;
+  }>({
     routeId: "",
     clientId: "",
     sellerId: "",
     notes: "",
-    items: [{ productId: "", quantity: 1, unitPrice: 0, type: "SC" as "CC" | "SC" }]
+    items: []
   });
+
+  const [draftItem, setDraftItem] = useState<{
+    productId: string;
+    quantity: number | string;
+    unitPrice: number;
+    type: "CC" | "SC" | "BRINDE";
+  }>({
+    productId: "",
+    quantity: 1,
+    unitPrice: 0,
+    type: "SC"
+  });
+
+  const quantityRef = useRef<HTMLInputElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,33 +74,43 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
     ? clients.filter(c => c.routeId === formData.routeId)
     : [];
 
-  const handleAddItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { productId: "", quantity: 1, unitPrice: 0, type: "SC" }]
-    });
-  };
-
   const handleRemoveItem = (index: number) => {
     const newItems = [...formData.items];
     newItems.splice(index, 1);
     setFormData({ ...formData, items: newItems });
   };
 
-  const handleItemChange = (index: number, field: string, value: any) => {
-    const newItems = [...formData.items];
-    newItems[index] = { ...newItems[index], [field]: value };
+  const handleDraftChange = (field: string, value: any) => {
+    const newItem = { ...draftItem, [field]: value };
     
     if (field === "productId" || field === "type") {
-      const product = products.find(p => p.id === newItems[index].productId);
+      const product = products.find(p => p.id === newItem.productId);
       if (product) {
-        newItems[index].unitPrice = newItems[index].type === "CC" 
+        newItem.unitPrice = newItem.type === "CC" 
           ? Number(product.priceCC) || 0 
           : Number(product.priceSC) || 0;
       }
     }
     
-    setFormData({ ...formData, items: newItems });
+    setDraftItem(newItem);
+  };
+
+  const handleAddDraftItem = () => {
+    const qty = Number(draftItem.quantity);
+    if (!draftItem.productId || isNaN(qty) || qty <= 0) return;
+    
+    const finalType = draftItem.unitPrice === 0 ? "BRINDE" : draftItem.type;
+    
+    setFormData({
+      ...formData,
+      items: [...formData.items, { ...draftItem, quantity: qty, type: finalType }]
+    });
+    setDraftItem({
+      productId: "",
+      quantity: 1,
+      unitPrice: 0,
+      type: "SC"
+    });
   };
 
   const totals = formData.items.reduce((acc, item) => {
@@ -101,7 +132,7 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
       setLoading(true);
       const payload = { ...formData, total: totals.grandTotal };
 
-      const res = await fetch(`${SERVER_URL}/api/fichas`, {
+      const res = await fetch(`${SERVER_URL}/api/cards`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +146,7 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
         onClose();
       } else {
         const errorData = await res.json();
-        alert(`Erro ao salvar ficha: ${errorData.error || "Tente novamente"}`);
+        alert(`Erro ao salvar card: ${errorData.error || "Tente novamente"}`);
       }
     } catch (err) {
       console.error(err);
@@ -127,51 +158,40 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
 
   if (!isOpen) return null;
 
-  const sectionLabel = "text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-6 sm:mb-8";
-  const inputLabel = "text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 mb-2 block";
-  const inputClass = "w-full bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:border-emerald-500 focus:bg-white/[0.08] outline-none transition-all placeholder:text-gray-700";
+  const sectionLabel = "nm-heading flex items-center gap-2 mb-6 sm:mb-8";
+  const inputLabel = "nm-input-group__label mb-1";
+  const inputClass = "nm-input";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center overflow-hidden">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/95 backdrop-blur-xl animate-in fade-in duration-500" 
-        onClick={onClose} 
-      />
+    <div className="nm-modal-backdrop" onClick={onClose}>
+      <div className="nm-modal nm-modal--xl" onClick={(e) => e.stopPropagation()}>
 
-      {/* Modal Container */}
-      <div className="relative w-full h-[98vh] sm:h-[90vh] sm:max-w-6xl bg-[#0c0c0c] border-t sm:border border-white/10 rounded-t-[3rem] sm:rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500 ease-out">
-        
-        {/* Mobile Handle */}
-        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden shrink-0" />
-
-        {/* Header */}
-        <header className="px-6 py-4 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-emerald-500/5 to-transparent">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
-              <FileText className="text-emerald-400" size={isMobile ? 20 : 28} />
+        <header className="nm-modal__header">
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div className="nm-icon-circle nm-icon-circle--success nm-icon-circle--lg">
+              <FileText size={20} />
             </div>
             <div>
-              <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-none">Nova Ficha</h2>
-              <p className="text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-widest mt-2 opacity-70 flex items-center gap-2">
+              <h2 className="nm-modal__title">Nova Ficha</h2>
+              <p className="nm-modal__subtitle flex items-center gap-2" style={{ textTransform: "uppercase", fontWeight: "bold", fontSize: "10px" }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Processamento em Tempo Real
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 sm:p-3 hover:bg-white/5 rounded-full text-gray-500 hover:text-white transition-all active:scale-90">
-            <X size={24} />
+          <button onClick={onClose} className="nm-modal__close">
+            <X size={18} />
           </button>
         </header>
 
         {/* Body Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
+        <form onSubmit={handleSubmit} className="nm-modal__body custom-scrollbar">
           <div className="max-w-5xl mx-auto space-y-12">
             
             {/* Context Section */}
-            <section>
+            <section className="relative z-30">
               <h3 className={sectionLabel}><User size={14} /> Atendimento</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 bg-white/[0.02] border border-white/5 p-6 sm:p-8 rounded-[2.5rem]">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 nm-card nm-card--sm p-6 sm:p-8">
                 <div className="space-y-1.5">
                   <label className={inputLabel}>Selecione a Rota</label>
                   <CustomSelect
@@ -209,115 +229,197 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
             </section>
 
             {/* Items Section */}
-            <section>
+            <section className="relative z-20">
               <div className="flex items-center justify-between mb-6">
-                <h3 className={sectionLabel}><Package size={14} /> Itens da Ficha</h3>
+                <h3 className={sectionLabel}><Package size={14} /> Lançamento Rápido</h3>
                 <span className="text-[10px] font-black text-gray-600 bg-white/5 px-3 py-1 rounded-full">{formData.items.length} itens</span>
               </div>
               
-              <div className="space-y-4">
-                {formData.items.map((item, index) => (
-                  <div key={index} className="relative bg-white/[0.03] border border-white/10 rounded-[2rem] p-5 sm:p-8 hover:bg-white/[0.06] transition-all group animate-in zoom-in-95 duration-300">
+              <div className="space-y-6">
+                {/* Draft Item Form */}
+                <div className="nm-card nm-card--sm p-5 sm:p-6" style={{ zIndex: 50 }}>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
                     
-                    {/* Delete Item Button */}
-                    {formData.items.length > 1 && (
-                      <button 
+                    {/* Tipo */}
+                    <div className="lg:col-span-2 text-center">
+                      <label className={inputLabel}>Tipo</label>
+                      <button
                         type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="absolute -top-2 -right-2 w-8 h-8 sm:w-10 sm:h-10 bg-red-500 text-white rounded-full flex items-center justify-center shadow-xl hover:scale-110 active:scale-90 transition-all z-20"
+                        onClick={() => handleDraftChange("type", draftItem.type === "CC" ? "SC" : "CC")}
+                        className={`w-full nm-input flex items-center justify-center gap-2 transition-all ${
+                          draftItem.type === "CC" 
+                            ? "text-purple-400 border-purple-500/30" 
+                            : "text-gray-500 hover:text-white"
+                        }`}
+                        style={{ fontWeight: "bold" }}
                       >
-                        <Trash2 size={16} />
+                        {draftItem.type}
                       </button>
-                    )}
+                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-                      
-                      {/* Product Selector */}
-                      <div className="lg:col-span-1 text-center">
-                        <label className={inputLabel}>Tipo</label>
-                        <button
-                          type="button"
-                          onClick={() => handleItemChange(index, "type", item.type === "CC" ? "SC" : "CC")}
-                          className={`w-full h-[54px] rounded-2xl font-black text-[10px] transition-all border-2 flex items-center justify-center gap-2 ${
-                            item.type === "CC" 
-                              ? "bg-purple-600/20 border-purple-500 text-purple-400 shadow-lg shadow-purple-500/10" 
-                              : "bg-white/5 border-white/10 text-gray-500"
-                          }`}
-                        >
-                          {item.type}
-                        </button>
-                      </div>
+                    {/* Product Selector */}
+                    <div className="lg:col-span-4 relative" style={{ zIndex: 100 }}>
+                      <label className={inputLabel}>Produto</label>
+                      <CustomSelect
+                        options={[
+                          { value: "", label: "Busque e selecione o produto..." },
+                          ...products.map(p => ({ value: p.id, label: p.name }))
+                        ]}
+                        value={draftItem.productId}
+                        onChange={val => {
+                          handleDraftChange("productId", val);
+                          setTimeout(() => {
+                            quantityRef.current?.focus();
+                            quantityRef.current?.select();
+                          }, 50);
+                        }}
+                      />
+                    </div>
 
-                      <div className="lg:col-span-5">
-                        <label className={inputLabel}>Produto</label>
-                        <CustomSelect
-                          options={[
-                            { value: "", label: "Selecione o produto..." },
-                            ...products.map(p => ({ value: p.id, label: p.name }))
-                          ]}
-                          value={item.productId}
-                          onChange={val => handleItemChange(index, "productId", val)}
+                    {/* Quantidade */}
+                    <div className="lg:col-span-2">
+                      <label className={inputLabel}>Quantidade</label>
+                      <div className="flex items-center nm-input overflow-hidden" style={{ padding: "0 0.25rem" }}>
+                        <button 
+                          type="button" 
+                          onClick={() => handleDraftChange("quantity", Math.max(1, Number(draftItem.quantity) - 1))}
+                          className="w-8 shrink-0 hover:bg-white/5 transition-colors text-gray-400 flex items-center justify-center rounded-sm"
+                          style={{ minHeight: "100%", alignSelf: "stretch" }}
+                        >-</button>
+                        <input 
+                          ref={quantityRef}
+                          type="number"
+                          className="w-full bg-transparent text-center text-sm font-black text-white outline-none focus-visible:outline-none"
+                          style={{ padding: "0.4rem 0" }}
+                          value={draftItem.quantity}
+                          onChange={e => {
+                            const val = e.target.value;
+                            handleDraftChange("quantity", val === "" ? "" : parseInt(val) || 0);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              priceRef.current?.focus();
+                              priceRef.current?.select();
+                            }
+                          }}
                         />
-                      </div>
-
-                      <div className="grid grid-cols-2 lg:col-span-6 gap-4">
-                        <div className="space-y-1.5">
-                          <label className={inputLabel}>Quantidade</label>
-                          <div className="flex items-center bg-black/40 rounded-2xl border border-white/10 overflow-hidden">
-                            <button 
-                              type="button" 
-                              onClick={() => handleItemChange(index, "quantity", Math.max(1, item.quantity - 1))}
-                              className="px-4 py-3 hover:bg-white/5 transition-colors text-gray-400"
-                            >-</button>
-                            <input 
-                              type="number"
-                              className="w-full bg-transparent text-center text-sm font-black text-white outline-none"
-                              value={item.quantity}
-                              onChange={e => handleItemChange(index, "quantity", parseInt(e.target.value) || 1)}
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => handleItemChange(index, "quantity", item.quantity + 1)}
-                              className="px-4 py-3 hover:bg-white/5 transition-colors text-gray-400"
-                            >+</button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className={inputLabel}>Preço ({item.type})</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-4 text-[10px] text-gray-500 font-black">R$</span>
-                            <input 
-                              type="text"
-                              className="w-full bg-black/40 border border-white/10 rounded-2xl pl-10 pr-4 py-4 text-sm font-black text-white outline-none focus:border-emerald-500 transition-all"
-                              value={applyCurrencyMask(String(item.unitPrice))}
-                              onChange={e => handleItemChange(index, "unitPrice", parseBRLToCents(e.target.value))}
-                            />
-                          </div>
-                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => handleDraftChange("quantity", Number(draftItem.quantity) + 1)}
+                          className="w-8 shrink-0 hover:bg-white/5 transition-colors text-gray-400 flex items-center justify-center rounded-sm"
+                          style={{ minHeight: "100%", alignSelf: "stretch" }}
+                        >+</button>
                       </div>
                     </div>
+
+                    {/* Preço */}
+                    <div className="lg:col-span-2">
+                      <label className={inputLabel}>Preço ({draftItem.type})</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] nm-text-muted font-bold">R$</span>
+                        <input 
+                          ref={priceRef}
+                          type="text"
+                          className="nm-input"
+                          style={{ paddingLeft: "2rem" }}
+                          value={applyCurrencyMask(String(draftItem.unitPrice))}
+                          onChange={e => handleDraftChange("unitPrice", parseBRLToCents(e.target.value))}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddDraftItem();
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Add Button */}
+                    <div className="lg:col-span-2 flex items-end">
+                      <button 
+                        type="button"
+                        onClick={handleAddDraftItem}
+                        disabled={!draftItem.productId || Number(draftItem.quantity) <= 0}
+                        className="w-full nm-btn nm-btn--sm nm-btn--accent flex items-center justify-center"
+                        style={{ height: "calc(1.5rem + 0.8rem + 2px)", padding: "0" }}
+                      >
+                        <Plus size={16} className="mr-1" />
+                        Adicionar
+                      </button>
+                    </div>
                   </div>
-                ))}
-                
-                <button 
-                  type="button"
-                  onClick={handleAddItem}
-                  className="w-full py-6 sm:py-10 border-2 border-dashed border-white/5 rounded-[2rem] text-[10px] uppercase tracking-[0.3em] font-black text-gray-600 hover:border-emerald-500/50 hover:text-emerald-400 hover:bg-emerald-500/5 transition-all flex flex-col items-center justify-center gap-4 group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                    <Plus size={24} />
+                </div>
+
+                {/* Table of added items */}
+                {formData.items.length > 0 && (
+                  <div className="nm-table-wrapper nm-animate-fade-in">
+                    <div className="nm-table-scroll">
+                      <table className="nm-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: "60px", textAlign: "center" }}>Tipo</th>
+                            <th>Produto</th>
+                            <th style={{ textAlign: "center", width: "100px" }}>Qtd</th>
+                            <th style={{ textAlign: "right", width: "140px" }}>Preço Unit.</th>
+                            <th style={{ textAlign: "right", width: "140px" }}>Subtotal</th>
+                            <th style={{ textAlign: "right", width: "80px" }}>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {formData.items.map((item, index) => {
+                            const p = products.find(prod => prod.id === item.productId);
+                            const subtotal = item.quantity * item.unitPrice;
+                            return (
+                              <tr key={index}>
+                                <td style={{ textAlign: "center" }}>
+                                  <span className={`nm-code ${
+                                    item.type === "CC" ? "text-purple-400 border-purple-500/30" : 
+                                    item.type === "BRINDE" ? "text-amber-400 border-amber-500/30" :
+                                    "text-gray-400"
+                                  }`} style={{ padding: "0.2rem 0.4rem", fontSize: "10px", fontWeight: "bold" }}>
+                                    {item.type}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                                    <span style={{ fontWeight: 600, color: "var(--nm-text-primary)" }}>{p ? p.name : "..."}</span>
+                                  </div>
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <span style={{ fontWeight: 800 }}>{item.quantity}</span>
+                                </td>
+                                <td style={{ textAlign: "right" }}>{formatCentsToBRL(item.unitPrice)}</td>
+                                <td style={{ textAlign: "right", fontWeight: 800, color: "var(--nm-text-primary)" }}>{formatCentsToBRL(subtotal)}</td>
+                                <td className="nm-actions-col">
+                                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                    <button 
+                                      type="button"
+                                      className="nm-btn nm-btn--circle nm-btn--xs nm-btn--danger"
+                                      onClick={() => handleRemoveItem(index)}
+                                      title="Remover Item"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <span>Adicionar outro produto</span>
-                </button>
+                )}
               </div>
             </section>
 
             {/* Notes Section */}
-            <section>
+            <section className="relative z-10">
               <h3 className={sectionLabel}><Calculator size={14} /> Observações</h3>
               <textarea 
-                className={`${inputClass} min-h-[150px] resize-none px-8 py-6 rounded-[2.5rem]`}
+                className={`${inputClass} nm-textarea`}
+                style={{ minHeight: "150px" }}
                 placeholder="Existem observações importantes para essa venda?"
                 value={formData.notes}
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
@@ -327,8 +429,7 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
         </form>
 
         {/* Floating/Fixed Footer */}
-        <footer className="relative p-6 sm:p-8 border-t border-white/5 bg-[#0f0f0f]/90 backdrop-blur-2xl flex flex-col sm:flex-row gap-6 items-stretch sm:items-center shadow-2xl z-20 shrink-0">
-          
+        <footer className="nm-modal__footer">
           <div className="flex-1 flex gap-6 sm:gap-12 items-center justify-between sm:justify-start">
             <div className="space-y-1">
               <p className="text-[8px] sm:text-[9px] text-gray-600 font-black uppercase tracking-widest pl-1">Total da Venda</p>
@@ -349,20 +450,20 @@ export function NewFichaModal({ isOpen, onClose, onSuccess, tenantSlug }: NewFic
               </div>
             </div>
           </div>
-          
+
           <div className="flex gap-3 sm:gap-4 shrink-0">
             <button 
               type="button" 
               onClick={onClose}
               disabled={loading}
-              className="flex-1 sm:flex-none px-6 sm:px-10 py-4 sm:py-6 text-[10px] font-black text-gray-500 hover:text-white transition-all bg-white/[0.03] hover:bg-white/10 rounded-2xl border border-white/5 uppercase tracking-widest active:scale-95"
+              className="nm-btn nm-btn--flat"
             >
               Cancelar
             </button>
             <button 
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-[2] sm:flex-none px-10 sm:px-16 py-4 sm:py-6 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-50 shadow-2xl shadow-white/5"
+              className="nm-btn nm-btn--accent"
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : (
                 <>

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Modal, View, Text, StyleSheet, FlatList, TouchableOpacity, 
   TextInput, ActivityIndicator, Keyboard, TouchableWithoutFeedback 
 } from 'react-native';
 import { X, Search, Package, Plus } from 'lucide-react-native';
-import { Colors, UI } from '../../../theme/theme';
+import { getUIStyles } from '../../../theme/theme';
+import { useTheme } from '../../../stores/useThemeStore';
 import { db } from '../../../services/database';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { formatCentsToBRL } from '../../../utils/money';
@@ -28,6 +29,10 @@ export const AddProductModal = ({ visible, onClose, onSelect }: AddProductModalP
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const { colors, isDark } = useTheme();
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const loadProducts = async (query: string = '') => {
     setLoading(true);
@@ -99,17 +104,17 @@ export const AddProductModal = ({ visible, onClose, onSelect }: AddProductModalP
           <View style={styles.header}>
             <Text style={styles.title}>Adicionar Produto</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X color={Colors.textSecondary} size={24} />
+              <X color={colors.textSecondary} size={24} />
             </TouchableOpacity>
           </View>
 
           {/* Search */}
           <View style={styles.searchBox}>
-            <Search color={Colors.textMuted} size={20} />
+            <Search color={colors.textMuted} size={20} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar no meu estoque..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={search}
               onChangeText={setSearch}
               autoFocus
@@ -119,7 +124,7 @@ export const AddProductModal = ({ visible, onClose, onSelect }: AddProductModalP
           {/* List */}
           {loading && products.length === 0 ? (
             <View style={styles.center}>
-              <ActivityIndicator color={Colors.primary} size="large" />
+              <ActivityIndicator color={colors.accent} size="large" />
             </View>
           ) : (
             <FlatList
@@ -129,7 +134,7 @@ export const AddProductModal = ({ visible, onClose, onSelect }: AddProductModalP
               contentContainerStyle={styles.list}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Package size={48} color={Colors.cardBorder} />
+                  <Package size={48} color={colors.border} />
                   <Text style={styles.emptyText}>Nenhum produto encontrado</Text>
                 </View>
               }
@@ -141,64 +146,64 @@ export const AddProductModal = ({ visible, onClose, onSelect }: AddProductModalP
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   container: { 
     height: '90%', 
-    backgroundColor: Colors.background, 
+    backgroundColor: colors.background, 
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32,
     padding: 24
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.white, textTransform: 'uppercase', letterSpacing: 0.5 },
+  title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, textTransform: 'uppercase', letterSpacing: 0.5 },
   closeBtn: { padding: 4 },
 
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 52,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.border,
     marginBottom: 20
   },
-  searchInput: { flex: 1, color: Colors.white, marginLeft: 12, fontSize: 16 },
+  searchInput: { flex: 1, color: colors.textPrimary, marginLeft: 12, fontSize: 16 },
 
   list: { paddingBottom: 40 },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.cardBg,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.border,
     alignItems: 'center'
   },
   productInfo: { flex: 1 },
-  productName: { fontSize: 16, fontWeight: '700', color: Colors.white, marginBottom: 2 },
-  productSku: { fontSize: 12, color: Colors.textMuted, marginBottom: 8 },
+  productName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  productSku: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
   priceRow: { flexDirection: 'row', gap: 12 },
   priceTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  priceLabel: { fontSize: 11, fontWeight: '800', color: Colors.textSecondary },
-  priceValue: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  priceLabel: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
+  priceValue: { fontSize: 13, fontWeight: '700', color: colors.accent },
 
   stockInfo: { 
     alignItems: 'center', 
-    backgroundColor: Colors.background, 
+    backgroundColor: colors.surface, 
     paddingHorizontal: 12, 
     paddingVertical: 8, 
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.cardBorder
+    borderColor: colors.border
   },
-  stockLabel: { fontSize: 9, fontWeight: '900', color: Colors.textSecondary, marginBottom: 2 },
-  stockValue: { fontSize: 18, fontWeight: '900', color: Colors.white },
+  stockLabel: { fontSize: 9, fontWeight: '900', color: colors.textSecondary, marginBottom: 2 },
+  stockValue: { fontSize: 18, fontWeight: '900', color: colors.textPrimary },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100, opacity: 0.5 },
-  emptyText: { color: Colors.white, marginTop: 16, fontSize: 14, fontWeight: '600' }
+  emptyText: { color: colors.textPrimary, marginTop: 16, fontSize: 14, fontWeight: '600' }
 });

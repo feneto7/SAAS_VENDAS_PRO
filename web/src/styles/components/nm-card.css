@@ -1,0 +1,189 @@
+/**
+ * Neumorphic Cards & Panels — nm-card.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Card Base ───────────────────────────────── */
+.nm-card {
+  background: var(--nm-surface);
+  border-radius: var(--nm-radius-xs);
+  border: 1px solid var(--nm-border);
+  padding: 1.5rem;
+  position: relative;
+  transition:
+    box-shadow var(--nm-transition),
+    border-color var(--nm-transition),
+    transform var(--nm-transition);
+}
+
+
+
+.nm-card:hover {
+  box-shadow:
+    0 12px 32px var(--nm-shadow-base),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Variantes ───────────────────────────────── */
+
+.nm-card--inset {
+  background: var(--nm-surface-deep);
+}
+
+.nm-card--inset:hover {
+  box-shadow: var(--nm-shadow-inset);
+  transform: none;
+}
+
+/* Flat — sem relevo */
+.nm-card--flat {
+  box-shadow: none;
+  background: var(--nm-surface);
+  border-color: var(--nm-border);
+}
+
+.nm-card--flat:hover {
+  box-shadow: var(--nm-shadow-flat);
+  transform: none;
+}
+
+/* Glow — com luz accent */
+.nm-card--glow {
+  box-shadow: var(--nm-shadow-glow);
+  border-color: var(--nm-border-accent);
+}
+
+.nm-card--glow::after {
+  content: '';
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 60px;
+  background: var(--nm-accent-glow);
+  filter: blur(24px);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.nm-card--glow:hover {
+  box-shadow:
+    0 12px 32px var(--nm-shadow-base),
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 0 32px var(--nm-accent-glow),
+    0 0 64px var(--nm-accent-glow-lg);
+}
+
+/* Interactive / Clickable */
+.nm-card--interactive {
+  cursor: pointer;
+}
+
+.nm-card--interactive:active {
+  box-shadow: var(--nm-shadow-inset);
+  transform: scale(0.99);
+}
+
+/* ── Tamanhos / Padding ──────────────────────── */
+.nm-card--sm  { padding: 1rem; border-radius: var(--nm-radius-xs); }
+.nm-card--lg  { padding: 2rem; border-radius: var(--nm-radius-sm); }
+.nm-card--xl  { padding: 2.5rem; border-radius: var(--nm-radius-md); }
+
+/* ── Card Header ─────────────────────────────── */
+.nm-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--nm-border);
+}
+
+.nm-card__title {
+  font-size: var(--nm-text-lg);
+  font-weight: var(--nm-font-bold);
+  color: var(--nm-text-primary);
+  letter-spacing: var(--nm-tracking-tight);
+}
+
+.nm-card__subtitle {
+  font-size: var(--nm-text-sm);
+  color: var(--nm-text-secondary);
+  margin-top: 0.2rem;
+}
+
+/* ── Card Footer ─────────────────────────────── */
+.nm-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--nm-border);
+}
+
+/* ── Stat Card ───────────────────────────────── */
+.nm-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--nm-surface);
+  border-radius: var(--nm-radius-xs);
+  border: 1px solid var(--nm-border);
+  padding: 1.25rem 1.5rem;
+  position: relative;
+  transition: box-shadow var(--nm-transition), transform var(--nm-transition);
+}
+
+
+
+.nm-stat-card:hover {
+  box-shadow: var(--nm-shadow-glow);
+  border-color: var(--nm-border-accent);
+}
+
+.nm-stat-card__label {
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--nm-tracking-widest);
+  color: var(--nm-text-muted);
+}
+
+.nm-stat-card__value {
+  font-size: var(--nm-text-3xl);
+  font-weight: var(--nm-font-black);
+  color: var(--nm-text-primary);
+  letter-spacing: var(--nm-tracking-tight);
+  line-height: 1;
+}
+
+.nm-stat-card__value--accent {
+  color: var(--nm-accent);
+}
+
+.nm-stat-card__delta {
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-semibold);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nm-stat-card__delta--up   { color: var(--nm-success); }
+.nm-stat-card__delta--down { color: var(--nm-danger); }
+
+/* ── Painel flutuante ─────────────────────────── */
+.nm-panel {
+  background: var(--nm-surface);
+  border-radius: var(--nm-radius-2xl);
+  border: 1px solid var(--nm-border);
+  box-shadow:
+    0 16px 40px var(--nm-shadow-base),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+}

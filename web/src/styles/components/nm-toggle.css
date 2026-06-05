@@ -1,0 +1,217 @@
+/**
+ * Neumorphic Toggles & Switches — nm-toggle.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Switch Base ─────────────────────────────── */
+.nm-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nm-switch__track {
+  position: relative;
+  width: 3rem;
+  height: 1.6rem;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: var(--nm-radius-full);
+  box-shadow: var(--nm-shadow-inset);
+  transition:
+    background var(--nm-transition),
+    box-shadow var(--nm-transition),
+    border-color var(--nm-transition);
+  flex-shrink: 0;
+}
+
+.nm-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 1.15rem;
+  height: 1.15rem;
+  background: var(--nm-surface-raised);
+  border-radius: 50%;
+  box-shadow:
+    3px 3px 7px var(--nm-shadow-dark),
+    -2px -2px 5px var(--nm-shadow-light);
+  transition:
+    transform var(--nm-transition),
+    background var(--nm-transition),
+    box-shadow var(--nm-transition);
+}
+
+/* Estado ON */
+.nm-switch--on .nm-switch__track {
+  background: var(--nm-accent-glow);
+  border-color: var(--nm-border-accent);
+  box-shadow:
+    inset 4px 4px 8px rgba(0,0,0,0.2),
+    inset -2px -2px 5px rgba(255,255,255,0.04),
+    0 0 16px var(--nm-accent-glow);
+}
+
+.nm-switch--on .nm-switch__thumb {
+  transform: translateX(1.4rem);
+  background: var(--nm-gradient-accent);
+  box-shadow:
+    2px 2px 5px var(--nm-shadow-dark),
+    0 0 12px var(--nm-accent-glow);
+}
+
+/* Label */
+.nm-switch__label {
+  font-size: var(--nm-text-base);
+  font-weight: var(--nm-font-medium);
+  color: var(--nm-text-secondary);
+  transition: color var(--nm-transition-fast);
+}
+
+.nm-switch--on .nm-switch__label {
+  color: var(--nm-accent);
+}
+
+/* ── Switch Grande / ON label ─────────────────── */
+.nm-switch--lg .nm-switch__track {
+  width: 4.5rem;
+  height: 2.1rem;
+}
+
+.nm-switch--lg .nm-switch__thumb {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.nm-switch--lg.nm-switch--on .nm-switch__thumb {
+  transform: translateX(2.3rem);
+}
+
+/* Texto ON/OFF dentro da track */
+.nm-switch__track-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.5rem;
+  font-weight: var(--nm-font-black);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--nm-text-muted);
+  pointer-events: none;
+  transition: all var(--nm-transition);
+  right: 0.45rem;
+}
+
+.nm-switch--on .nm-switch__track-label {
+  right: auto;
+  left: 0.45rem;
+  color: var(--nm-accent);
+}
+
+/* ── Toggle Circular (Knob) ──────────────────── */
+.nm-knob {
+  position: relative;
+  width: 2.75rem;
+  height: 2.75rem;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  border-radius: 50%;
+  box-shadow: var(--nm-shadow-raised);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    box-shadow var(--nm-transition),
+    transform var(--nm-transition-fast);
+}
+
+.nm-knob:hover {
+  box-shadow: var(--nm-shadow-flat);
+}
+
+.nm-knob:active,
+.nm-knob--pressed {
+  box-shadow: var(--nm-shadow-inset);
+  transform: scale(0.96);
+}
+
+.nm-knob--active {
+  box-shadow: var(--nm-shadow-glow);
+  border-color: var(--nm-border-accent);
+  color: var(--nm-accent);
+}
+
+.nm-knob--sm {
+  width: 2rem;
+  height: 2rem;
+}
+
+.nm-knob--lg {
+  width: 4rem;
+  height: 4rem;
+}
+
+.nm-knob--xl {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+/* Inner ring do knob */
+.nm-knob__inner {
+  width: 65%;
+  height: 65%;
+  background: var(--nm-surface);
+  border-radius: 50%;
+  box-shadow: var(--nm-shadow-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow var(--nm-transition);
+}
+
+.nm-knob--active .nm-knob__inner {
+  box-shadow:
+    inset 3px 3px 7px var(--nm-shadow-dark),
+    inset -2px -2px 5px var(--nm-shadow-light),
+    0 0 14px var(--nm-accent-glow);
+  color: var(--nm-accent);
+}
+
+/* ── Grupo de Toggles ────────────────────────── */
+.nm-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--nm-surface);
+  padding: 0.35rem;
+  border-radius: var(--nm-radius-lg);
+  box-shadow: var(--nm-shadow-inset);
+  border: 1px solid var(--nm-border);
+}
+
+.nm-toggle-group__item {
+  flex: 1;
+  padding: 0.45rem 0.9rem;
+  font-size: var(--nm-text-sm);
+  font-weight: var(--nm-font-semibold);
+  color: var(--nm-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--nm-radius-md);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    all var(--nm-transition);
+}
+
+.nm-toggle-group__item:hover {
+  color: var(--nm-text-primary);
+}
+
+.nm-toggle-group__item--active {
+  background: var(--nm-surface-raised);
+  color: var(--nm-accent);
+  box-shadow: var(--nm-shadow-raised);
+}

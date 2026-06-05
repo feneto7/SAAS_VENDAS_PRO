@@ -67,7 +67,7 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password && formData.password !== formData.confirmPassword) {
-      toast.error('As senhas não coincidem!');
+      alert('As senhas não coincidem!');
       return;
     }
 
@@ -111,77 +111,93 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-[#050505]/95 backdrop-blur-md transition-opacity duration-300 animate-in fade-in" 
-        onClick={onClose} 
-      />
-      
-      <div className="relative bg-zinc-950 border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl w-full max-w-xl h-[95vh] sm:h-auto sm:max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500 ease-out">
-        {/* Mobile drag handle */}
-        <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden shrink-0" />
+    <div className="nm-modal-backdrop" onClick={onClose}>
+      <div className="nm-modal nm-modal--lg" onClick={(e) => e.stopPropagation()}>
 
-        <div className="flex items-center justify-between p-6 sm:p-8 border-b border-white/5 shrink-0">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
-                <User className="text-emerald-400" size={20} />
+        <header className="nm-modal__header">
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+             <div className="nm-icon-circle nm-icon-circle--success nm-icon-circle--lg">
+                <User size={20} />
              </div>
              <div>
-               <h2 className="text-xl font-bold text-white tracking-tight">
+               <h2 className="nm-modal__title">
                 {employee ? 'Editar Cadastro' : 'Novo Funcionário'}
                </h2>
-               <p className="text-xs text-zinc-500 italic">Configure o acesso mobile.</p>
+               <p className="nm-modal__subtitle" style={{ textTransform: "uppercase", fontWeight: "bold", fontSize: "10px" }}>
+                 Configure o acesso mobile.
+               </p>
              </div>
           </div>
-          <button onClick={onClose} className="p-2 text-zinc-500 hover:text-white transition-colors">
-            <X size={24} />
+          <button type="button" onClick={onClose} className="nm-modal__close">
+            <X size={18} />
           </button>
-        </div>
+        </header>
 
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
+        <form onSubmit={handleSubmit} className="nm-modal__body custom-scrollbar">
           <div className="space-y-6">
-            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-6">
-               <div className="flex items-center gap-2 text-emerald-400 border-b border-white/5 pb-3">
-                <User size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/80">Identificação</span>
+            <div className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+               <div className="flex items-center gap-2 mb-4">
+                <User size={16} className="nm-text-accent" />
+                <span className="nm-heading">Identificação</span>
               </div>
 
               <div className="space-y-4">
                 {/* Nome */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+                  <label className="nm-input-group__label mb-1">
                     Nome Completo <span className="text-emerald-500">*</span>
                   </label>
                   <input
                     required
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="nm-input"
                     placeholder="Ex: João da Silva"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+                    <label className="nm-input-group__label mb-1">
                       Perfil de Acesso
                     </label>
-                    <div className="flex bg-zinc-900/50 rounded-2xl p-1 border border-white/5">
+                    <div 
+                      className="nm-input" 
+                      style={{ padding: "0.25rem", display: "flex", gap: "0.25rem" }}
+                    >
                       <button 
                         type="button"
                         onClick={() => setFormData({ ...formData, role: 'seller' })}
-                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                          formData.role === 'seller' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-white'
-                        }`}
+                        style={{
+                           flex: 1,
+                           borderRadius: "calc(var(--nm-radius) - 4px)",
+                           fontSize: "10px",
+                           fontWeight: "bold",
+                           textTransform: "uppercase",
+                           letterSpacing: "0.1em",
+                           transition: "all 0.2s",
+                           backgroundColor: formData.role === 'seller' ? "var(--nm-accent)" : "transparent",
+                           color: formData.role === 'seller' ? "#fff" : "var(--nm-text-muted)",
+                           boxShadow: formData.role === 'seller' ? "var(--nm-shadow-sm)" : "none",
+                        }}
                       >
                         Vendedor
                       </button>
                       <button 
                         type="button"
                         onClick={() => setFormData({ ...formData, role: 'admin' })}
-                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                          formData.role === 'admin' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'text-zinc-500 hover:text-white'
-                        }`}
+                        style={{
+                           flex: 1,
+                           borderRadius: "calc(var(--nm-radius) - 4px)",
+                           fontSize: "10px",
+                           fontWeight: "bold",
+                           textTransform: "uppercase",
+                           letterSpacing: "0.1em",
+                           transition: "all 0.2s",
+                           backgroundColor: formData.role === 'admin' ? "var(--nm-accent)" : "transparent",
+                           color: formData.role === 'admin' ? "#fff" : "var(--nm-text-muted)",
+                           boxShadow: formData.role === 'admin' ? "var(--nm-shadow-sm)" : "none",
+                        }}
                       >
                         Administrador
                       </button>
@@ -190,14 +206,14 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
 
                   {/* Código App */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+                    <label className="nm-input-group__label mb-1">
                       Código App (Mobile)
                     </label>
                     <input
                       required
                       value={formData.appCode}
                       onChange={e => setFormData({ ...formData, appCode: e.target.value })}
-                      className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono"
+                      className="nm-input font-mono"
                       placeholder="Ex: 1001"
                     />
                   </div>
@@ -205,29 +221,29 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
               </div>
             </div>
 
-            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-3xl space-y-5">
-              <div className="flex items-center gap-2 text-zinc-400 border-b border-white/5 pb-3">
-                <Smartphone size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Contato e Acesso Web</span>
+            <div className="nm-card nm-card--sm" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <Smartphone size={16} className="nm-text-accent" />
+                <span className="nm-heading">Contato e Acesso Web</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Celular</label>
+                  <label className="nm-input-group__label mb-1">Celular</label>
                   <input
                     value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="nm-input"
                     placeholder="(00) 00000-0000"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Email (Login Web)</label>
+                  <label className="nm-input-group__label mb-1">Email (Login Web)</label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="nm-input"
                     placeholder="vendedor@empresa.com"
                   />
                 </div>
@@ -236,37 +252,37 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
               {/* Password Fields - Unified */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest ml-1">
+                  <label className="nm-input-group__label mb-1" style={{ color: "var(--nm-accent)" }}>
                     Senha de Acesso <span className="text-emerald-500">*</span>
                   </label>
-                  <div className="relative">
-                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
+                  <div className="nm-input-group nm-input-group--with-icon">
+                    <Key className="nm-input-group__icon" size={16} />
                     <input
                       required={!employee}
                       type="password"
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-inner"
+                      className="nm-input"
                       placeholder={employee ? "••••••••" : "Senha"}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest ml-1">
+                  <label className="nm-input-group__label mb-1" style={{ color: "var(--nm-accent)" }}>
                     Confirmar Senha <span className="text-emerald-500">*</span>
                   </label>
-                  <div className="relative">
-                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
+                  <div className="nm-input-group nm-input-group--with-icon">
+                    <Key className="nm-input-group__icon" size={16} />
                     <input
                       required={!employee || formData.password !== ''}
                       type="password"
                       value={formData.confirmPassword}
                       onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className={`w-full bg-zinc-900/50 border rounded-2xl py-3.5 pl-12 pr-4 text-white focus:outline-none focus:ring-2 transition-all shadow-inner ${
+                      className={`nm-input ${
                         formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword 
-                          ? 'border-red-500/50 focus:ring-red-500/20' 
-                          : 'border-white/5 focus:ring-emerald-500/20'
+                          ? 'nm-input--error' 
+                          : ''
                       }`}
                       placeholder={employee ? "••••••••" : "Repita a senha"}
                     />
@@ -302,14 +318,15 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
 
               {/* Seletor de Rotas */}
               <div className="space-y-2 pt-2">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Rotas Designadas</label>
+                <label className="nm-input-group__label mb-1">Rotas Designadas</label>
                 <div className="relative">
                   <div 
-                    className="min-h-[56px] bg-zinc-900/50 border border-white/5 rounded-2xl p-3 cursor-pointer flex flex-wrap gap-2 pr-10 items-center transition-all hover:bg-white/[0.04]"
+                    className="nm-input"
+                    style={{ minHeight: "38px", height: "auto", cursor: "pointer", display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", paddingRight: "2.5rem" }}
                     onClick={() => setIsRouteSelectOpen(!isRouteSelectOpen)}
                   >
                     {formData.routeIds.length === 0 && (
-                      <span className="text-zinc-600 text-sm pl-1">Vincule rotas de venda...</span>
+                      <span className="text-zinc-500" style={{ fontSize: "var(--nm-text-sm)" }}>Vincule rotas de venda...</span>
                     )}
                     {formData.routeIds.map(rid => {
                       const rName = routes.find(r => r.id === rid)?.name || rid;
@@ -333,9 +350,9 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                   </div>
 
                   {isRouteSelectOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-2 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl max-h-56 overflow-y-auto z-20 p-2 custom-scrollbar animate-in slide-in-from-top-2 duration-200">
+                    <div className="absolute left-0 right-0 top-full mt-1 nm-card nm-card--sm z-[99] max-h-56 overflow-y-auto p-2 custom-scrollbar animate-in slide-in-from-top-2 duration-200">
                       {routes.length === 0 && (
-                        <div className="p-4 text-zinc-600 text-xs italic text-center">Nenhuma rota ativa cadastrada.</div>
+                        <div className="p-4 text-zinc-500 text-xs italic text-center">Nenhuma rota ativa cadastrada.</div>
                       )}
                       {routes.map(r => {
                         const isSelected = formData.routeIds.includes(r.id);
@@ -343,12 +360,12 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
                           <div 
                             key={r.id}
                             onClick={() => toggleRoute(r.id)}
-                            className={`flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition-all mb-1 last:mb-0 ${
-                              isSelected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                            className={`flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all mb-1 last:mb-0 cursor-pointer ${
+                              isSelected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-500' : 'bg-zinc-800'}`} />
+                              <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-500' : 'bg-white/10'}`} />
                               {r.name}
                             </div>
                             {isSelected && <Check size={16} />}
@@ -362,24 +379,13 @@ export default function EmployeeModal({ isOpen, onClose, onSuccess, employee, se
           </div>
         </form>
 
-        <footer className="relative px-6 py-6 sm:px-8 sm:py-6 bg-zinc-950 border-t border-white/5 flex gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="hidden sm:block flex-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold py-4 rounded-2xl transition-all"
-          >
+        <footer className="nm-modal__footer">
+          <button type="button" onClick={onClose} className="nm-btn nm-btn--flat" style={{ flex: 1 }}>
             Cancelar
           </button>
-          <button
-            disabled={loading}
-            onClick={handleSubmit}
-            className="flex-[2] bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            ) : (
-              <><Save size={20} /> Finalizar Cadastro</>
-            )}
+          <button disabled={loading} onClick={handleSubmit} type="button" className="nm-btn nm-btn--success" style={{ flex: 1 }}>
+            {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
+            Finalizar Cadastro
           </button>
         </footer>
       </div>

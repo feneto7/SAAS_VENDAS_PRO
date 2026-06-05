@@ -49,10 +49,10 @@ export function ClientDetailView({ clientId, clientName, serverUrl, tenantSlug, 
   }, [clientId]);
 
   const stats = data?.stats || { totalSold: 0, totalPaid: 0, totalPending: 0, totalRemaining: 0 };
-  const fichas = data?.fichas || [];
+  const cards = data?.cards || [];
   const counts = data?.counts || { novas: 0, pendentes: 0, pagas: 0, pedidos: 0, link_gerado: 0 };
 
-  const filteredFichas = fichas.filter((f: any) => {
+  const filteredFichas = cards.filter((f: any) => {
     if (activeTab === "pendentes") return f.status === "pendente" || f.status === "link_gerado";
     if (activeTab === "novas") return f.status === "nova";
     if (activeTab === "pagas") return f.status === "paga";
@@ -154,7 +154,7 @@ export function ClientDetailView({ clientId, clientName, serverUrl, tenantSlug, 
             {filteredFichas.length === 0 ? (
               <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-16 flex flex-col items-center justify-center text-center">
                 <FileText size={40} className="text-gray-700 mb-3" />
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Nenhuma ficha encontrada nesta categoria</p>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Nenhuma card encontrada nesta categoria</p>
               </div>
             ) : (
               filteredFichas.map((f: any) => (

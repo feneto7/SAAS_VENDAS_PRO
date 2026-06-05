@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity, 
   ActivityIndicator, SafeAreaView, StatusBar 
 } from 'react-native';
-import { Colors, GlobalStyles, UI } from '../../theme/theme';
+import { getGlobalStyles, getUIStyles } from '../../theme/theme';
+import { useTheme } from '../../stores/useThemeStore';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { ChevronLeft, Receipt, Calendar, ArrowRight, Plus } from 'lucide-react-native';
@@ -17,6 +18,11 @@ export const ChargesScreen = () => {
   const [charges, setCharges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+
+  const { colors, isDark } = useTheme();
+  const GlobalStyles = useMemo(() => getGlobalStyles(colors), [colors]);
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   useEffect(() => {
     if (routeId) {
@@ -43,7 +49,7 @@ export const ChargesScreen = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
-          const res = await fetch(`${API_URL}/api/routes/${routeId}/cobrancas`, {
+          const res = await fetch(`${API_URL}/api/routes/${routeId}/collections`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'x-tenant-slug': tenantSlug
@@ -98,7 +104,7 @@ export const ChargesScreen = () => {
       const user = useAuthStore.getState().user;
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.3.5:3001';
 
-      const res = await fetch(`${API_URL}/api/routes/${routeId}/cobrancas`, {
+      const res = await fetch(`${API_URL}/api/routes/${routeId}/collections`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -130,22 +136,20 @@ export const ChargesScreen = () => {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'aberta': return Colors.success;
-      case 'encerrada': return Colors.textMuted;
-      default: return Colors.primary;
+      case 'aberta': return colors.success;
+      case 'encerrada': return colors.textMuted;
+      default: return colors.accent;
     }
   };
 
   return (
     <SafeAreaView style={GlobalStyles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} pointerEvents="none" />
-      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       <View style={styles.content}>
         <View style={styles.header}>
           <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.7}>
-            <ChevronLeft color={Colors.white} size={24} />
+            <ChevronLeft color={colors.textPrimary} size={24} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
             <Text style={styles.title}>Cobranças</Text>
@@ -156,7 +160,7 @@ export const ChargesScreen = () => {
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={Colors.primary} />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : (
           <>
@@ -166,7 +170,7 @@ export const ChargesScreen = () => {
               contentContainerStyle={styles.listContent}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Receipt size={48} color={Colors.cardBorder} />
+                  <Receipt size={48} color={colors.border} />
                   <Text style={styles.emptyText}>Nenhuma cobrança recente.</Text>
                   <Text style={styles.emptySub}>Esta rota ainda não possui histórico de cobranças registradas.</Text>
                 </View>
@@ -191,7 +195,7 @@ export const ChargesScreen = () => {
                     <View style={styles.chargeInfo}>
                       <Text style={styles.chargeName}>{item.client_name}</Text>
                       <View style={styles.dateRow}>
-                        <Calendar size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                        <Calendar size={14} color={colors.textSecondary} style={{ marginRight: 4 }} />
                         <Text style={styles.chargeDate}>{formatDate(item.due_date)}</Text>
                         <View style={styles.dot} />
                         <Text style={[styles.chargeStatus, { color: getStatusColor(item.status) }]}>
@@ -199,7 +203,7 @@ export const ChargesScreen = () => {
                         </Text>
                       </View>
                     </View>
-                    {!isClosed && <ArrowRight size={20} color={Colors.textMuted} />}
+                    {!isClosed && <ArrowRight size={20} color={colors.textMuted} />}
                   </TouchableOpacity>
                 );
               }}
@@ -212,10 +216,10 @@ export const ChargesScreen = () => {
               activeOpacity={0.8}
             >
               {creating ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color={colors.buttonText} />
               ) : (
                 <>
-                  <Plus size={20} color={Colors.white} strokeWidth={3} />
+                  <Plus size={20} color={colors.buttonText} strokeWidth={3} />
                   <Text style={styles.newBtnText}>Nova Cobrança</Text>
                 </>
               )}
@@ -227,25 +231,25 @@ export const ChargesScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
-  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   headerTitleBox: { alignItems: 'center' },
-  title: { fontSize: 18, fontWeight: '800', color: Colors.white, letterSpacing: 0.5, textTransform: 'uppercase' },
-  subtitle: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  title: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, letterSpacing: 0.5, textTransform: 'uppercase' },
+  subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingBottom: 20 },
   statusIndicator: { width: 4, height: 32, borderRadius: 2, marginRight: 16 },
   chargeInfo: { flex: 1 },
-  chargeName: { fontSize: 17, fontWeight: '700', color: Colors.white, marginBottom: 6 },
+  chargeName: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
   dateRow: { flexDirection: 'row', alignItems: 'center' },
-  chargeDate: { fontSize: 13, color: Colors.textSecondary },
-  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.borderLight, marginHorizontal: 8 },
+  chargeDate: { fontSize: 13, color: colors.textSecondary },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, marginHorizontal: 8 },
   chargeStatus: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   emptyContainer: { alignItems: 'center', marginTop: 80, opacity: 0.7 },
-  emptyText: { color: Colors.white, fontSize: 16, fontWeight: '600', marginTop: 16 },
-  emptySub: { color: Colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 20, paddingHorizontal: 40 },
+  emptyText: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', marginTop: 16 },
+  emptySub: { color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 20, paddingHorizontal: 40 },
   newBtn: { marginBottom: 20, gap: 10 },
-  newBtnText: { color: Colors.white, fontSize: 17, fontWeight: '800' }
+  newBtnText: { color: colors.buttonText, fontSize: 17, fontWeight: '800' }
 });

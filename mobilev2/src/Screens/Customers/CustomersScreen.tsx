@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity, 
   TextInput, ActivityIndicator, SafeAreaView, StatusBar 
 } from 'react-native';
-import { Colors, GlobalStyles, UI, Shadows } from '../../theme/theme';
+import { getGlobalStyles, getUIStyles, Shadows } from '../../theme/theme';
+import { useTheme } from '../../stores/useThemeStore';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { 
@@ -17,7 +18,8 @@ const PAGE_SIZE = 20;
 
 export const CustomersScreen = () => {
   const { navigate, goBack, currentParams } = useNavigationStore();
-  const { routeId, routeName } = currentParams || {};
+  const { routeId, routeName, chargeId, collectionId } = currentParams || {};
+  const activeChargeId = collectionId || chargeId;
 
   const [customers, setCustomers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -26,6 +28,11 @@ export const CustomersScreen = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+  const { colors, isDark } = useTheme();
+  const GlobalStyles = useMemo(() => getGlobalStyles(colors), [colors]);
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   // Carregar inicial ao montar ou trocar rota
   useEffect(() => {
@@ -92,12 +99,21 @@ export const CustomersScreen = () => {
               await db.withTransactionAsync(async () => {
                 for (const c of serverItems) {
                   await db.runAsync(
-                    `INSERT INTO clients (id, code, name, cpf, phone, street, number, neighborhood, city, state, zip_code, route_id, active) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                    `INSERT INTO clients (
+                      id, code, name, cpf, phone, street, number, neighborhood, 
+                      city, state, zip_code, route_id, active, 
+                      nickname, reference_point, phone2, comment
+                    ) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
                      ON CONFLICT(id) DO UPDATE SET 
                      name=excluded.name, phone=excluded.phone, active=excluded.active, 
-                     street=excluded.street, neighborhood=excluded.neighborhood, city=excluded.city, code=excluded.code`,
-                    [c.id, String(c.code), c.name, c.cpf, c.phone, c.street, c.number, c.neighborhood, c.city, c.state, c.zipCode, routeId, c.active ? 1 : 0]
+                     street=excluded.street, neighborhood=excluded.neighborhood, city=excluded.city, code=excluded.code,
+                     nickname=excluded.nickname, reference_point=excluded.reference_point, phone2=excluded.phone2, comment=excluded.comment`,
+                    [
+                      c.id, String(c.code), c.name, c.cpf, c.phone, c.street, c.number, c.neighborhood, 
+                      c.city, c.state, c.zipCode, routeId, c.active ? 1 : 0,
+                      c.nickname, c.referencePoint || c.reference_point, c.phone2, c.comment
+                    ]
                   );
                 }
               });
@@ -163,7 +179,8 @@ export const CustomersScreen = () => {
         clientId: item.id, 
         clientName: item.name,
         routeId: item.routeId || routeId,
-        routeName
+        routeName,
+        collectionId: activeChargeId
       })}
     >
       <View style={styles.clientInfo}>
@@ -183,7 +200,7 @@ export const CustomersScreen = () => {
 
         {item.phone && (
           <View style={styles.phoneRow}>
-            <Phone size={12} color={Colors.textSecondary} style={{ marginRight: 6 }} />
+            <Phone size={12} color={colors.textSecondary} style={{ marginRight: 6 }} />
             <Text style={styles.phoneText}>{item.phone}</Text>
           </View>
         )}
@@ -193,15 +210,13 @@ export const CustomersScreen = () => {
 
   return (
     <SafeAreaView style={GlobalStyles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      <View style={GlobalStyles.glowTop} pointerEvents="none" />
-      <View style={GlobalStyles.glowBottom} pointerEvents="none" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.7}>
-            <ChevronLeft color={Colors.white} size={24} />
+            <ChevronLeft color={colors.textPrimary} size={24} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
             <Text style={styles.title}>Clientes da Rota</Text>
@@ -213,11 +228,11 @@ export const CustomersScreen = () => {
         {/* Search Input */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputWrapper}>
-            <Search color={Colors.textMuted} size={20} style={styles.searchIcon} />
+            <Search color={colors.textMuted} size={20} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar por nome..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={search}
               onChangeText={setSearch}
               onSubmitEditing={() => loadCustomers(1, true, search)}
@@ -227,7 +242,7 @@ export const CustomersScreen = () => {
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={Colors.primary} />
+            <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.loadingText}>Carregando clientes...</Text>
           </View>
         ) : (
@@ -240,7 +255,7 @@ export const CustomersScreen = () => {
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <FilterX size={64} color={Colors.cardBorder} />
+                <FilterX size={64} color={colors.border} />
                 <Text style={styles.emptyText}>Nenhum cliente encontrado.</Text>
                 <Text style={styles.emptySub}>Tente ajustar sua busca ou verifique se há clientes vinculados a esta rota.</Text>
               </View>
@@ -248,7 +263,7 @@ export const CustomersScreen = () => {
             ListFooterComponent={
               loadingMore ? (
                 <View style={styles.footerLoader}>
-                  <ActivityIndicator color={Colors.primary} />
+                  <ActivityIndicator color={colors.accent} />
                 </View>
               ) : null
             }
@@ -262,13 +277,14 @@ export const CustomersScreen = () => {
         activeOpacity={0.8}
         onPress={() => setIsAddModalVisible(true)}
       >
-        <Plus color={Colors.white} size={32} />
+        <Plus color={colors.white} size={32} />
       </TouchableOpacity>
 
       <AddCustomerModal 
         visible={isAddModalVisible}
         onClose={() => setIsAddModalVisible(false)}
         routeId={routeId}
+        chargeId={activeChargeId}
         onSuccess={() => loadCustomers(1, true)}
       />
 
@@ -276,21 +292,21 @@ export const CustomersScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
-  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.cardBg, borderWidth: 1, borderColor: Colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   headerTitleBox: { alignItems: 'center' },
-  title: { fontSize: 18, fontWeight: '800', color: Colors.white, letterSpacing: 0.5, textTransform: 'uppercase' },
-  subtitle: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  title: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, letterSpacing: 0.5, textTransform: 'uppercase' },
+  subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   
   searchContainer: { marginBottom: 24 },
   searchInputWrapper: {
     height: 52,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: colors.inputBg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.inputBorder,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -298,7 +314,7 @@ const styles = StyleSheet.create({
   searchIcon: { marginRight: 12 },
   searchInput: {
     flex: 1,
-    color: Colors.white,
+    color: colors.textInput,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -314,13 +330,13 @@ const styles = StyleSheet.create({
   clientName: { 
     fontSize: 18, 
     fontWeight: '800', 
-    color: Colors.textPrimary, 
+    color: colors.textPrimary, 
     flex: 1 
   },
   clientCode: { 
     fontSize: 14, 
     fontWeight: '700', 
-    color: Colors.textSecondary, 
+    color: colors.textSecondary, 
     marginLeft: 12 
   },
   addressBox: { 
@@ -329,7 +345,7 @@ const styles = StyleSheet.create({
   },
   addressText: { 
     fontSize: 14, 
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
     lineHeight: 20
   },
@@ -340,15 +356,15 @@ const styles = StyleSheet.create({
   },
   phoneText: { 
     fontSize: 14, 
-    color: Colors.textSecondary, 
+    color: colors.textSecondary, 
     fontWeight: '600' 
   },
   
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: Colors.textSecondary, marginTop: 12, fontWeight: '500' },
+  loadingText: { color: colors.textSecondary, marginTop: 12, fontWeight: '500' },
   emptyContainer: { alignItems: 'center', marginTop: 80, opacity: 0.7 },
-  emptyText: { color: Colors.white, fontSize: 16, fontWeight: '600', marginTop: 24 },
-  emptySub: { color: Colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 20, paddingHorizontal: 40 },
+  emptyText: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', marginTop: 24 },
+  emptySub: { color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 20, paddingHorizontal: 40 },
   footerLoader: { paddingVertical: 20, alignItems: 'center' },
   
   fab: {
@@ -358,7 +374,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.black,

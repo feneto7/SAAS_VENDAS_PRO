@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo,  useState, useEffect } from 'react';
 import { 
   View, Text, Modal, StyleSheet, TouchableOpacity, 
   KeyboardAvoidingView, Platform, ScrollView, Alert 
 } from 'react-native';
 import { X, Percent, DollarSign, Check } from 'lucide-react-native';
-import { Colors, Shadows, UI } from '../../../theme/theme';
+import { useTheme } from '../../../stores/useThemeStore';
+import { Shadows, getUIStyles } from '../../../theme/theme';
 import { Input } from '../../../components/ui/Input';
 import { db } from '../../../services/database';
 import { SyncService } from '../../../services/syncService';
@@ -21,6 +22,10 @@ interface Props {
 }
 
 export const EditCommissionModal = ({ visible, onClose, onSave, cardId, totalCC, currentPercent }: Props) => {
+  const { colors, isDark } = useTheme();
+  const UI = useMemo(() => getUIStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   const [percent, setPercent] = useState('');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,7 +107,7 @@ export const EditCommissionModal = ({ visible, onClose, onSave, cardId, totalCC,
                 <Text style={styles.subtitle}>Margem sobre Produtos CC</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <X color={Colors.textSecondary} size={24} />
+                <X color={colors.textSecondary} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -144,7 +149,7 @@ export const EditCommissionModal = ({ visible, onClose, onSave, cardId, totalCC,
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  style={[UI.button, { backgroundColor: Colors.primary }]}
+                  style={[UI.button, { backgroundColor: colors.accent }]}
                   onPress={handleSave}
                   disabled={loading}
                 >
@@ -152,7 +157,7 @@ export const EditCommissionModal = ({ visible, onClose, onSave, cardId, totalCC,
                     <Text style={UI.buttonText}>Salvando...</Text>
                   ) : (
                     <>
-                      <Check size={20} color={Colors.white} style={{ marginRight: 8 }} />
+                      <Check size={20} color={colors.white} style={{ marginRight: 8 }} />
                       <Text style={UI.buttonText}>Confirmar Margem</Text>
                     </>
                   )}
@@ -166,18 +171,17 @@ export const EditCommissionModal = ({ visible, onClose, onSave, cardId, totalCC,
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
   container: { width: '100%' },
   content: { 
-    backgroundColor: Colors.cardSolid, 
+    backgroundColor: colors.cardSolid, 
     borderRadius: 24, 
     padding: 24,
-    ...Shadows.black,
-  },
+    ...Shadows.black},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title: { fontSize: 18, fontWeight: '800', color: Colors.white },
-  subtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  title: { fontSize: 18, fontWeight: '800', color: colors.white },
+  subtitle: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   
   baseInfo: { 
@@ -189,14 +193,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  baseLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
-  baseValue: { fontSize: 14, color: Colors.white, fontWeight: '700' },
+    borderColor: colors.cardBorder},
+  baseLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  baseValue: { fontSize: 14, color: colors.white, fontWeight: '700' },
 
   row: { flexDirection: 'row' },
   
   footer: { marginTop: 10 },
   presetBtn: { alignSelf: 'center', padding: 10, marginBottom: 10 },
-  presetText: { color: Colors.primary, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' }
+  presetText: { color: colors.accent, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' }
 });

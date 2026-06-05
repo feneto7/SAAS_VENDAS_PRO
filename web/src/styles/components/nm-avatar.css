@@ -1,0 +1,226 @@
+/**
+ * Neumorphic Avatars & Icon Circles — nm-avatar.css
+ * Double-Shot Lighting System — VendasPro Web
+ */
+
+/* ── Avatar Base ──────────────────────────────── */
+.nm-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-raised);
+  overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+  font-size: var(--nm-text-base);
+  font-weight: var(--nm-font-bold);
+  color: var(--nm-text-secondary);
+  transition:
+    box-shadow var(--nm-transition),
+    transform var(--nm-transition-fast);
+}
+
+.nm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.nm-avatar:hover {
+  box-shadow: var(--nm-shadow-flat);
+  transform: scale(1.05);
+}
+
+/* ── Tamanhos ─────────────────────────────────── */
+.nm-avatar--xs  { width: 1.75rem; height: 1.75rem; font-size: var(--nm-text-xs); }
+.nm-avatar--sm  { width: 2.25rem; height: 2.25rem; font-size: var(--nm-text-sm); }
+.nm-avatar--md  { width: 2.75rem; height: 2.75rem; }
+.nm-avatar--lg  { width: 3.75rem; height: 3.75rem; font-size: var(--nm-text-xl); }
+.nm-avatar--xl  { width: 5rem;    height: 5rem;    font-size: var(--nm-text-2xl); }
+.nm-avatar--2xl { width: 7rem;    height: 7rem;    font-size: var(--nm-text-4xl); }
+
+/* ── Variantes ───────────────────────────────── */
+
+/* Accent color */
+.nm-avatar--accent {
+  background: var(--nm-gradient-accent);
+  color: #fff;
+  border-color: transparent;
+  box-shadow:
+    4px 4px 10px var(--nm-shadow-dark),
+    -3px -3px 8px var(--nm-shadow-light),
+    0 0 16px var(--nm-accent-glow);
+}
+
+/* Glow */
+.nm-avatar--glow {
+  box-shadow: var(--nm-shadow-glow);
+  border-color: var(--nm-border-accent);
+}
+
+/* Inset */
+.nm-avatar--inset {
+  box-shadow: var(--nm-shadow-inset);
+  border-color: var(--nm-border-subtle);
+}
+
+/* Quadrado arredondado */
+.nm-avatar--rounded {
+  border-radius: var(--nm-radius-md);
+}
+
+.nm-avatar--rounded.nm-avatar--sm { border-radius: var(--nm-radius-sm); }
+.nm-avatar--rounded.nm-avatar--lg { border-radius: var(--nm-radius-lg); }
+.nm-avatar--rounded.nm-avatar--xl { border-radius: var(--nm-radius-xl); }
+
+/* ── Status indicator ────────────────────────── */
+.nm-avatar__status {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  border: 2px solid var(--nm-surface);
+  background: var(--nm-text-muted);
+}
+
+.nm-avatar__status--online  { background: var(--nm-success); box-shadow: 0 0 6px var(--nm-success); }
+.nm-avatar__status--away    { background: var(--nm-warning); }
+.nm-avatar__status--busy    { background: var(--nm-danger); }
+.nm-avatar__status--offline { background: var(--nm-text-muted); }
+
+/* ── Avatar Group ─────────────────────────────── */
+.nm-avatar-group {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+.nm-avatar-group .nm-avatar {
+  margin-left: -0.65rem;
+  box-shadow:
+    0 0 0 2px var(--nm-surface),
+    var(--nm-shadow-raised);
+  transition:
+    transform var(--nm-transition-fast),
+    z-index var(--nm-transition-fast);
+}
+
+.nm-avatar-group .nm-avatar:hover {
+  transform: translateY(-4px) scale(1.08);
+  z-index: 10;
+}
+
+.nm-avatar-group__more {
+  margin-left: -0.65rem;
+  background: var(--nm-surface-deep);
+  color: var(--nm-text-secondary);
+  font-size: var(--nm-text-xs);
+  font-weight: var(--nm-font-bold);
+  box-shadow:
+    0 0 0 2px var(--nm-surface),
+    var(--nm-shadow-raised);
+}
+
+/* ── Icon Circle ──────────────────────────────── */
+.nm-icon-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--nm-surface);
+  border: 1px solid var(--nm-border);
+  box-shadow: var(--nm-shadow-raised);
+  color: var(--nm-text-secondary);
+  flex-shrink: 0;
+  transition:
+    box-shadow var(--nm-transition),
+    color var(--nm-transition),
+    transform var(--nm-transition-fast),
+    border-color var(--nm-transition);
+  cursor: pointer;
+}
+
+.nm-icon-circle:hover {
+  box-shadow: var(--nm-shadow-flat);
+  color: var(--nm-text-primary);
+}
+
+.nm-icon-circle:active {
+  box-shadow: var(--nm-shadow-inset);
+  transform: scale(0.94);
+}
+
+/* Glow */
+.nm-icon-circle--glow {
+  box-shadow: var(--nm-shadow-glow);
+  color: var(--nm-accent);
+  border-color: var(--nm-border-accent);
+}
+
+.nm-icon-circle--glow:hover {
+  box-shadow:
+    4px 4px 10px var(--nm-shadow-dark),
+    -4px -4px 10px var(--nm-shadow-light),
+    0 0 28px var(--nm-accent-glow),
+    0 0 52px var(--nm-accent-glow-lg);
+}
+
+/* Accent sólido */
+.nm-icon-circle--accent {
+  background: var(--nm-gradient-accent);
+  color: #fff;
+  border-color: transparent;
+  box-shadow:
+    4px 4px 10px var(--nm-shadow-dark),
+    -3px -3px 8px var(--nm-shadow-light),
+    0 0 16px var(--nm-accent-glow);
+}
+
+/* Danger */
+.nm-icon-circle--danger {
+  color: var(--nm-danger);
+  border-color: rgba(255,107,122,0.3);
+  background: rgba(255,107,122,0.08);
+}
+
+/* Success */
+.nm-icon-circle--success {
+  color: var(--nm-success);
+  border-color: rgba(0,229,200,0.3);
+  background: rgba(0,229,200,0.08);
+}
+
+/* Tamanhos icon-circle */
+.nm-icon-circle--sm { width: 2rem; height: 2rem; }
+.nm-icon-circle--lg { width: 3.5rem; height: 3.5rem; }
+.nm-icon-circle--xl { width: 5rem; height: 5rem; }
+
+/* Inner double-ring como na imagem referência */
+.nm-icon-circle--double {
+  position: relative;
+}
+
+.nm-icon-circle--double::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--nm-border-accent);
+  opacity: 0.5;
+}
+
+.nm-icon-circle--double.nm-icon-circle--glow::before {
+  box-shadow: inset 0 0 8px var(--nm-accent-glow);
+  opacity: 1;
+}
